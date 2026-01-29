@@ -26,52 +26,75 @@ cd your-project
 dotcontext init
 ```
 
-This creates the context structure and downloads templates. You'll be prompted for a project name.
+This creates the context structure and downloads templates.
 
 **Options:**
 ```bash
 dotcontext init --name "My Project"  # Set project name
 dotcontext init --yes                # Skip prompts, use defaults
-dotcontext init -n "My App" -y       # Combine options
 ```
 
 ### Add context files
 
-After initializing, add new context files as your project evolves:
+```bash
+dotcontext add decision    # Architectural Decision Record
+dotcontext add skill       # Step-by-step guide
+dotcontext add prp         # Feature planning doc
+dotcontext add command     # Claude Code slash command
+```
+
+### Update CLI
 
 ```bash
-# Add an Architectural Decision Record
-dotcontext add decision
-
-# Add a skill guide
-dotcontext add skill
-
-# Add a Product Requirements Prompt
-dotcontext add prp
-
-# Add a Claude Code slash command
-dotcontext add command
+dotcontext update              # Update CLI to latest version
 ```
+
+### Update templates
+
+When new templates or commands are added to dotcontext, update your project:
+
+```bash
+dotcontext update --templates          # Add new files only
+dotcontext update --templates --force  # Overwrite existing files
+```
+
+This is **safe by default**:
+- Only adds NEW files
+- Never overwrites your existing content
+- Use `--force` only if you want to reset templates
 
 ### Run the setup command
 
-After initialization, open Claude Code and run:
+After initialization, open Claude Code:
 
 ```bash
 claude
 > /setup-context
 ```
 
-This analyzes your codebase and fills in the context files automatically.
+## Decision Compliance
+
+The generated `CLAUDE.md` includes instructions for AI assistants to **respect architectural decisions**.
+
+When you ask Claude Code to make a change that conflicts with an existing ADR, it will:
+
+1. **Stop and inform you** which decision(s) would be affected
+2. **Ask explicitly** if you want to:
+   - Proceed and update the decision
+   - Modify the approach to comply
+   - Cancel the change
+3. **If updating**, create a versioned ADR (marking old one as `Superseded`)
+
+This ensures your architectural decisions stay synchronized with your code.
 
 ## What It Creates
 
 ```
 your-project/
-├── CLAUDE.md                    # Quick reference for AI
+├── CLAUDE.md                    # Quick reference + decision compliance rules
 ├── .context/
 │   ├── CONTEXT.md               # Domain knowledge
-│   ├── decisions/               # ADRs
+│   ├── decisions/               # ADRs (versioned)
 │   ├── skills/                  # Step-by-step guides
 │   ├── examples/                # Reference code
 │   └── prp/                     # Feature planning docs
@@ -90,6 +113,8 @@ your-project/
 | `dotcontext add skill` | Create a skill guide |
 | `dotcontext add prp` | Create a feature planning doc |
 | `dotcontext add command` | Create a Claude Code slash command |
+| `dotcontext update` | Update CLI to latest version |
+| `dotcontext update --templates` | Add new templates to project |
 | `dotcontext --help` | Show help |
 | `dotcontext --version` | Show version |
 
@@ -112,21 +137,10 @@ Performs structured code review checking:
 - Code quality and patterns
 - Test coverage
 
-## File Purposes
-
-| File | Purpose |
-|------|---------|
-| `CLAUDE.md` | Quick reference: stack, commands, critical rules |
-| `.context/CONTEXT.md` | Domain: entities, flows, glossary |
-| `.context/decisions/` | Why architectural choices were made |
-| `.context/skills/` | How to do specific tasks |
-| `.context/examples/` | Reference implementations |
-| `.context/prp/` | Feature planning documents |
-
 ## Requirements
 
 - Bash 3.2+
-- `curl` or `wget` (for `init` command)
+- `curl` or `wget`
 
 ## Uninstall
 

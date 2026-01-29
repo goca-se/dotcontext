@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -379,6 +379,141 @@ EOF
   print_gray "Use in Claude Code with: /${slug}"
 }
 
+# Command: update
+cmd_update() {
+  local update_templates=false
+  local force=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --templates) update_templates=true; shift ;;
+      --force) force=true; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  if [ "$update_templates" = true ]; then
+    cmd_update_templates "$force"
+  else
+    cmd_update_cli
+  fi
+}
+
+cmd_update_cli() {
+  print_blue "Checking for updates..."
+
+  # Get latest version from GitHub
+  local latest_version
+  if command -v curl &> /dev/null; then
+    latest_version=$(curl -sSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+  else
+    latest_version=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+  fi
+
+  if [ -z "$latest_version" ]; then
+    print_yellow "Could not check latest version. Updating anyway..."
+    latest_version="unknown"
+  else
+    if [ "$VERSION" = "$latest_version" ]; then
+      print_green "✅ Already at latest version ($VERSION)"
+      return 0
+    fi
+    print_gray "Current: $VERSION → Latest: $latest_version"
+  fi
+
+  # Find installation path
+  local install_path=$(command -v dotcontext)
+  if [ -z "$install_path" ]; then
+    install_path="/usr/local/bin/dotcontext"
+  fi
+
+  print_gray "Downloading latest version..."
+
+  local tmp_file=$(mktemp)
+  download "${BASE_URL}/dotcontext" "$tmp_file"
+
+  # Verify download
+  if [ ! -s "$tmp_file" ] || ! head -1 "$tmp_file" | grep -q "^#!/bin/bash"; then
+    print_red "Error: Download failed"
+    rm -f "$tmp_file"
+    return 1
+  fi
+
+  chmod +x "$tmp_file"
+
+  # Install
+  if [ -w "$(dirname "$install_path")" ]; then
+    mv "$tmp_file" "$install_path"
+  else
+    print_yellow "Need sudo to update $install_path"
+    sudo mv "$tmp_file" "$install_path"
+    sudo chmod +x "$install_path"
+  fi
+
+  print_green "✅ Updated to $latest_version"
+}
+
+cmd_update_templates() {
+  local force="$1"
+
+  if [ ! -d ".context" ]; then
+    print_red "No .context directory. Run \`dotcontext init\` first."
+    return 1
+  fi
+
+  print_blue "Updating templates..."
+  print_gray "(only adding new files, not overwriting existing)"
+
+  local added=0
+  local skipped=0
+
+  # Define template mappings: remote_path -> local_path
+  declare -a templates=(
+    "templates/.context/CONTEXT.md:.context/CONTEXT.md"
+    "templates/.context/decisions/README.md:.context/decisions/README.md"
+    "templates/.context/skills/README.md:.context/skills/README.md"
+    "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
+    "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
+    "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
+  )
+
+  for mapping in "${templates[@]}"; do
+    local remote_path="${mapping%%:*}"
+    local local_path="${mapping##*:}"
+    local dir_path=$(dirname "$local_path")
+
+    mkdir -p "$dir_path"
+
+    if [ -f "$local_path" ] && [ "$force" != "true" ]; then
+      print_gray "  skip: $local_path (exists)"
+      ((skipped++))
+    else
+      if download "${BASE_URL}/${remote_path}" "$local_path" 2>/dev/null; then
+        print_green "  added: $local_path"
+        ((added++))
+      else
+        print_red "  failed: $local_path"
+      fi
+    fi
+  done
+
+  # Check for new commands (future-proofing)
+  # This fetches a manifest of available commands if we add more later
+
+  echo ""
+  if [ $added -gt 0 ]; then
+    print_green "✅ Added $added new file(s)"
+  fi
+  if [ $skipped -gt 0 ]; then
+    print_gray "Skipped $skipped existing file(s)"
+  fi
+
+  if [ "$force" != "true" ]; then
+    echo ""
+    print_gray "Use --force to overwrite existing files"
+  fi
+}
+
 # Command: help
 cmd_help() {
   cat << 'EOF'
@@ -390,6 +525,8 @@ Usage:
 Commands:
   init                Initialize .context structure in current directory
   add <type>          Add a new context file
+  update              Update dotcontext CLI to latest version
+  update --templates  Add new templates (won't overwrite existing)
 
 Types for 'add':
   decision            Create a new Architectural Decision Record (ADR)
@@ -405,11 +542,16 @@ Init Options:
   --name, -n <name>   Project name
   --yes, -y           Skip prompts and use defaults
 
+Update Options:
+  --templates         Update templates in current project
+  --force             Overwrite existing files (use with --templates)
+
 Examples:
   dotcontext init
   dotcontext init --name "My Project"
   dotcontext add decision
-  dotcontext add skill
+  dotcontext update
+  dotcontext update --templates
 EOF
 }
 
@@ -426,6 +568,7 @@ case "${1:-}" in
       *) print_red "Unknown type: $2"; exit 1 ;;
     esac
     ;;
+  update) shift; cmd_update "$@" ;;
   --version|-v) echo "dotcontext $VERSION" ;;
   --help|-h|"") cmd_help ;;
   *) print_red "Unknown command: $1"; exit 1 ;;
