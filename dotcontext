@@ -1,0 +1,432 @@
+#!/bin/bash
+set -e
+
+VERSION="0.1.0"
+REPO="goca-se/dotcontext"
+BRANCH="main"
+BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+GRAY='\033[0;90m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Helper functions
+print_green() { printf "${GREEN}%s${NC}\n" "$1"; }
+print_red() { printf "${RED}%s${NC}\n" "$1"; }
+print_yellow() { printf "${YELLOW}%s${NC}\n" "$1"; }
+print_blue() { printf "${BLUE}%s${NC}\n" "$1"; }
+print_gray() { printf "${GRAY}%s${NC}\n" "$1"; }
+print_cyan() { printf "${CYAN}%s${NC}\n" "$1"; }
+
+slugify() {
+  echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//'
+}
+
+prompt() {
+  local message="$1"
+  local default="$2"
+  local result
+  if [ -n "$default" ]; then
+    printf "%s [%s]: " "$message" "$default" >&2
+    read -r result
+    echo "${result:-$default}"
+  else
+    printf "%s: " "$message" >&2
+    read -r result
+    echo "$result"
+  fi
+}
+
+confirm() {
+  local message="$1"
+  local answer
+  printf "%s [y/N]: " "$message"
+  read -r answer
+  [[ "$answer" =~ ^[Yy] ]]
+}
+
+download() {
+  local url="$1"
+  local target="$2"
+  if command -v curl &> /dev/null; then
+    curl -sSL "$url" -o "$target"
+  elif command -v wget &> /dev/null; then
+    wget -q "$url" -O "$target"
+  else
+    print_red "Error: curl or wget required"
+    exit 1
+  fi
+}
+
+get_next_adr_number() {
+  local decisions_dir="$1"
+  local max_num=0
+  local file
+  local num
+
+  shopt -s nullglob 2>/dev/null || true
+  for file in "$decisions_dir"/[0-9][0-9][0-9]-*.md; do
+    if [ -f "$file" ]; then
+      num=$(basename "$file" | cut -c1-3 | sed 's/^0*//')
+      if [ -n "$num" ] && [ "$num" -gt "$max_num" ]; then
+        max_num=$num
+      fi
+    fi
+  done
+  shopt -u nullglob 2>/dev/null || true
+
+  echo $((max_num + 1))
+}
+
+# Command: init
+cmd_init() {
+  local project_name=""
+  local skip_prompts=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -n|--name) project_name="$2"; shift 2 ;;
+      -y|--yes) skip_prompts=true; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  print_blue ""
+  printf "${BLUE}📁 dotcontext - AI Context Scaffolding${NC}\n\n"
+
+  local cwd="$(pwd)"
+
+  if [ -d ".context" ]; then
+    if [ "$skip_prompts" = false ]; then
+      if ! confirm ".context already exists. Overwrite?"; then
+        print_yellow "Aborted."
+        return
+      fi
+    fi
+  fi
+
+  if [ -z "$project_name" ]; then
+    if [ "$skip_prompts" = false ]; then
+      project_name=$(prompt "Project name" "$(basename "$cwd")")
+    else
+      project_name="$(basename "$cwd")"
+    fi
+  fi
+
+  print_gray "Creating structure..."
+
+  # Create directories
+  mkdir -p ".context/decisions"
+  mkdir -p ".context/skills"
+  mkdir -p ".context/examples"
+  mkdir -p ".context/prp/templates"
+  mkdir -p ".context/prp/generated"
+  mkdir -p ".claude/commands"
+
+  # Download templates
+  print_gray "Downloading templates..."
+  download "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
+  download "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
+  download "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
+  download "${BASE_URL}/templates/.context/skills/README.md" ".context/skills/README.md"
+  download "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
+  download "${BASE_URL}/templates/.claude/commands/setup-context.md" ".claude/commands/setup-context.md"
+  download "${BASE_URL}/templates/.claude/commands/code-review.md" ".claude/commands/code-review.md"
+  touch ".context/examples/.keep"
+  touch ".context/prp/generated/.keep"
+
+  # Substitute project name
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s/{{projectName}}/$project_name/g" "CLAUDE.md"
+  else
+    sed -i "s/{{projectName}}/$project_name/g" "CLAUDE.md"
+  fi
+
+  print_green ""
+  printf "${GREEN}✅ Context structure created!${NC}\n\n"
+
+  printf "Files created:\n"
+  print_gray "  CLAUDE.md"
+  print_gray "  .context/"
+  print_gray "    ├── CONTEXT.md"
+  print_gray "    ├── decisions/"
+  print_gray "    ├── skills/"
+  print_gray "    ├── examples/"
+  print_gray "    └── prp/"
+  print_gray "  .claude/"
+  print_gray "    └── commands/"
+  print_gray "        ├── setup-context.md"
+  print_gray "        └── code-review.md"
+
+  print_blue ""
+  printf "${BLUE}🚀 Next step:${NC}\n\n"
+  printf "  1. Open Claude Code:\n"
+  print_cyan "     \$ claude"
+  printf "\n  2. Run the setup command:\n"
+  print_cyan "     > /setup-context"
+  printf "\n"
+  print_gray "  This will analyze your project and fill in the context files."
+  printf "\n"
+}
+
+# Command: add decision
+cmd_add_decision() {
+  local decisions_dir=".context/decisions"
+
+  if [ ! -d "$decisions_dir" ]; then
+    print_red "No .context/decisions directory. Run \`dotcontext init\` first."
+    return 1
+  fi
+
+  local title
+  title=$(prompt "Decision title" "")
+
+  if [ -z "$title" ]; then
+    print_red "Title is required"
+    return 1
+  fi
+
+  local next_num=$(get_next_adr_number "$decisions_dir")
+  local padded_num=$(printf "%03d" $next_num)
+  local slug=$(slugify "$title")
+  local filename="${padded_num}-${slug}.md"
+  local filepath="${decisions_dir}/${filename}"
+  local today=$(date +%Y-%m-%d)
+
+  cat > "$filepath" << EOF
+# ADR-${padded_num}: ${title}
+
+**Date:** ${today}
+**Status:** Proposed
+
+## Context
+
+[Why was this decision needed?]
+
+## Decision
+
+[What was decided?]
+
+## Consequences
+
+- **Positive:** ...
+- **Negative:** ...
+EOF
+
+  print_green "✅ Created: .context/decisions/${filename}"
+}
+
+# Command: add skill
+cmd_add_skill() {
+  local skills_dir=".context/skills"
+
+  if [ ! -d "$skills_dir" ]; then
+    print_red "No .context/skills directory. Run \`dotcontext init\` first."
+    return 1
+  fi
+
+  local name
+  name=$(prompt "Skill name (e.g., \"testing\", \"api-design\")" "")
+
+  if [ -z "$name" ]; then
+    print_red "Name is required"
+    return 1
+  fi
+
+  local slug=$(slugify "$name")
+  local skill_dir="${skills_dir}/${slug}"
+  mkdir -p "$skill_dir"
+
+  cat > "${skill_dir}/SKILL.md" << 'EOF'
+# Skill: NAME_PLACEHOLDER
+
+## When to Use
+
+- [Situation 1]
+- [Situation 2]
+
+## Step by Step
+
+### 1. [First Step]
+
+```bash
+# commands or code
+```
+
+### 2. [Second Step]
+
+```bash
+# commands or code
+```
+
+## Anti-Patterns
+
+❌ **Don't:**
+- [Bad practice 1]
+- [Bad practice 2]
+
+✅ **Do:**
+- [Good practice 1]
+- [Good practice 2]
+
+## Examples
+
+```
+# Example from this codebase
+```
+EOF
+
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s/NAME_PLACEHOLDER/$name/g" "${skill_dir}/SKILL.md"
+  else
+    sed -i "s/NAME_PLACEHOLDER/$name/g" "${skill_dir}/SKILL.md"
+  fi
+
+  print_green "✅ Created: .context/skills/${slug}/SKILL.md"
+}
+
+# Command: add prp
+cmd_add_prp() {
+  local prp_dir=".context/prp/generated"
+  local template_path=".context/prp/templates/feature.md"
+
+  if [ ! -d "$prp_dir" ]; then
+    print_red "No .context/prp directory. Run \`dotcontext init\` first."
+    return 1
+  fi
+
+  local name
+  name=$(prompt "Feature name" "")
+
+  if [ -z "$name" ]; then
+    print_red "Name is required"
+    return 1
+  fi
+
+  local slug=$(slugify "$name")
+  local date_prefix=$(date +%Y%m%d)
+  local today=$(date +%Y-%m-%d)
+  local filename="${date_prefix}-${slug}.md"
+  local filepath="${prp_dir}/${filename}"
+
+  if [ -f "$template_path" ]; then
+    sed -e "s/\[Nome da Feature\]/${name}/g" -e "s/YYYY-MM-DD/${today}/g" "$template_path" > "$filepath"
+  else
+    print_red "Template not found: $template_path"
+    return 1
+  fi
+
+  print_green "✅ Created: .context/prp/generated/${filename}"
+}
+
+# Command: add command
+cmd_add_command() {
+  local commands_dir=".claude/commands"
+  mkdir -p "$commands_dir"
+
+  local name
+  name=$(prompt "Command name (e.g., \"review\", \"deploy\")" "")
+
+  if [ -z "$name" ]; then
+    print_red "Name is required"
+    return 1
+  fi
+
+  local slug=$(slugify "$name")
+  local filename="${slug}.md"
+  local filepath="${commands_dir}/${filename}"
+
+  if [ -f "$filepath" ]; then
+    if ! confirm "Command \"${slug}\" already exists. Overwrite?"; then
+      print_yellow "Aborted."
+      return
+    fi
+  fi
+
+  local capitalized_name="$(echo "${name:0:1}" | tr '[:lower:]' '[:upper:]')${name:1}"
+
+  cat > "$filepath" << EOF
+# ${capitalized_name}
+
+[Brief description of what this command does]
+
+## Instructions
+
+[Detailed instructions for the AI assistant]
+
+## Tasks
+
+### 1. [First Task]
+
+[What to do]
+
+### 2. [Second Task]
+
+[What to do]
+
+## Output
+
+[Expected output format or behavior]
+EOF
+
+  print_green "✅ Created: .claude/commands/${filename}"
+  print_gray ""
+  print_gray "Use in Claude Code with: /${slug}"
+}
+
+# Command: help
+cmd_help() {
+  cat << 'EOF'
+dotcontext - Scaffold AI context structure for your codebase
+
+Usage:
+  dotcontext <command> [options]
+
+Commands:
+  init                Initialize .context structure in current directory
+  add <type>          Add a new context file
+
+Types for 'add':
+  decision            Create a new Architectural Decision Record (ADR)
+  skill               Create a new skill guide
+  prp                 Create a new Product Requirements Prompt
+  command             Create a new Claude Code slash command
+
+Options:
+  --help, -h          Show this help message
+  --version, -v       Show version number
+
+Init Options:
+  --name, -n <name>   Project name
+  --yes, -y           Skip prompts and use defaults
+
+Examples:
+  dotcontext init
+  dotcontext init --name "My Project"
+  dotcontext add decision
+  dotcontext add skill
+EOF
+}
+
+# Main routing
+case "${1:-}" in
+  init) shift; cmd_init "$@" ;;
+  add)
+    case "${2:-}" in
+      decision|adr) cmd_add_decision ;;
+      skill) cmd_add_skill ;;
+      prp) cmd_add_prp ;;
+      command) cmd_add_command ;;
+      "") print_red "Missing type. Available: decision, skill, prp, command"; exit 1 ;;
+      *) print_red "Unknown type: $2"; exit 1 ;;
+    esac
+    ;;
+  --version|-v) echo "dotcontext $VERSION" ;;
+  --help|-h|"") cmd_help ;;
+  *) print_red "Unknown command: $1"; exit 1 ;;
+esac
