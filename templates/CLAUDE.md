@@ -2,6 +2,21 @@
 
 > [Project description - one line]
 
+## Decision Compliance
+
+**IMPORTANT:** Before implementing any change, check `.context/decisions/` for related ADRs.
+
+If a requested change conflicts with an existing decision:
+1. **Stop and inform the user** which ADR(s) would be affected
+2. **Ask explicitly** if they want to:
+   - Proceed and update the decision
+   - Modify the approach to comply with existing decision
+   - Cancel the change
+3. **If updating a decision**, create a new version:
+   - Change status to `Superseded by ADR-XXX`
+   - Create new ADR with updated decision
+   - Reference the previous ADR
+
 ## Stack
 
 - [Language and version]
