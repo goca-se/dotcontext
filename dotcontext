@@ -402,12 +402,28 @@ cmd_update() {
 cmd_update_cli() {
   print_blue "Checking for updates..."
 
-  # Get latest version from GitHub
+  # Get latest version from GitHub (try releases first, then tags)
   local latest_version
+  local api_response
+
   if command -v curl &> /dev/null; then
-    latest_version=$(curl -sSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    # Try releases API first
+    api_response=$(curl -sSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null)
+    latest_version=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+
+    # If no release found, try tags
+    if [ -z "$latest_version" ]; then
+      api_response=$(curl -sSL "https://api.github.com/repos/${REPO}/tags" 2>/dev/null)
+      latest_version=$(echo "$api_response" | grep '"name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    fi
   else
-    latest_version=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    api_response=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null)
+    latest_version=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+
+    if [ -z "$latest_version" ]; then
+      api_response=$(wget -qO- "https://api.github.com/repos/${REPO}/tags" 2>/dev/null)
+      latest_version=$(echo "$api_response" | grep '"name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    fi
   fi
 
   if [ -z "$latest_version" ]; then
