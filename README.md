@@ -98,10 +98,14 @@ your-project/
 │   ├── skills/                  # Step-by-step guides
 │   ├── examples/                # Reference code
 │   └── prp/                     # Feature planning docs
+│       ├── templates/
+│       └── generated/
 └── .claude/
     └── commands/
         ├── setup-context.md     # Auto-setup command
-        └── code-review.md       # Code review command
+        ├── code-review.md       # Code review command
+        ├── generate-prp.md      # Generate feature PRPs
+        └── execute-prp.md       # Execute PRPs step-by-step
 ```
 
 ## Commands Reference
@@ -136,6 +140,33 @@ Performs structured code review checking:
 - Performance issues
 - Code quality and patterns
 - Test coverage
+
+### `/generate-prp <feature description>`
+
+Generates a Product Requirements Prompt for a new feature:
+- Analyzes codebase patterns
+- Consults existing skills and decisions
+- Creates structured implementation plan
+- Saves to `.context/prp/generated/`
+
+Example:
+```
+> /generate-prp user authentication with OAuth
+```
+
+### `/execute-prp <prp-name>`
+
+Executes an existing PRP step-by-step:
+- Reads the full PRP
+- Checks prerequisites
+- Implements in defined order
+- Validates each phase (tests, linting)
+- Stops on errors, fixes before continuing
+
+Example:
+```
+> /execute-prp 20260129-user-auth
+```
 
 ## Requirements
 
