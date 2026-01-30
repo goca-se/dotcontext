@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.2.0"
+VERSION="0.3.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -137,6 +137,8 @@ cmd_init() {
   download "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
   download "${BASE_URL}/templates/.claude/commands/setup-context.md" ".claude/commands/setup-context.md"
   download "${BASE_URL}/templates/.claude/commands/code-review.md" ".claude/commands/code-review.md"
+  download "${BASE_URL}/templates/.claude/commands/generate-prp.md" ".claude/commands/generate-prp.md"
+  download "${BASE_URL}/templates/.claude/commands/execute-prp.md" ".claude/commands/execute-prp.md"
   touch ".context/examples/.keep"
   touch ".context/prp/generated/.keep"
 
@@ -161,7 +163,9 @@ cmd_init() {
   print_gray "  .claude/"
   print_gray "    └── commands/"
   print_gray "        ├── setup-context.md"
-  print_gray "        └── code-review.md"
+  print_gray "        ├── code-review.md"
+  print_gray "        ├── generate-prp.md"
+  print_gray "        └── execute-prp.md"
 
   print_blue ""
   printf "${BLUE}🚀 Next step:${NC}\n\n"
@@ -491,6 +495,8 @@ cmd_update_templates() {
     "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
     "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
+    "templates/.claude/commands/generate-prp.md:.claude/commands/generate-prp.md"
+    "templates/.claude/commands/execute-prp.md:.claude/commands/execute-prp.md"
   )
 
   for mapping in "${templates[@]}"; do
