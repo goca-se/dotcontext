@@ -1,8 +1,23 @@
-# dotcontext
+<p align="center">
+  <img src="assets/dotcontext.svg" alt="dotcontext logo" width="150">
+</p>
 
-> Scaffold AI context structure for your codebase
+<h1 align="center">dotcontext</h1>
+
+<p align="center">
+  <em>Scaffold AI context structure for your codebase</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/goca-se/dotcontext/releases/latest"><img src="https://img.shields.io/github/v/release/goca-se/dotcontext" alt="Release"></a>
+  <a href="https://github.com/goca-se/dotcontext/blob/main/LICENSE"><img src="https://img.shields.io/github/license/goca-se/dotcontext" alt="License"></a>
+</p>
 
 `dotcontext` creates a standardized structure for AI assistants to understand your project. It generates templates and a Claude Code command that automatically analyzes and documents your codebase.
+
+<p align="center">
+  <img src="assets/demo-quickstart.gif" alt="dotcontext quick start demo" width="700">
+</p>
 
 ## Installation
 
@@ -29,6 +44,7 @@ dotcontext init
 This creates the context structure and downloads templates.
 
 **Options:**
+
 ```bash
 dotcontext init --name "My Project"  # Set project name
 dotcontext init --yes                # Skip prompts, use defaults
@@ -59,6 +75,7 @@ dotcontext update --templates --force  # Overwrite existing files
 ```
 
 This is **safe by default**:
+
 - Only adds NEW files
 - Never overwrites your existing content
 - Use `--force` only if you want to reset templates
@@ -71,6 +88,13 @@ After initialization, open Claude Code:
 claude
 > /setup-context
 ```
+
+<details>
+<summary>See it in action</summary>
+
+<img src="assets/demo-setup-context.gif" alt="setup-context demo" width="600">
+
+</details>
 
 ## Decision Compliance
 
@@ -110,23 +134,24 @@ your-project/
 
 ## Commands Reference
 
-| Command | Description |
-|---------|-------------|
-| `dotcontext init` | Initialize context structure |
-| `dotcontext add decision` | Create an ADR (auto-numbered) |
-| `dotcontext add skill` | Create a skill guide |
-| `dotcontext add prp` | Create a feature planning doc |
-| `dotcontext add command` | Create a Claude Code slash command |
-| `dotcontext update` | Update CLI to latest version |
-| `dotcontext update --templates` | Add new templates to project |
-| `dotcontext --help` | Show help |
-| `dotcontext --version` | Show version |
+| Command                         | Description                        |
+| ------------------------------- | ---------------------------------- |
+| `dotcontext init`               | Initialize context structure       |
+| `dotcontext add decision`       | Create an ADR (auto-numbered)      |
+| `dotcontext add skill`          | Create a skill guide               |
+| `dotcontext add prp`            | Create a feature planning doc      |
+| `dotcontext add command`        | Create a Claude Code slash command |
+| `dotcontext update`             | Update CLI to latest version       |
+| `dotcontext update --templates` | Add new templates to project       |
+| `dotcontext --help`             | Show help                          |
+| `dotcontext --version`          | Show version                       |
 
 ## Built-in Slash Commands
 
 ### `/setup-context`
 
 Analyzes your codebase and populates context files:
+
 - Fills `CLAUDE.md` with stack, commands, rules
 - Documents domain in `.context/CONTEXT.md`
 - Creates ADRs for existing architectural decisions
@@ -135,6 +160,7 @@ Analyzes your codebase and populates context files:
 ### `/code-review`
 
 Performs structured code review checking:
+
 - Correctness and edge cases
 - Security vulnerabilities
 - Performance issues
@@ -144,19 +170,29 @@ Performs structured code review checking:
 ### `/generate-prp <feature description>`
 
 Generates a Product Requirements Prompt for a new feature:
+
 - Analyzes codebase patterns
 - Consults existing skills and decisions
 - Creates structured implementation plan
 - Saves to `.context/prp/generated/`
 
 Example:
+
 ```
 > /generate-prp user authentication with OAuth
 ```
 
+<details>
+<summary>See it in action</summary>
+
+<img src="assets/demo-generate-prp.gif" alt="generate-prp demo" width="600">
+
+</details>
+
 ### `/execute-prp <prp-name>`
 
 Executes an existing PRP step-by-step:
+
 - Reads the full PRP
 - Checks prerequisites
 - Implements in defined order
@@ -164,9 +200,17 @@ Executes an existing PRP step-by-step:
 - Stops on errors, fixes before continuing
 
 Example:
+
 ```
 > /execute-prp 20260129-user-auth
 ```
+
+<details>
+<summary>See it in action</summary>
+
+<img src="assets/demo-execute-prp.gif" alt="execute-prp demo" width="600">
+
+</details>
 
 ## Requirements
 
