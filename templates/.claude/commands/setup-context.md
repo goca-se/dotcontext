@@ -11,7 +11,7 @@ You are setting up context documentation for AI assistants working on this codeb
 - Use actual code examples from the codebase
 - Keep content concise - too much context is counterproductive
 - Preserve any content the user has already written
-- Ask clarifying questions if the project's purpose is unclear
+- **Use AskUserQuestion tool** to clarify any ambiguity before proceeding
 
 ## Tasks
 

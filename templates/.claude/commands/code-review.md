@@ -12,6 +12,7 @@ You are performing a code review. Analyze the changes thoroughly and provide con
 - Suggest concrete improvements, not vague criticisms
 - Acknowledge good patterns when you see them
 - Prioritize issues by severity (critical > major > minor > nit)
+- **Use AskUserQuestion tool** if you need clarification about requirements or context
 
 ## Review Checklist
 

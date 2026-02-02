@@ -18,10 +18,23 @@ Use today's date and a URL-friendly slug of the feature name.
 
 ## Before Generating
 
-Ask the user to clarify if needed:
-- What problem is being solved?
-- Who are the affected users?
-- Any constraints or non-negotiables?
+**MANDATORY: Create and ask 10 clarifying questions using AskUserQuestion tool.**
+
+Before writing any PRP, generate 10 unique questions specific to the feature being requested. These questions must be created fresh for each PRP - do not use a fixed list.
+
+Your questions should explore:
+- The problem and its context
+- Long-term implications and scalability
+- Performance considerations
+- How this feature will interact with other parts of the system
+- What the end result should look like
+- Any other aspects that need clarification
+
+Think deeply about what information you need to write a comprehensive PRP. The questions should be tailored to the specific feature, the project's domain, and the existing codebase patterns.
+
+Use AskUserQuestion tool with batches of 3-4 questions at a time until all 10 are answered.
+
+**Do NOT skip this step. Do NOT proceed without answers.**
 
 ## Checklist
 
