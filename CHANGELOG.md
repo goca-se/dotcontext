@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/goca-se/dotcontext/compare/v0.5.0...v0.6.0) (2026-02-02)
+
+### Features
+
+* add native OS notifications (macOS, Linux, Windows/WSL)
+* add `/dotcontext-add-decision` slash command for interactive ADR creation
+* add `/dotcontext-add-skill` slash command for interactive skill creation
+* add `/dotcontext-add-command` slash command for custom command creation
+* auto-configure notification hooks on `dotcontext init`
+
+### Changes
+
+* remove release-please automation (manual versioning)
+
 ## [0.5.0](https://github.com/goca-se/dotcontext/compare/v0.4.0...v0.5.0) (2026-02-02)
 
 ### Features
