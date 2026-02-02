@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.5.0" # x-release-please-version
+VERSION="0.6.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -83,6 +83,69 @@ get_next_adr_number() {
   echo $((max_num + 1))
 }
 
+# Setup notifications for Claude Code
+setup_notifications() {
+  local claude_dir="$HOME/.claude"
+  local scripts_dir="$claude_dir/scripts"
+  local settings_file="$claude_dir/settings.json"
+  local notify_script="$scripts_dir/notify.sh"
+
+  # Create scripts directory
+  mkdir -p "$scripts_dir"
+
+  # Download and install notify script
+  download "${BASE_URL}/scripts/notify.sh" "$notify_script"
+  chmod +x "$notify_script"
+
+  # Create or update settings.json with hooks
+  if [ ! -f "$settings_file" ]; then
+    cat > "$settings_file" << 'SETTINGS_EOF'
+{
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "command": "~/.claude/scripts/notify.sh 'Claude Code' 'Needs your attention' question"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "command": "~/.claude/scripts/notify.sh 'Claude Code' 'Task completed' success"
+      }
+    ]
+  }
+}
+SETTINGS_EOF
+    print_gray "Notifications configured in ~/.claude/settings.json"
+  else
+    # Check if hooks already configured
+    if ! grep -q "notify.sh" "$settings_file" 2>/dev/null; then
+      if command -v jq &>/dev/null; then
+        local temp_file=$(mktemp)
+        jq '
+          .hooks.Notification = ((.hooks.Notification // []) + [{
+            "matcher": "",
+            "command": "~/.claude/scripts/notify.sh '\''Claude Code'\'' '\''Needs your attention'\'' question"
+          }] | unique_by(.command)) |
+          .hooks.Stop = ((.hooks.Stop // []) + [{
+            "matcher": "",
+            "command": "~/.claude/scripts/notify.sh '\''Claude Code'\'' '\''Task completed'\'' success"
+          }] | unique_by(.command))
+        ' "$settings_file" > "$temp_file" 2>/dev/null
+        if [ $? -eq 0 ] && [ -s "$temp_file" ]; then
+          mv "$temp_file" "$settings_file"
+          print_gray "Notification hooks added to ~/.claude/settings.json"
+        else
+          rm -f "$temp_file"
+        fi
+      else
+        print_yellow "Install jq to auto-configure notification hooks, or add manually"
+      fi
+    fi
+  fi
+}
+
 # Command: init
 cmd_init() {
   local project_name=""
@@ -139,8 +202,14 @@ cmd_init() {
   download "${BASE_URL}/templates/.claude/commands/code-review.md" ".claude/commands/code-review.md"
   download "${BASE_URL}/templates/.claude/commands/generate-prp.md" ".claude/commands/generate-prp.md"
   download "${BASE_URL}/templates/.claude/commands/execute-prp.md" ".claude/commands/execute-prp.md"
+  download "${BASE_URL}/templates/.claude/commands/dotcontext-add-decision.md" ".claude/commands/dotcontext-add-decision.md"
+  download "${BASE_URL}/templates/.claude/commands/dotcontext-add-skill.md" ".claude/commands/dotcontext-add-skill.md"
+  download "${BASE_URL}/templates/.claude/commands/dotcontext-add-command.md" ".claude/commands/dotcontext-add-command.md"
   touch ".context/examples/.keep"
   touch ".context/prp/generated/.keep"
+
+  # Setup notifications (optional, don't fail if it doesn't work)
+  setup_notifications 2>/dev/null || true
 
   # Substitute project name
   if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -165,7 +234,10 @@ cmd_init() {
   print_gray "        ├── setup-context.md"
   print_gray "        ├── code-review.md"
   print_gray "        ├── generate-prp.md"
-  print_gray "        └── execute-prp.md"
+  print_gray "        ├── execute-prp.md"
+  print_gray "        ├── dotcontext-add-decision.md"
+  print_gray "        ├── dotcontext-add-skill.md"
+  print_gray "        └── dotcontext-add-command.md"
 
   print_blue ""
   printf "${BLUE}🚀 Next step:${NC}\n\n"
@@ -175,6 +247,15 @@ cmd_init() {
   print_cyan "     > /setup-context"
   printf "\n"
   print_gray "  This will analyze your project and fill in the context files."
+  printf "\n"
+  print_blue "📋 Available commands after setup:\n"
+  print_gray "  /setup-context           - Analyze and populate context"
+  print_gray "  /generate-prp [feature]  - Plan a new feature"
+  print_gray "  /execute-prp [name]      - Implement a planned feature"
+  print_gray "  /code-review             - Review code changes"
+  print_gray "  /dotcontext-add-decision - Add architectural decision"
+  print_gray "  /dotcontext-add-skill    - Add skill guide"
+  print_gray "  /dotcontext-add-command  - Add custom command"
   printf "\n"
 }
 
@@ -497,6 +578,9 @@ cmd_update_templates() {
     "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
     "templates/.claude/commands/generate-prp.md:.claude/commands/generate-prp.md"
     "templates/.claude/commands/execute-prp.md:.claude/commands/execute-prp.md"
+    "templates/.claude/commands/dotcontext-add-decision.md:.claude/commands/dotcontext-add-decision.md"
+    "templates/.claude/commands/dotcontext-add-skill.md:.claude/commands/dotcontext-add-skill.md"
+    "templates/.claude/commands/dotcontext-add-command.md:.claude/commands/dotcontext-add-command.md"
   )
 
   for mapping in "${templates[@]}"; do
@@ -546,7 +630,7 @@ Usage:
 
 Commands:
   init                Initialize .context structure in current directory
-  add <type>          Add a new context file
+  add <type>          Add a new context file (template only)
   update              Update dotcontext CLI to latest version
   update --templates  Add new templates (won't overwrite existing)
 
@@ -571,9 +655,17 @@ Update Options:
 Examples:
   dotcontext init
   dotcontext init --name "My Project"
-  dotcontext add decision
   dotcontext update
   dotcontext update --templates
+
+Claude Code Commands (after init):
+  /setup-context              Analyze codebase and populate context
+  /generate-prp [feature]     Plan a new feature with clarifying questions
+  /execute-prp [name]         Implement a planned feature
+  /code-review                Review code changes
+  /dotcontext-add-decision    Add and populate an ADR interactively
+  /dotcontext-add-skill       Add and populate a skill guide
+  /dotcontext-add-command     Create a custom slash command
 EOF
 }
 

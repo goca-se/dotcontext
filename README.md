@@ -126,10 +126,22 @@ your-project/
 │       └── generated/
 └── .claude/
     └── commands/
-        ├── setup-context.md     # Auto-setup command
-        ├── code-review.md       # Code review command
-        ├── generate-prp.md      # Generate feature PRPs
-        └── execute-prp.md       # Execute PRPs step-by-step
+        ├── setup-context.md          # Auto-setup command
+        ├── code-review.md            # Code review command
+        ├── generate-prp.md           # Generate feature PRPs
+        ├── execute-prp.md            # Execute PRPs step-by-step
+        ├── dotcontext-add-decision.md # Add ADR interactively
+        ├── dotcontext-add-skill.md    # Add skill interactively
+        └── dotcontext-add-command.md  # Add custom command
+```
+
+Additionally, `dotcontext init` configures **native OS notifications** in `~/.claude/`:
+
+```
+~/.claude/
+├── scripts/
+│   └── notify.sh          # Cross-platform notification script
+└── settings.json          # Hooks for Notification and Stop events
 ```
 
 ## Commands Reference
@@ -236,6 +248,49 @@ Example:
 <img src="assets/demo-execute-prp.gif" alt="execute-prp demo" width="600">
 
 </details>
+
+### `/dotcontext-add-decision [title]`
+
+Interactively create and populate an Architectural Decision Record:
+
+- Asks clarifying questions about context and alternatives
+- Auto-numbers the ADR (001, 002, ...)
+- Populates with structured content
+- Updates the decisions index
+
+### `/dotcontext-add-skill [name]`
+
+Interactively create and populate a skill guide:
+
+- Analyzes codebase for existing patterns
+- Asks about use cases and anti-patterns
+- Includes real code examples from your project
+- Creates step-by-step documentation
+
+### `/dotcontext-add-command [name]`
+
+Create a custom Claude Code slash command:
+
+- Asks about command purpose and behavior
+- Generates command file with proper structure
+- Immediately available as `/your-command`
+
+## Notifications
+
+`dotcontext init` automatically configures native OS notifications for Claude Code:
+
+| Event | When | Sound (macOS) |
+|-------|------|---------------|
+| **Notification** | Claude needs attention (question, permission) | Purr |
+| **Stop** | Claude finished processing | Funk |
+
+**Supported platforms:**
+
+- **macOS**: Native notifications via `osascript`
+- **Linux**: `notify-send` + `paplay`/`aplay`
+- **Windows/WSL**: PowerShell toast notifications
+
+No additional dependencies required.
 
 ## Requirements
 
