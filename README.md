@@ -155,7 +155,8 @@ Analyzes your codebase and populates context files:
 - Fills `CLAUDE.md` with stack, commands, rules
 - Documents domain in `.context/CONTEXT.md`
 - Creates ADRs for existing architectural decisions
-- Sets up skills for common tasks
+- Sets up skills for recurring patterns
+- Adds example files showing well-structured code
 
 ### `/code-review`
 
@@ -171,10 +172,13 @@ Performs structured code review checking:
 
 Generates a Product Requirements Prompt for a new feature:
 
-- Analyzes codebase patterns
-- Consults existing skills and decisions
-- Creates structured implementation plan
+- **Asks 10 clarifying questions** before generating (mandatory)
+- Analyzes codebase patterns and existing architecture
+- Consults skills and decisions for consistency
+- Creates structured implementation plan with phases
 - Saves to `.context/prp/generated/`
+
+The clarifying questions ensure the PRP captures the right scope, constraints, and edge cases before any code is written.
 
 Example:
 
@@ -195,14 +199,35 @@ Executes an existing PRP step-by-step:
 
 - Reads the full PRP
 - Checks prerequisites
+- **Offers worktree isolation** for parallel development
 - Implements in defined order
 - Validates each phase (tests, linting)
 - Stops on errors, fixes before continuing
+
+#### Worktree Isolation
+
+Before starting, the command asks if you want to create an isolated git worktree. This allows you to:
+
+- Work on multiple features/fixes simultaneously
+- Switch tasks without stashing or losing context
+- Keep your main workspace clean
+
+Branch types are automatically detected from PRP content:
+
+| Type | Use case |
+|------|----------|
+| `feature/` | New functionality |
+| `bugfix/` | Bug corrections |
+| `hotfix/` | Urgent production fixes |
+| `chore/` | Maintenance, refactoring |
+| `experiment/` | Spikes, POCs |
 
 Example:
 
 ```
 > /execute-prp 20260129-user-auth
+
+# Creates: ../your-project-user-auth (branch: feature/user-auth)
 ```
 
 <details>
