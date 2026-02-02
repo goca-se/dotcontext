@@ -42,9 +42,10 @@ If a requested change conflicts with an existing decision:
 
 ## Critical Rules
 
-1. **[Rule 1]** - [Why it matters]
-2. **[Rule 2]** - [Why it matters]
-3. **[Rule 3]** - [Why it matters]
+1. **Always ask before assuming** - When there is ambiguity, multiple valid approaches, or decisions to be made, use the AskUserQuestion tool to clarify before proceeding. Never assume user intent.
+2. **[Rule 1]** - [Why it matters]
+3. **[Rule 2]** - [Why it matters]
+4. **[Rule 3]** - [Why it matters]
 
 ## Architecture
 
