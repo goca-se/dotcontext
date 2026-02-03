@@ -19,6 +19,62 @@ Execute the PRP specified in $ARGUMENTS.
 - Respect decisions in `.context/decisions/`
 - Check `CLAUDE.md` for critical rules
 
+## Decision Compliance Check
+
+**CRITICAL:** Before and during implementation, check if any changes conflict with existing ADRs in `.context/decisions/`.
+
+### Before each phase:
+1. Read all ADRs in `.context/decisions/`
+2. Identify if any planned changes would violate or modify an existing decision
+
+### If a conflict is detected:
+
+**Use AskUserQuestion tool** with these options:
+
+```
+"This implementation would conflict with ADR-XXX: [title].
+
+The decision states: [brief summary]
+The conflict: [what would change]
+
+How would you like to proceed?"
+
+Options:
+1. "Update the decision" - Proceed and I'll update the ADR with a new version
+2. "Find alternative approach" - Suggest ways to implement without changing the decision
+3. "Keep current decision" - Skip this part of the implementation
+4. "Let Claude decide" - Choose the best approach based on context
+```
+
+### If updating a decision:
+
+1. **Increment the version** in the ADR file:
+```markdown
+**Version:** 1.0 → **Version:** 2.0
+```
+
+2. **Add to History section:**
+```markdown
+## History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2025-01-01 | Initial decision |
+| 2.0 | 2026-02-02 | Updated due to [PRP name]: [what changed] |
+```
+
+3. **If decision is completely replaced**, create new ADR and mark old as Superseded:
+```markdown
+**Status:** Superseded by ADR-XXX
+```
+
+### If finding alternative approach:
+
+Suggest concrete alternatives that:
+- Achieve the PRP goals
+- Don't violate existing decisions
+- May require adjusting the PRP scope
+
 ## Before Starting
 
 **Use AskUserQuestion tool** to confirm:
@@ -68,6 +124,42 @@ When finished, clean up with:
 ```
 
 **If user declines**, proceed normally in the current workspace.
+
+## Progress Tracking
+
+**IMPORTANT:** Update the PRP file as you progress:
+
+### After completing each task:
+Mark the checkbox in the PRP file:
+```markdown
+# Before
+1. [ ] Implement user model
+
+# After
+1. [x] Implement user model
+```
+
+### After completing each phase:
+1. Mark all tasks as `[x]` in that phase
+2. Add completion note below the phase:
+```markdown
+**Validation:** [How to verify this phase is complete]
+
+✅ **Completed:** YYYY-MM-DD - [brief summary of what was done]
+```
+
+### After meeting each success criterion:
+Mark it in the Success Criteria section:
+```markdown
+# Before
+- [ ] Users can log in with email/password
+
+# After
+- [x] Users can log in with email/password
+```
+
+### Update the Status:
+Change `**Status:** Draft` to `**Status:** In Progress` when starting, and `**Status:** Completed` when done.
 
 ## On Each Phase Completion
 

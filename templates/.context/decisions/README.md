@@ -15,8 +15,9 @@ To create a new ADR, use the template below and save as `NNN-title-slug.md`:
 ```markdown
 # ADR-NNN: Title
 
-**Date:** YYYY-MM-DD
 **Status:** Proposed | Accepted | Deprecated | Superseded
+**Date:** YYYY-MM-DD
+**Version:** 1.0
 
 ## Context
 
@@ -30,6 +31,12 @@ To create a new ADR, use the template below and save as `NNN-title-slug.md`:
 
 - **Positive:** ...
 - **Negative:** ...
+
+## History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | YYYY-MM-DD | Initial decision |
 ```
 
 ## Conventions
@@ -42,9 +49,11 @@ To create a new ADR, use the template below and save as `NNN-title-slug.md`:
   - `Deprecated` - Still works but not recommended
   - `Superseded` - Replaced by another ADR (link it)
 
-## CLI
+## Adding Decisions
 
-Add a new decision:
-```bash
-dotcontext add decision
+In Claude Code, use the interactive command:
 ```
+/dotcontext-add-decision
+```
+
+This will ask clarifying questions and populate the ADR with context.
