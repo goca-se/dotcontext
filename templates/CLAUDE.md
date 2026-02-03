@@ -64,4 +64,3 @@ If a requested change conflicts with an existing decision:
 - Domain and architecture → `.context/CONTEXT.md`
 - Architectural decisions → `.context/decisions/`
 - Task-specific skills → `.context/skills/`
-- Code examples → `.context/examples/`

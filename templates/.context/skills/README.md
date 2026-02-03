@@ -50,9 +50,11 @@ skills/
 - [Good practice]
 ```
 
-## CLI
+## Adding Skills
 
-Add a new skill:
-```bash
-dotcontext add skill
+In Claude Code, use the interactive command:
 ```
+/dotcontext-add-skill
+```
+
+This will ask clarifying questions and populate the skill with context.

@@ -2,6 +2,14 @@
 
 > Product Requirements Prompt - Planning document for complex features
 
+<!--
+PROGRESS TRACKING:
+- Mark tasks as [x] when completed
+- Mark success criteria as [x] when verified
+- Update Status below when starting (In Progress) and finishing (Completed)
+- Add "✅ Completed: YYYY-MM-DD" after each phase validation
+-->
+
 ## Summary
 
 [1-2 sentence description of what will be implemented]
@@ -85,6 +93,26 @@
 ```
 [End-to-end scenarios]
 ```
+
+## Decisions
+
+### Impact on Existing Decisions
+
+<!-- Remove if no existing decisions are affected -->
+
+| ADR | Current Decision | Proposed Change | Action |
+|-----|------------------|-----------------|--------|
+| [ADR-XXX] | [current decision] | [what would change] | Update/Supersede/None |
+
+### New Decisions Required
+
+<!-- Remove if no new decisions needed -->
+
+| Decision | Context | Options to Consider |
+|----------|---------|---------------------|
+| [e.g., Auth strategy] | [Why this decision is needed] | [Option A, Option B, Option C] |
+
+**Note:** ADRs for new decisions should be created in Phase 1 before implementation begins.
 
 ## Risks and Mitigations
 

@@ -70,12 +70,6 @@ Look for:
 
 For each, create a skill folder with SKILL.md following the template.
 
-### 6. Add Examples in .context/examples/
-
-If helpful, add 1-2 example files showing:
-- A well-structured component/module in this codebase
-- Common patterns to follow
-
 ## Output
 
 After completing each file, summarize what you created:
