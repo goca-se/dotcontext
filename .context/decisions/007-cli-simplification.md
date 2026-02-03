@@ -10,7 +10,7 @@
 The dotcontext CLI had two ways to add context files:
 
 1. **CLI commands** (`dotcontext add decision/skill/prp/command`) - created empty templates
-2. **Claude Code commands** (`/dotcontext-add-*`) - asked questions and populated with context
+2. **Claude Code commands** (`/add-*`) - asked questions and populated with context
 
 This created redundancy and confusion. Users had to choose between:
 - Fast but empty templates (CLI)

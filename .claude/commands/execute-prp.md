@@ -180,3 +180,12 @@ Run the project's test/lint commands as defined in `CLAUDE.md`.
 3. Fix before continuing
 4. Never accumulate errors
 5. Inform the user what went wrong and what was fixed
+
+## If You Get Stuck
+
+If you cannot make progress after 3 attempts at the same step:
+1. Stop immediately
+2. Explain what you're trying to do and what's blocking you
+3. **Use AskUserQuestion tool** to ask the user how to proceed
+
+Never loop indefinitely. If you find yourself repeating the same actions without progress, stop and ask for help.

@@ -16,7 +16,7 @@ All slash commands must instruct Claude to use the `AskUserQuestion` tool to cla
 Examples:
 - `/generate-prp` asks 10 custom clarifying questions before generating the PRP
 - `/setup-context` asks about unclear architectural patterns
-- `/dotcontext-add-decision` asks about context and alternatives considered
+- `/add-decision` asks about context and alternatives considered
 
 The root `CLAUDE.md` also includes this as Critical Rule #1:
 > "Always ask before assuming - When there is ambiguity, multiple valid approaches, or decisions to be made, use the AskUserQuestion tool to clarify before proceeding."

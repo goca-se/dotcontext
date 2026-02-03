@@ -61,7 +61,7 @@ skills/
 
 In Claude Code, use the interactive command:
 ```
-/dotcontext-add-skill
+/add-skill
 ```
 
 This will ask clarifying questions and populate the skill with context.
