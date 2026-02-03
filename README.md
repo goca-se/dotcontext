@@ -41,22 +41,14 @@ cd your-project
 dotcontext init
 ```
 
-This creates the context structure and downloads templates.
+This creates the context structure, downloads templates, and **automatically opens Claude Code running `/setup-context`** to analyze and populate your project's context files.
 
 **Options:**
 
 ```bash
 dotcontext init --name "My Project"  # Set project name
 dotcontext init --yes                # Skip prompts, use defaults
-```
-
-### Add context files
-
-```bash
-dotcontext add decision    # Architectural Decision Record
-dotcontext add skill       # Step-by-step guide
-dotcontext add prp         # Feature planning doc
-dotcontext add command     # Claude Code slash command
+dotcontext init --no-setup           # Skip automatic /setup-context execution
 ```
 
 ### Update CLI
@@ -82,7 +74,7 @@ This is **safe by default**:
 
 ### Run the setup command
 
-After initialization, open Claude Code:
+The setup command runs automatically after `dotcontext init`. To run it manually (e.g., after code changes):
 
 ```bash
 claude
@@ -120,7 +112,6 @@ your-project/
 │   ├── CONTEXT.md               # Domain knowledge
 │   ├── decisions/               # ADRs (versioned)
 │   ├── skills/                  # Step-by-step guides
-│   ├── examples/                # Reference code
 │   └── prp/                     # Feature planning docs
 │       ├── templates/
 │       └── generated/
@@ -146,17 +137,28 @@ Additionally, `dotcontext init` configures **native OS notifications** in `~/.cl
 
 ## Commands Reference
 
-| Command                         | Description                        |
-| ------------------------------- | ---------------------------------- |
-| `dotcontext init`               | Initialize context structure       |
-| `dotcontext add decision`       | Create an ADR (auto-numbered)      |
-| `dotcontext add skill`          | Create a skill guide               |
-| `dotcontext add prp`            | Create a feature planning doc      |
-| `dotcontext add command`        | Create a Claude Code slash command |
-| `dotcontext update`             | Update CLI to latest version       |
-| `dotcontext update --templates` | Add new templates to project       |
-| `dotcontext --help`             | Show help                          |
-| `dotcontext --version`          | Show version                       |
+### CLI Commands
+
+| Command                         | Description                                    |
+| ------------------------------- | ---------------------------------------------- |
+| `dotcontext init`               | Initialize + auto-run /setup-context           |
+| `dotcontext init --no-setup`    | Initialize without running setup               |
+| `dotcontext update`             | Update CLI to latest version                   |
+| `dotcontext update --templates` | Add new templates to project                   |
+| `dotcontext --help`             | Show help                                      |
+| `dotcontext --version`          | Show version                                   |
+
+### Claude Code Commands
+
+| Command                      | Description                                    |
+| ---------------------------- | ---------------------------------------------- |
+| `/setup-context`             | Analyze codebase and populate context          |
+| `/generate-prp [feature]`    | Plan a new feature with clarifying questions   |
+| `/execute-prp [name]`        | Implement a planned feature                    |
+| `/code-review`               | Review code changes                            |
+| `/dotcontext-add-decision`   | Add and populate an ADR interactively          |
+| `/dotcontext-add-skill`      | Add and populate a skill guide                 |
+| `/dotcontext-add-command`    | Create a custom slash command                  |
 
 ## Built-in Slash Commands
 
