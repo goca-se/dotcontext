@@ -53,7 +53,7 @@ To create a new ADR, use the template below and save as `NNN-title-slug.md`:
 
 In Claude Code, use the interactive command:
 ```
-/dotcontext-add-decision
+/add-decision
 ```
 
 This will ask clarifying questions and populate the ADR with context.

@@ -62,15 +62,31 @@ dotcontext update              # Update CLI to latest version
 When new templates or commands are added to dotcontext, update your project:
 
 ```bash
-dotcontext update --templates          # Add new files only
-dotcontext update --templates --force  # Overwrite existing files
+dotcontext update --templates              # Preview + prompt before updating
+dotcontext update --templates --dry-run    # Preview only, no changes
+dotcontext update --templates --yes        # Update without prompting
 ```
 
-This is **safe by default**:
+**Terraform-style preview:**
 
-- Only adds NEW files
-- Never overwrites your existing content
-- Use `--force` only if you want to reset templates
+```
+Checking templates...
+
+  + .claude/commands/new-command.md (new)
+  ~ .claude/commands/code-review.md (modified)
+  = .context/prp/templates/feature.md (unchanged)
+
+Summary: 1 to add, 1 to update, 1 unchanged
+
+Update 1 existing file(s)? [y/N/d] (y=yes, N=no, d=show diffs)
+```
+
+**Safe by default:**
+
+- Shows exactly what will change before doing anything
+- Default action (`N`) only adds new files, never overwrites
+- Press `d` to see diffs before deciding
+- Never touches user content (`CONTEXT.md`, `CLAUDE.md`, your ADRs/skills)
 
 ### Run the setup command
 
@@ -121,9 +137,11 @@ your-project/
         ├── code-review.md            # Code review command
         ├── generate-prp.md           # Generate feature PRPs
         ├── execute-prp.md            # Execute PRPs step-by-step
-        ├── dotcontext-add-decision.md # Add ADR interactively
-        ├── dotcontext-add-skill.md    # Add skill interactively
-        └── dotcontext-add-command.md  # Add custom command
+        ├── create-pr.md              # Create PRs with diagrams
+        ├── pr-comment.md             # Comment on PRs
+        ├── add-decision.md           # Add ADR interactively
+        ├── add-skill.md              # Add skill interactively
+        └── add-command.md            # Add custom command
 ```
 
 Additionally, `dotcontext init` configures **native OS notifications** in `~/.claude/`:
@@ -139,14 +157,16 @@ Additionally, `dotcontext init` configures **native OS notifications** in `~/.cl
 
 ### CLI Commands
 
-| Command                         | Description                                    |
-| ------------------------------- | ---------------------------------------------- |
-| `dotcontext init`               | Initialize + auto-run /setup-context           |
-| `dotcontext init --no-setup`    | Initialize without running setup               |
-| `dotcontext update`             | Update CLI to latest version                   |
-| `dotcontext update --templates` | Add new templates to project                   |
-| `dotcontext --help`             | Show help                                      |
-| `dotcontext --version`          | Show version                                   |
+| Command                                | Description                                    |
+| -------------------------------------- | ---------------------------------------------- |
+| `dotcontext init`                      | Initialize + auto-run /setup-context           |
+| `dotcontext init --no-setup`           | Initialize without running setup               |
+| `dotcontext update`                    | Update CLI to latest version                   |
+| `dotcontext update --templates`        | Preview and update templates (prompts first)   |
+| `dotcontext update --templates --yes`  | Update templates without prompting             |
+| `dotcontext update --templates --dry-run` | Preview changes only, no modifications      |
+| `dotcontext --help`                    | Show help                                      |
+| `dotcontext --version`                 | Show version                                   |
 
 ### Claude Code Commands
 
@@ -155,10 +175,12 @@ Additionally, `dotcontext init` configures **native OS notifications** in `~/.cl
 | `/setup-context`             | Analyze codebase and populate context          |
 | `/generate-prp [feature]`    | Plan a new feature with clarifying questions   |
 | `/execute-prp [name]`        | Implement a planned feature                    |
-| `/code-review`               | Review code changes                            |
-| `/dotcontext-add-decision`   | Add and populate an ADR interactively          |
-| `/dotcontext-add-skill`      | Add and populate a skill guide                 |
-| `/dotcontext-add-command`    | Create a custom slash command                  |
+| `/code-review [--comment]`   | Multi-agent code review with confidence scoring |
+| `/create-pr`                 | Create PR with auto-detected architecture diagrams |
+| `/pr-comment [PR] [message]` | Add comments to PRs with optional diagrams     |
+| `/add-decision`              | Add and populate an ADR interactively          |
+| `/add-skill`                 | Add and populate a skill guide                 |
+| `/add-command`               | Create a custom slash command                  |
 
 ## Built-in Slash Commands
 
@@ -172,15 +194,36 @@ Analyzes your codebase and populates context files:
 - Sets up skills for recurring patterns
 - Adds example files showing well-structured code
 
-### `/code-review`
+### `/code-review [--comment]`
 
-Performs structured code review checking:
+Multi-agent code review inspired by [Claude Code's official plugin](https://github.com/anthropics/claude-code/tree/main/plugins/code-review):
 
+**Architecture:**
+- Launches **4 parallel agents** for independent analysis:
+  - 2x CLAUDE.md compliance checkers (redundancy)
+  - 1x Bug detector (logic errors, edge cases, type mismatches)
+  - 1x Security & history analyzer (vulnerabilities + git blame patterns)
+- **Confidence scoring** (0-100) filters false positives (threshold ≥80)
+- Automatic context gathering (CLAUDE.md files + PR diff)
+
+**Usage:**
+```bash
+/code-review           # Review to terminal
+/code-review --comment # Post review as PR comment
+```
+
+**Pre-flight checks** (auto-skips):
+- Closed or merged PRs
+- Draft PRs
+- PRs already reviewed by this tool
+- Trivial changes (whitespace only)
+
+**Review categories:**
 - Correctness and edge cases
-- Security vulnerabilities
+- Security vulnerabilities (OWASP top 10)
 - Performance issues
 - Code quality and patterns
-- Test coverage
+- CLAUDE.md rule violations
 
 ### `/generate-prp <feature description>`
 
@@ -251,7 +294,52 @@ Example:
 
 </details>
 
-### `/dotcontext-add-decision [title]`
+### `/create-pr`
+
+Create well-structured pull requests with automatic architecture diagram detection:
+
+- Analyzes all commits since branching from main
+- Generates appropriate PR title and description
+- **Auto-detects architectural changes** and suggests Mermaid diagrams:
+  - New services/components → flowchart
+  - API changes → sequence diagram
+  - Data flow changes → flowchart
+  - Database changes → ER diagram
+- Pushes branch with confirmation if not on remote
+- Respects existing PR templates (`.github/PULL_REQUEST_TEMPLATE.md`)
+
+Example:
+
+```
+> /create-pr
+
+# Analyzes changes, detects new API endpoint
+# Generates PR with sequence diagram showing request flow
+```
+
+### `/pr-comment [PR] [message]`
+
+Add comments to existing pull requests:
+
+- **Comment types:**
+  - General comment - conversation thread
+  - Review comment - formal review
+  - Diagram explanation - architecture with Mermaid
+  - Status update - progress tracking
+
+- Auto-detects PR from current branch if not specified
+- Generates Mermaid diagrams when discussing architecture
+- Integrates with `/code-review` for follow-up
+
+Example:
+
+```
+> /pr-comment add diagram explaining the new auth flow
+> /pr-comment 123 LGTM, tested locally
+> /pr-comment update status - frontend complete
+```
+
+### `/add-decision [title]`
 
 Interactively create and populate an Architectural Decision Record:
 
@@ -260,7 +348,7 @@ Interactively create and populate an Architectural Decision Record:
 - Populates with structured content
 - Updates the decisions index
 
-### `/dotcontext-add-skill [name]`
+### `/add-skill [name]`
 
 Interactively create and populate a skill guide:
 
@@ -269,7 +357,7 @@ Interactively create and populate a skill guide:
 - Includes real code examples from your project
 - Creates step-by-step documentation
 
-### `/dotcontext-add-command [name]`
+### `/add-command [name]`
 
 Create a custom Claude Code slash command:
 

@@ -18,7 +18,7 @@ Commands created:
 - `/generate-prp` - Plan a feature with user questions
 - `/execute-prp` - Implement a planned feature
 - `/code-review` - Structured code review
-- `/dotcontext-add-*` - Interactive helpers for adding context
+- `/add-*` - Interactive helpers for adding context
 
 ## Alternatives Considered
 

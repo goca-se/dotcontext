@@ -110,3 +110,12 @@ Summary:
 
 Ready to execute? Run: /execute-prp [filename]
 ```
+
+## If You Get Stuck
+
+If you cannot make progress after 3 attempts at the same step:
+1. Stop immediately
+2. Explain what you're trying to do and what's blocking you
+3. **Use AskUserQuestion tool** to ask the user how to proceed
+
+Never loop indefinitely. If you find yourself repeating the same actions without progress, stop and ask for help.
