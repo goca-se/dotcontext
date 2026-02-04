@@ -85,6 +85,17 @@ Use AskUserQuestion tool with batches of 3-4 questions at a time until all 10 ar
 
 **Do NOT skip this step. Do NOT proceed without answers.**
 
+## Reference Material Handling
+
+If the user provides or mentions visual references (images, PDFs, designs, layouts):
+
+1. **Read/view the file** using the Read tool to understand the content
+2. **Extract key details** in text form (layout structure, colors, spacing, components, behavior)
+3. **Document the file path** in the Reference Materials section of the PRP
+4. **Add explicit task** in Phase 1: "Review reference materials in Reference Materials section"
+
+**Important:** Visual information cannot be fully captured in text. Always preserve file paths so the executor can consult the original materials.
+
 ## Checklist
 
 Before finishing, confirm:
@@ -96,6 +107,7 @@ Before finishing, confirm:
 - [ ] Each phase has clear validation criteria
 - [ ] Testing strategy included
 - [ ] Risks identified with mitigations
+- [ ] Reference materials documented (if any were provided)
 
 ## After Generating
 

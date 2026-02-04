@@ -77,6 +77,11 @@ Suggest concrete alternatives that:
 
 ## Before Starting
 
+**Check Reference Materials section** in the PRP:
+- If files are listed, **read/view each file** before proceeding
+- If visual references exist (images, PDFs, layouts), consult them to understand the expected result
+- If referenced files are missing or inaccessible, ask the user to provide them
+
 **Use AskUserQuestion tool** to confirm:
 - Which PRP to execute (if $ARGUMENTS is ambiguous)
 - Any phases to skip or focus on

@@ -22,6 +22,7 @@ First, understand:
 - What is the project structure?
 - What does this project do?
 - What are the main entry points?
+- **Does it use Docker?** Check for `docker-compose.yml`, `Dockerfile`, or similar. If yes, commands should be run via Docker (e.g., `docker compose exec <service> <command>`).
 
 ### 2. Fill CLAUDE.md
 
@@ -29,7 +30,7 @@ Update the root `CLAUDE.md` with:
 
 - **Project name and description**: Clear one-liner explaining what this is
 - **Stack**: Language version, framework, database, key dependencies
-- **Commands**: Actual commands from package.json, Makefile, or scripts (dev, test, lint, build)
+- **Commands**: Actual commands from package.json, Makefile, or scripts (dev, test, lint, build). **If Docker is used**, prefix commands with docker compose exec (e.g., `docker compose exec web rails test`)
 - **Critical Rules**: Project-specific rules that must always be followed (discovered from linting configs, existing patterns, or README)
 - **Architecture**: Brief overview of main patterns used
 
