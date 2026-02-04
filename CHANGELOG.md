@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.1](https://github.com/goca-se/dotcontext/compare/v0.8.0...v0.8.1) (2026-02-03)
+
+### Features
+
+* **PRP reference materials** - PRPs now preserve references to visual materials (images, PDFs, layouts):
+  * new "Reference Materials" section in PRP template for documenting visual references
+  * `/generate-prp` instructions to extract and document file paths for visual references
+  * `/execute-prp` checks Reference Materials section before starting implementation
+  * prevents loss of visual context after `/clear`
+
+### Fixes
+
+* **Docker detection** - setup-context and CLAUDE.md template now detect Docker usage:
+  * checks for `docker-compose.yml`, `Dockerfile` in project
+  * instructs agents to use `docker compose exec` prefix for commands when Docker is present
+
 ## [0.8.0](https://github.com/goca-se/dotcontext/compare/v0.7.0...v0.8.0) (2026-02-03)
 
 ### Features

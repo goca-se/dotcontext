@@ -26,6 +26,8 @@ If a requested change conflicts with an existing decision:
 
 ## Commands
 
+**Important:** Check if this project uses Docker (docker-compose.yml, Dockerfile). If so, run commands via Docker (e.g., `docker compose exec app npm test` instead of `npm test`).
+
 ```bash
 # Development
 # [dev command]

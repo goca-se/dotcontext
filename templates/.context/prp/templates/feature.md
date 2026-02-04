@@ -114,6 +114,24 @@ PROGRESS TRACKING:
 
 **Note:** ADRs for new decisions should be created in Phase 1 before implementation begins.
 
+## Reference Materials
+
+<!-- Remove this section if no external references were provided -->
+
+### Visual References
+
+| File | Description | Key Elements |
+|------|-------------|--------------|
+| [path/to/screenshot.png] | [What it shows] | [Critical visual details] |
+
+### Source Documents
+
+| File | Relevant Sections |
+|------|-------------------|
+| [path/to/spec.pdf] | [Pages/sections with key requirements] |
+
+**⚠️ Executor Note:** You MUST read/view these files before implementing. Visual details cannot be fully captured in text.
+
 ## Risks and Mitigations
 
 | Risk | Probability | Impact | Mitigation |

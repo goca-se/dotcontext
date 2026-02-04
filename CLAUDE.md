@@ -49,6 +49,8 @@ dotcontext --version
 /generate-prp [feature]    # Plan a new feature
 /execute-prp [name]        # Implement a planned feature
 /code-review               # Review code changes
+/create-pr                 # Create PR with auto-generated description
+/pr-comment                # Add comment to existing PR
 /add-decision              # Add ADR interactively
 /add-skill                 # Add skill guide interactively
 /add-command               # Create custom command interactively
