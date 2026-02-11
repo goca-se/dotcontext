@@ -172,7 +172,7 @@ cmd_init() {
   done
 
   print_blue ""
-  printf "${BLUE}📁 dotcontext - AI Context Scaffolding${NC}\n\n"
+  printf "${BLUE}📁 dotcontext - AI Context Toolkit${NC}\n\n"
 
   local cwd="$(pwd)"
 
@@ -631,7 +631,7 @@ cmd_update_templates() {
 # Command: help
 cmd_help() {
   cat << 'EOF'
-dotcontext - Scaffold AI context structure for your codebase
+dotcontext - AI context toolkit for Claude Code
 
 Usage:
   dotcontext <command> [options]

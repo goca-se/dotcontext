@@ -5,7 +5,7 @@
 <h1 align="center">dotcontext</h1>
 
 <p align="center">
-  <em>Scaffold AI context structure for your codebase</em>
+  <em>AI context toolkit for Claude Code</em>
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
   <a href="https://github.com/goca-se/dotcontext/blob/main/LICENSE"><img src="https://img.shields.io/github/license/goca-se/dotcontext" alt="License"></a>
 </p>
 
-`dotcontext` creates a standardized structure for AI assistants to understand your project. It generates templates and a Claude Code command that automatically analyzes and documents your codebase.
+`dotcontext` is an AI context toolkit for Claude Code. It provides commands, decisions, skills, and feature planning workflows that help AI assistants understand and work with your codebase.
 
 <details>
 <summary>See it in action</summary>

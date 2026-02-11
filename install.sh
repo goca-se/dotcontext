@@ -114,7 +114,7 @@ VERSION=$(dotcontext --version 2>/dev/null | sed 's/dotcontext //')
 # Welcome screen (side-by-side layout with braille circle)
 echo ""
 printf "  ${BLUE}⠀⠀⣀⣴⣶⣶⣶⣶⣦⣀⠀⠀${NC}      ${BOLD}dotcontext${NC} ${GRAY}v${VERSION}${NC}\n"
-printf "  ${BLUE}⢀⣼⣿⣿⣿⣿⣿⣿⣿⣿⣧⡀${NC}      ${GRAY}AI context scaffolding for your codebase${NC}\n"
+printf "  ${BLUE}⢀⣼⣿⣿⣿⣿⣿⣿⣿⣿⣧⡀${NC}      ${GRAY}AI context toolkit for your codebase${NC}\n"
 printf "  ${BLUE}⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇${NC}\n"
 printf "  ${BLUE}⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇${NC}      ${GREEN}✓${NC} Installed successfully\n"
 printf "  ${BLUE}⠈⢻⣿⣿⣿⣿⣿⣿⣿⣿⡟⠁${NC}      ${GRAY}CLAUDE.md${NC}  ${GRAY}.context/${NC}  ${GRAY}.claude/commands/${NC}\n"

@@ -1,6 +1,6 @@
 # dotcontext
 
-> CLI tool that scaffolds and manages AI context structures for codebases, helping AI assistants understand projects better.
+> AI context toolkit for Claude Code — commands, decisions, skills, and feature planning for your codebase.
 
 ## Decision Compliance
 
@@ -73,7 +73,7 @@ dotcontext --version
 
 The entire CLI is a single `dotcontext` bash script (~700 lines). All commands are implemented as functions within this script, routed via a case statement. This simplifies distribution and installation.
 
-### Template-Based Scaffolding
+### Template-Based Init
 
 Templates live in `templates/` directory on GitHub and are downloaded during `dotcontext init`. The structure mirrors what gets created in user projects:
 - `templates/CLAUDE.md` → project root `CLAUDE.md`
