@@ -32,10 +32,10 @@ If a requested change conflicts with an existing decision:
 # Initialize context structure in a project (auto-runs /setup-context)
 dotcontext init [--name "Project Name"] [--yes] [--no-setup]
 
-# Update CLI or templates
-dotcontext update                     # Update CLI to latest
-dotcontext update --templates         # Add new templates (safe)
-dotcontext update --templates --force # Overwrite existing templates
+# Update CLI + templates
+dotcontext update                     # Update CLI + templates (if in project)
+dotcontext update --cli               # Only update CLI
+dotcontext update --templates         # Only update templates
 
 # Help
 dotcontext --help
@@ -49,6 +49,8 @@ dotcontext --version
 /generate-prp [feature]    # Plan a new feature
 /execute-prp [name]        # Implement a planned feature
 /code-review               # Review code changes
+/deep-context [query]      # Multi-agent business rule discovery
+/fix-bug [description]     # Test-driven bug fixing with parallel agents
 /create-pr                 # Create PR with auto-generated description
 /pr-comment                # Add comment to existing PR
 /release [patch|minor|major] # Create release with version bump
@@ -88,3 +90,4 @@ Slash commands in `.claude/commands/` provide interactive workflows that integra
 - Domain and architecture → `.context/CONTEXT.md`
 - Architectural decisions → `.context/decisions/`
 - Task-specific skills → `.context/skills/`
+- Bug reproduction guide → `.context/skills/bug-reproduction/SKILL.md`

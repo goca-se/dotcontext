@@ -71,6 +71,29 @@ Look for:
 
 For each, create a skill folder with SKILL.md following the template.
 
+### 6. Populate Bug Reproduction Skill
+
+If `.context/skills/bug-reproduction/SKILL.md` exists (created by `dotcontext init`), fill in the project-specific sections:
+
+- **Test Framework**: Detect from `package.json` (jest, vitest, mocha), `Gemfile` (rspec, minitest), `pyproject.toml`/`setup.py` (pytest, unittest), `go.mod` (go test), etc.
+- **Run command**: The actual command to run tests (from `CLAUDE.md` or project config)
+- **Test directory**: Where tests live in this project
+- **E2E Framework**: Detect Cypress, Playwright, Selenium if present
+- **Examples**: Find 1-2 real test examples from the codebase that demonstrate the project's test patterns
+
+### 7. Ensure .gitignore excludes generated context
+
+Check if `.gitignore` exists. If it does, verify it includes these entries. If any are missing, add them:
+
+```
+# dotcontext generated files (per-session, not versioned)
+.context/prp/
+.context/discoveries/
+.context/bugs/
+```
+
+These directories contain generated content that is session-specific and should not be committed.
+
 ## Output
 
 After completing each file, summarize what you created:

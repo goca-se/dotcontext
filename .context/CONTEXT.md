@@ -20,6 +20,8 @@
 | `Skill` | Step-by-step guide for a recurring pattern or task in the codebase |
 | `PRP (Product Requirements Prompt)` | Structured feature specification with implementation plan and phases |
 | `Command` | Custom Claude Code slash command (markdown file in `.claude/commands/`) |
+| `Discovery` | Output document from deep context analysis with business rules and cross-repo validation |
+| `Bug Report` | Structured report from `/fix-bug` with root cause, reproduction test, and fix details |
 
 ### Modules/Packages
 
@@ -35,13 +37,18 @@ dotcontext/
 │   └── .context/
 │       ├── CONTEXT.md
 │       ├── decisions/
+│       ├── discoveries/
+│       ├── bugs/
 │       ├── skills/
+│       │   └── bug-reproduction/
 │       └── prp/
 └── .claude/commands/    # Slash commands for Claude Code
     ├── setup-context.md
     ├── generate-prp.md
     ├── execute-prp.md
-    └── code-review.md
+    ├── code-review.md
+    ├── deep-context.md
+    └── fix-bug.md
 ```
 
 ## Main Flows
@@ -96,13 +103,70 @@ User runs: /execute-prp user-auth
 ```
 User runs: dotcontext update
     │
-    ├─→ Check current version vs GitHub releases
+    ├─→ Phase 1: CLI Update
+    │   ├── Check latest release tag via GitHub API
+    │   ├── Download from release tag (not main branch)
+    │   ├── Validate download (check for shebang)
+    │   └── Replace /usr/local/bin/dotcontext
     │
-    ├─→ Download new version to temp file
+    └─→ Phase 2: Template Update (if .context/ exists)
+        ├── Download managed templates (commands)
+        ├── Download seed templates (skills, READMEs)
+        ├── Categorize: new (+), modified (~), unchanged (=), user-managed (•)
+        ├── Managed: offer to update modified files
+        ├── Seed: only add if missing, never overwrite
+        └── Show Terraform-style preview
+```
+
+### Deep Context Discovery Flow
+
+```
+User runs: /deep-context "checkout flow" --repo ~/api
     │
-    ├─→ Validate download (check for shebang)
+    ├─→ Parse arguments (query, --repo, --cache)
     │
-    └─→ Replace /usr/local/bin/dotcontext
+    ├─→ Resolve related repo (auto-detect from CONTEXT.md or manual)
+    │
+    ├─→ Ask clarifying questions (scope, focus areas)
+    │
+    ├─→ Phase 1 (parallel): Launch 3 agents
+    │   ├── Agent 1: Compliance & Scope Guardian
+    │   ├── Agent 2: Primary Explorer (background)
+    │   └── Agent 3: Cross-Repo Explorer (background)
+    │
+    ├─→ Phase 2 (sequential): Agent 4 validates cross-repo findings
+    │
+    ├─→ Phase 3 (sequential): Agent 5 unifies and produces final document
+    │
+    └─→ Save to .context/discoveries/YYYYMMDD-[slug].md
+```
+
+### Bug Fix Flow
+
+```
+User runs: /fix-bug "login fails with empty password" --issue 42
+    │
+    ├─→ Parse input (description, --issue, --pr, --agents)
+    │
+    ├─→ Gather bug context (description + GitHub issue/PR if provided)
+    │
+    ├─→ Phase 1 (sequential): Investigator agent
+    │   ├── Search codebase for root cause
+    │   ├── Write failing reproduction test
+    │   └── Verify test FAILS (proves bug exists)
+    │
+    ├─→ Phase 2 (parallel): N fix agents (default 3)
+    │   ├── Agent 1: Conservative fix (smallest diff)
+    │   ├── Agent 2: Minimal change (surgical, exact lines)
+    │   └── Agent 3: Refactor fix (improve surrounding code)
+    │   └── ALL agents run to completion
+    │
+    ├─→ Phase 3 (sequential): Reviewer agent
+    │   ├── Evaluate all fixes
+    │   ├── Combine if >1 succeeded
+    │   └── Run full test suite
+    │
+    └─→ Save report to .context/bugs/YYYYMMDD-[slug].md
 ```
 
 ## External Integrations

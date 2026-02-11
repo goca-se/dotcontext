@@ -22,6 +22,7 @@ First, understand:
 - What is the project structure?
 - What does this project do?
 - What are the main entry points?
+- **Does it use Docker?** Check for `docker-compose.yml`, `Dockerfile`, or similar. If yes, commands should be run via Docker (e.g., `docker compose exec <service> <command>`).
 
 ### 2. Fill CLAUDE.md
 
@@ -29,7 +30,7 @@ Update the root `CLAUDE.md` with:
 
 - **Project name and description**: Clear one-liner explaining what this is
 - **Stack**: Language version, framework, database, key dependencies
-- **Commands**: Actual commands from package.json, Makefile, or scripts (dev, test, lint, build)
+- **Commands**: Actual commands from package.json, Makefile, or scripts (dev, test, lint, build). **If Docker is used**, prefix commands with docker compose exec (e.g., `docker compose exec web rails test`)
 - **Critical Rules**: Project-specific rules that must always be followed (discovered from linting configs, existing patterns, or README)
 - **Architecture**: Brief overview of main patterns used
 
@@ -69,6 +70,18 @@ Look for:
 - Common operations (migrations, deployments, etc)
 
 For each, create a skill folder with SKILL.md following the template.
+
+### 6. Ensure .gitignore excludes generated context
+
+Check if `.gitignore` exists. If it does, verify it includes these entries. If any are missing, add them:
+
+```
+# dotcontext generated files (per-session, not versioned)
+.context/prp/
+.context/discoveries/
+```
+
+These directories contain generated content that is session-specific and should not be committed.
 
 ## Output
 

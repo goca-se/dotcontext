@@ -119,9 +119,18 @@ Summary:
 - [1-2 sentence summary]
 - Phases: [X phases]
 - Estimated scope: [files/modules affected]
-
-Ready to execute? Run: /execute-prp [filename]
 ```
+
+Then **use AskUserQuestion** to offer next steps:
+> "PRP generated. What would you like to do next?"
+> Options:
+> - "Execute now" — I'll clear context and start `/execute-prp [filename]` with a fresh window
+> - "Review first" — I'll stop here so you can review the PRP before executing
+> - "Edit PRP" — Let's adjust specific sections before proceeding
+
+If user chooses **"Execute now"**:
+1. Tell the user: "Run `/clear` then `/execute-prp [filename]` to start with a clean context."
+2. Do NOT attempt to execute the PRP in the same session — the context is already full from PRP generation and will produce worse results.
 
 ## If You Get Stuck
 

@@ -52,3 +52,4 @@ The root `CLAUDE.md` also includes this as Critical Rule #1:
 
 ## Related
 - ADR-004: Claude Code integration
+- ADR-011: Test-Driven Bug Fixing Pattern (partial exception — `/fix-bug` skips initial questions)

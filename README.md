@@ -51,42 +51,39 @@ dotcontext init --yes                # Skip prompts, use defaults
 dotcontext init --no-setup           # Skip automatic /setup-context execution
 ```
 
-### Update CLI
+### Update
 
 ```bash
-dotcontext update              # Update CLI to latest version
+dotcontext update                  # Update CLI + templates (if in a project)
+dotcontext update --cli            # Only update CLI
+dotcontext update --templates      # Only update templates
+dotcontext update --dry-run        # Preview template changes only
+dotcontext update --yes            # Update templates without prompting
 ```
 
-### Update templates
-
-When new templates or commands are added to dotcontext, update your project:
-
-```bash
-dotcontext update --templates              # Preview + prompt before updating
-dotcontext update --templates --dry-run    # Preview only, no changes
-dotcontext update --templates --yes        # Update without prompting
-```
-
-**Terraform-style preview:**
+**Terraform-style preview for templates:**
 
 ```
 Checking templates...
 
-  + .claude/commands/new-command.md (new)
+  + .claude/commands/fix-bug.md (new)
   ~ .claude/commands/code-review.md (modified)
-  = .context/prp/templates/feature.md (unchanged)
+  = .claude/commands/setup-context.md (unchanged)
+  • .context/skills/bug-reproduction/SKILL.md (user-managed — skipped)
 
-Summary: 1 to add, 1 to update, 1 unchanged
+Summary: 1 to add, 1 to update, 8 unchanged, 1 user-managed
 
 Update 1 existing file(s)? [y/N/d] (y=yes, N=no, d=show diffs)
 ```
 
 **Safe by default:**
 
-- Shows exactly what will change before doing anything
+- CLI downloads from the release tag (not main branch) — no unreleased code
+- Templates show exactly what will change before doing anything
 - Default action (`N`) only adds new files, never overwrites
 - Press `d` to see diffs before deciding
-- Never touches user content (`CONTEXT.md`, `CLAUDE.md`, your ADRs/skills)
+- **User-managed files** (skills, READMEs, PRP templates) are never overwritten — they're created once during init and then owned by you
+- Never touches user content (`CONTEXT.md`, `CLAUDE.md`, your ADRs, bug reports, discoveries)
 
 ### Run the setup command
 
@@ -127,7 +124,10 @@ your-project/
 ├── .context/
 │   ├── CONTEXT.md               # Domain knowledge
 │   ├── decisions/               # ADRs (versioned)
+│   ├── discoveries/             # Deep context analysis outputs
+│   ├── bugs/                    # Bug fix reports
 │   ├── skills/                  # Step-by-step guides
+│   │   └── bug-reproduction/    # Bug reproduction patterns
 │   └── prp/                     # Feature planning docs
 │       ├── templates/
 │       └── generated/
@@ -141,7 +141,9 @@ your-project/
         ├── pr-comment.md             # Comment on PRs
         ├── add-decision.md           # Add ADR interactively
         ├── add-skill.md              # Add skill interactively
-        └── add-command.md            # Add custom command
+        ├── add-command.md            # Add custom command
+        ├── deep-context.md           # Multi-agent business rule discovery
+        └── fix-bug.md               # Test-driven bug fixing
 ```
 
 Additionally, `dotcontext init` configures **native OS notifications** in `~/.claude/`:
@@ -161,10 +163,11 @@ Additionally, `dotcontext init` configures **native OS notifications** in `~/.cl
 | -------------------------------------- | ---------------------------------------------- |
 | `dotcontext init`                      | Initialize + auto-run /setup-context           |
 | `dotcontext init --no-setup`           | Initialize without running setup               |
-| `dotcontext update`                    | Update CLI to latest version                   |
-| `dotcontext update --templates`        | Preview and update templates (prompts first)   |
-| `dotcontext update --templates --yes`  | Update templates without prompting             |
-| `dotcontext update --templates --dry-run` | Preview changes only, no modifications      |
+| `dotcontext update`                    | Update CLI + templates (if in a project)       |
+| `dotcontext update --cli`              | Only update CLI                                |
+| `dotcontext update --templates`        | Only update templates                          |
+| `dotcontext update --yes`              | Update templates without prompting             |
+| `dotcontext update --dry-run`          | Preview template changes only                  |
 | `dotcontext --help`                    | Show help                                      |
 | `dotcontext --version`                 | Show version                                   |
 
@@ -178,6 +181,8 @@ Additionally, `dotcontext init` configures **native OS notifications** in `~/.cl
 | `/code-review [--comment]`   | Multi-agent code review with confidence scoring |
 | `/create-pr`                 | Create PR with auto-detected architecture diagrams |
 | `/pr-comment [PR] [message]` | Add comments to PRs with optional diagrams     |
+| `/deep-context [query]`      | Multi-agent business rule discovery across repos |
+| `/fix-bug [description]`    | Test-driven bug fixing with parallel agents    |
 | `/add-decision`              | Add and populate an ADR interactively          |
 | `/add-skill`                 | Add and populate a skill guide                 |
 | `/add-command`               | Create a custom slash command                  |
@@ -337,6 +342,63 @@ Example:
 > /pr-comment add diagram explaining the new auth flow
 > /pr-comment 123 LGTM, tested locally
 > /pr-comment update status - frontend complete
+```
+
+### `/deep-context [query]`
+
+Multi-agent business rule discovery across the current repository and a related one:
+
+**Architecture:**
+- Orchestrates **5 specialized agents**:
+  - Agent 1: Compliance & Scope Guardian — defines search boundaries
+  - Agent 2: Primary Explorer — deep searches main repo for business rules
+  - Agent 3: Cross-Repo Explorer — searches related repository
+  - Agent 4: Cross-Repo Validator — compares rules between repos
+  - Agent 5: Reviewer — unifies findings, filters low-confidence items
+- **Phased execution**: Agents 1-3 run in parallel, Agent 4 waits for 2+3, Agent 5 waits for all
+- **Confidence filtering**: findings below 50% are auto-removed
+
+**Features:**
+- Auto-detects related repos from `.context/CONTEXT.md` external integrations
+- `--repo` flag for manual repo specification (local path or git URL)
+- `--cache` flag to reference previous discoveries
+- Every finding backed by `file:line` references (no fabrication)
+- Output saved to `.context/discoveries/`
+
+**Usage:**
+```
+> /deep-context "checkout flow"
+> /deep-context "payment rules" --repo ~/path/to/api
+> /deep-context "order processing" --cache
+```
+
+### `/fix-bug [description]`
+
+Test-driven bug fixing with parallel subagents:
+
+**Architecture:**
+- **Phase 1 — Investigation**: Agent analyzes the bug, identifies root cause, writes a failing test
+- **Phase 2 — Parallel Fixes**: N agents (default 3) attempt fixes with diverse strategies:
+  - Conservative (minimal diff)
+  - Minimal change (surgical, exact lines)
+  - Refactor (fix + improve surrounding code)
+- **Phase 3 — Review**: Reviewer agent selects best fix or combines multiple successful fixes
+- All agents run to completion (best fix, not just first fix)
+
+**Features:**
+- Zero questions — goes straight from description to investigation
+- Test-first: writes a failing test before any fix attempt
+- `--issue N` to include GitHub issue context
+- `--pr N` to include PR context
+- `--agents N` to configure parallel fix agents
+- Bug report saved to `.context/bugs/`
+- Includes `bug-reproduction` skill template for project-specific patterns
+
+**Usage:**
+```
+> /fix-bug "login fails with empty password"
+> /fix-bug "checkout timeout" --issue 42
+> /fix-bug "regression in search" --pr 123 --agents 5
 ```
 
 ### `/add-decision [title]`

@@ -14,6 +14,9 @@ Record of significant technical decisions in this project.
 | [006](006-auto-setup-on-init.md) | Auto-run /setup-context on Init | Accepted |
 | [007](007-cli-simplification.md) | CLI Simplification - Remove Add Commands | Accepted |
 | [008](008-remove-examples-directory.md) | Remove examples/ Directory | Accepted |
+| [009](009-multi-agent-orchestration-pattern.md) | Multi-Agent Orchestration Pattern | Accepted |
+| [010](010-discovery-output-format.md) | Discovery Output Format | Accepted |
+| [011](011-test-driven-bug-fixing-pattern.md) | Test-Driven Bug Fixing Pattern | Accepted |
 
 ## Template
 
