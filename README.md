@@ -15,9 +15,14 @@
 
 `dotcontext` creates a standardized structure for AI assistants to understand your project. It generates templates and a Claude Code command that automatically analyzes and documents your codebase.
 
+<details>
+<summary>See it in action</summary>
+
 <p align="center">
   <img src="assets/demo-quickstart.gif" alt="dotcontext quick start demo" width="700">
 </p>
+
+</details>
 
 ## Installation
 
