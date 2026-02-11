@@ -10,3 +10,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# dotcontext generated files (per-session, not versioned)
+.context/prp/
+.context/discoveries/
+.context/bugs/

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.8.1"
+VERSION="0.10.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -22,6 +22,33 @@ print_yellow() { printf "${YELLOW}%s${NC}\n" "$1"; }
 print_blue() { printf "${BLUE}%s${NC}\n" "$1"; }
 print_gray() { printf "${GRAY}%s${NC}\n" "$1"; }
 print_cyan() { printf "${CYAN}%s${NC}\n" "$1"; }
+
+# Braille spinner for network operations
+SPINNER_PID=""
+start_spinner() {
+  local msg="$1"
+  local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+  local i=0
+  while true; do
+    printf "\r  ${BLUE}${frames[$i]}${NC} ${msg}"
+    i=$(( (i + 1) % 10 ))
+    sleep 0.1
+  done &
+  SPINNER_PID=$!
+}
+
+stop_spinner() {
+  local msg="$1"
+  if [ -n "$SPINNER_PID" ]; then
+    kill "$SPINNER_PID" 2>/dev/null
+    wait "$SPINNER_PID" 2>/dev/null || true
+    SPINNER_PID=""
+  fi
+  printf "\r\033[K"
+  if [ -n "$msg" ]; then
+    echo "$msg"
+  fi
+}
 
 slugify() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//'
@@ -54,7 +81,7 @@ download() {
   local url="$1"
   local target="$2"
   if command -v curl &> /dev/null; then
-    curl -sSL "$url" -o "$target"
+    curl -fsSL "$url" -o "$target"
   elif command -v wget &> /dev/null; then
     wget -q "$url" -O "$target"
   else
@@ -149,13 +176,10 @@ cmd_init() {
 
   local cwd="$(pwd)"
 
+  local is_reinit=false
   if [ -d ".context" ]; then
-    if [ "$skip_prompts" = false ]; then
-      if ! confirm ".context already exists. Overwrite?"; then
-        print_yellow "Aborted."
-        return
-      fi
-    fi
+    is_reinit=true
+    print_yellow "Existing .context/ detected — will add missing files without overwriting your content."
   fi
 
   if [ -z "$project_name" ]; then
@@ -168,20 +192,42 @@ cmd_init() {
 
   print_gray "Creating structure..."
 
-  # Create directories
+  # Create directories (mkdir -p is always safe)
   mkdir -p ".context/decisions"
   mkdir -p ".context/skills"
+  mkdir -p ".context/skills/bug-reproduction"
   mkdir -p ".context/prp/templates"
   mkdir -p ".context/prp/generated"
+  mkdir -p ".context/discoveries"
+  mkdir -p ".context/bugs"
   mkdir -p ".claude/commands"
 
   # Download templates
-  print_gray "Downloading templates..."
-  download "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
-  download "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
-  download "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
-  download "${BASE_URL}/templates/.context/skills/README.md" ".context/skills/README.md"
-  download "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
+  start_spinner "Downloading templates..."
+
+  # Helper: download only if file doesn't exist (for seed/user-customizable files)
+  local skipped_files=""
+  download_if_missing() {
+    local url="$1"
+    local target="$2"
+    if [ -f "$target" ]; then
+      if [ "$is_reinit" = true ]; then
+        skipped_files="${skipped_files}${target}\n"
+      fi
+      return 0
+    fi
+    download "$url" "$target"
+  }
+
+  # Seed files: user-customizable content — only created if missing
+  download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
+  download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
+  download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
+  download_if_missing "${BASE_URL}/templates/.context/skills/README.md" ".context/skills/README.md"
+  download_if_missing "${BASE_URL}/templates/.context/skills/bug-reproduction/SKILL.md" ".context/skills/bug-reproduction/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
+
+  # Managed files: dotcontext commands — always downloaded (safe to overwrite)
   download "${BASE_URL}/templates/.claude/commands/setup-context.md" ".claude/commands/setup-context.md"
   download "${BASE_URL}/templates/.claude/commands/code-review.md" ".claude/commands/code-review.md"
   download "${BASE_URL}/templates/.claude/commands/generate-prp.md" ".claude/commands/generate-prp.md"
@@ -191,116 +237,67 @@ cmd_init() {
   download "${BASE_URL}/templates/.claude/commands/add-command.md" ".claude/commands/add-command.md"
   download "${BASE_URL}/templates/.claude/commands/create-pr.md" ".claude/commands/create-pr.md"
   download "${BASE_URL}/templates/.claude/commands/pr-comment.md" ".claude/commands/pr-comment.md"
+  download "${BASE_URL}/templates/.claude/commands/deep-context.md" ".claude/commands/deep-context.md"
+  download "${BASE_URL}/templates/.claude/commands/fix-bug.md" ".claude/commands/fix-bug.md"
+
+  stop_spinner
+
+  # Show skipped files after spinner (so output doesn't collide)
+  if [ -n "$skipped_files" ]; then
+    printf "$skipped_files" | while read -r f; do
+      [ -n "$f" ] && print_gray "  skipped (exists): $f"
+    done
+  fi
+
   touch ".context/prp/generated/.keep"
+  touch ".context/discoveries/.keep"
+  touch ".context/bugs/.keep"
 
   # Setup notifications (optional, don't fail if it doesn't work)
   setup_notifications 2>/dev/null || true
 
-  # Substitute project name
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    sed -i '' "s/{{projectName}}/$project_name/g" "CLAUDE.md"
-  else
-    sed -i "s/{{projectName}}/$project_name/g" "CLAUDE.md"
+  # Substitute project name (only on fresh CLAUDE.md with placeholder)
+  if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' "s/{{projectName}}/$project_name/g" "CLAUDE.md"
+    else
+      sed -i "s/{{projectName}}/$project_name/g" "CLAUDE.md"
+    fi
   fi
 
-  print_green ""
-  printf "${GREEN}✅ Context structure created!${NC}\n\n"
-
-  printf "Files created:\n"
-  print_gray "  CLAUDE.md"
-  print_gray "  .context/"
-  print_gray "    ├── CONTEXT.md"
-  print_gray "    ├── decisions/"
-  print_gray "    ├── skills/"
-  print_gray "    └── prp/"
-  print_gray "  .claude/"
-  print_gray "    └── commands/"
-  print_gray "        ├── setup-context.md"
-  print_gray "        ├── code-review.md"
-  print_gray "        ├── generate-prp.md"
-  print_gray "        ├── execute-prp.md"
-  print_gray "        ├── add-decision.md"
-  print_gray "        ├── add-skill.md"
-  print_gray "        ├── add-command.md"
-  print_gray "        ├── create-pr.md"
-  print_gray "        └── pr-comment.md"
+  echo ""
+  if [ "$is_reinit" = true ]; then
+    printf "  ${GREEN}✓${NC} Context structure updated\n"
+  else
+    printf "  ${GREEN}✓${NC} Context structure created\n"
+  fi
+  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (11 commands)${NC}\n"
+  echo ""
 
   if [ "$skip_setup" = true ]; then
-    print_blue ""
-    printf "${BLUE}🚀 Next step:${NC}\n"
-    printf "  Run /setup-context in Claude Code to populate context files.\n\n"
+    printf "  ${CYAN}Next:${NC}  run ${CYAN}/setup-context${NC} in Claude Code\n"
   else
-    print_blue ""
-    printf "${BLUE}🤖 Running setup-context...${NC}\n\n"
-
     if command -v claude &> /dev/null; then
+      printf "  ${CYAN}Running /setup-context...${NC}\n\n"
       claude "/setup-context"
     else
-      print_yellow "Claude CLI not found. Install it and run /setup-context manually."
-      printf "\n"
+      printf "  ${YELLOW}Claude CLI not found.${NC} Run ${CYAN}/setup-context${NC} manually in Claude Code.\n"
     fi
   fi
-
-  print_blue "📋 Available commands:\n"
-  print_gray "  /setup-context           - Analyze and populate context"
-  print_gray "  /generate-prp [feature]  - Plan a new feature"
-  print_gray "  /execute-prp [name]      - Implement a planned feature"
-  print_gray "  /code-review             - Review code changes"
-  print_gray "  /add-decision            - Add architectural decision"
-  print_gray "  /add-skill               - Add skill guide"
-  print_gray "  /add-command             - Add custom command"
-  printf "\n"
-}
-
-# Migrate hooks from old format to new format
-migrate_hooks() {
-  local settings_file="$HOME/.claude/settings.json"
-
-  if [ ! -f "$settings_file" ]; then
-    return 0
-  fi
-
-  # Check if jq is available
-  if ! command -v jq &>/dev/null; then
-    return 0
-  fi
-
-  # Check if file has old format (has "command" directly in hook instead of "hooks" array)
-  if jq -e '.hooks | to_entries[] | .value[]? | select(.command != null and .hooks == null)' "$settings_file" >/dev/null 2>&1; then
-    print_gray "Migrating hooks to new format..."
-
-    local temp_file=$(mktemp)
-
-    # Convert old format to new format
-    jq '
-      .hooks = (.hooks | to_entries | map({
-        key: .key,
-        value: [.value[] | if .hooks then . else {
-          matcher: (.matcher // ""),
-          hooks: [{type: "command", command: .command}]
-        } end]
-      }) | from_entries)
-    ' "$settings_file" > "$temp_file" 2>/dev/null
-
-    if [ $? -eq 0 ] && [ -s "$temp_file" ]; then
-      mv "$temp_file" "$settings_file"
-      print_green "✅ Hooks migrated to new format"
-    else
-      rm -f "$temp_file"
-      print_yellow "Could not migrate hooks automatically. See docs for manual migration."
-    fi
-  fi
+  echo ""
 }
 
 # Command: update
 cmd_update() {
-  local update_templates=false
+  local templates_only=false
+  local cli_only=false
   local auto_yes=false
   local dry_run=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --templates) update_templates=true; shift ;;
+      --templates) templates_only=true; shift ;;
+      --cli) cli_only=true; shift ;;
       --yes|-y) auto_yes=true; shift ;;
       --dry-run) dry_run=true; shift ;;
       --force) auto_yes=true; shift ;;  # backwards compat
@@ -308,50 +305,62 @@ cmd_update() {
     esac
   done
 
-  if [ "$update_templates" = true ]; then
+  if [ "$templates_only" = true ]; then
     cmd_update_templates "$auto_yes" "$dry_run"
-  else
+  elif [ "$cli_only" = true ]; then
     cmd_update_cli
+  else
+    # Default: update CLI, then templates if in a project
+    cmd_update_cli
+    if [ -d ".context" ]; then
+      echo ""
+      cmd_update_templates "$auto_yes" "$dry_run"
+    fi
   fi
 }
 
 cmd_update_cli() {
-  print_blue "Checking for updates..."
+  start_spinner "Checking for CLI updates..."
 
-  # Get latest version from GitHub (try releases first, then tags)
+  # Get latest version tag from GitHub (try releases first, then tags)
   local latest_version
+  local latest_tag
   local api_response
 
   if command -v curl &> /dev/null; then
-    # Try releases API first
-    api_response=$(curl -sSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null)
-    latest_version=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    api_response=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null)
+    latest_tag=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+    latest_version=$(echo "$latest_tag" | sed 's/^v//')
 
-    # If no release found, try tags
     if [ -z "$latest_version" ]; then
-      api_response=$(curl -sSL "https://api.github.com/repos/${REPO}/tags" 2>/dev/null)
-      latest_version=$(echo "$api_response" | grep '"name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+      api_response=$(curl -fsSL "https://api.github.com/repos/${REPO}/tags" 2>/dev/null)
+      latest_tag=$(echo "$api_response" | grep '"name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+      latest_version=$(echo "$latest_tag" | sed 's/^v//')
     fi
   else
     api_response=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null)
-    latest_version=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    latest_tag=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+    latest_version=$(echo "$latest_tag" | sed 's/^v//')
 
     if [ -z "$latest_version" ]; then
       api_response=$(wget -qO- "https://api.github.com/repos/${REPO}/tags" 2>/dev/null)
-      latest_version=$(echo "$api_response" | grep '"name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+      latest_tag=$(echo "$api_response" | grep '"name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+      latest_version=$(echo "$latest_tag" | sed 's/^v//')
     fi
   fi
 
   if [ -z "$latest_version" ]; then
-    print_yellow "Could not check latest version. Updating anyway..."
-    latest_version="unknown"
-  else
-    if [ "$VERSION" = "$latest_version" ]; then
-      print_green "✅ Already at latest version ($VERSION)"
-      return 0
-    fi
-    print_gray "Current: $VERSION → Latest: $latest_version"
+    stop_spinner
+    print_red "Could not check latest version."
+    return 1
   fi
+
+  if [ "$VERSION" = "$latest_version" ]; then
+    stop_spinner "$(printf "${GREEN}✅ CLI already at latest version ($VERSION)${NC}")"
+    return 0
+  fi
+
+  stop_spinner "$(printf "${GRAY}Current: $VERSION → Latest: $latest_version${NC}")"
 
   # Find installation path
   local install_path=$(command -v dotcontext)
@@ -359,10 +368,13 @@ cmd_update_cli() {
     install_path="/usr/local/bin/dotcontext"
   fi
 
-  print_gray "Downloading latest version..."
+  # Download from release tag (not main branch) to avoid unreleased code
+  local release_url="https://raw.githubusercontent.com/${REPO}/${latest_tag}/dotcontext"
+  start_spinner "Downloading from release ${latest_tag}..."
 
   local tmp_file=$(mktemp)
-  download "${BASE_URL}/dotcontext" "$tmp_file"
+  download "$release_url" "$tmp_file"
+  stop_spinner
 
   # Verify download
   if [ ! -s "$tmp_file" ] || ! head -1 "$tmp_file" | grep -q "^#!/bin/bash"; then
@@ -382,10 +394,7 @@ cmd_update_cli() {
     sudo chmod +x "$install_path"
   fi
 
-  print_green "✅ Updated to $latest_version"
-
-  # Run migrations
-  migrate_hooks
+  print_green "✅ CLI updated to $latest_version"
 }
 
 cmd_update_templates() {
@@ -397,11 +406,10 @@ cmd_update_templates() {
     return 1
   fi
 
-  print_blue "Checking templates..."
+  start_spinner "Checking templates..."
 
-  # Define template mappings: remote_path -> local_path
-  # Only includes "code" files (commands, prp template), not user content files
-  declare -a templates=(
+  # MANAGED templates: dotcontext-owned code (commands). Always offered for update.
+  declare -a managed_templates=(
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
     "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
     "templates/.claude/commands/generate-prp.md:.claude/commands/generate-prp.md"
@@ -411,9 +419,17 @@ cmd_update_templates() {
     "templates/.claude/commands/add-command.md:.claude/commands/add-command.md"
     "templates/.claude/commands/create-pr.md:.claude/commands/create-pr.md"
     "templates/.claude/commands/pr-comment.md:.claude/commands/pr-comment.md"
+    "templates/.claude/commands/deep-context.md:.claude/commands/deep-context.md"
+    "templates/.claude/commands/fix-bug.md:.claude/commands/fix-bug.md"
+  )
+
+  # SEED templates: created once during init, customized by user or /setup-context.
+  # Only added if missing — never offered for overwrite to protect user content.
+  declare -a seed_templates=(
     "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.context/skills/README.md:.context/skills/README.md"
+    "templates/.context/skills/bug-reproduction/SKILL.md:.context/skills/bug-reproduction/SKILL.md"
   )
 
   # Create temp directory for downloads
@@ -424,40 +440,64 @@ cmd_update_templates() {
   declare -a new_files=()
   declare -a modified_files=()
   declare -a unchanged_files=()
+  declare -a seed_new_files=()
+  declare -a seed_skipped_files=()
 
-  # Download and compare each template
-  for mapping in "${templates[@]}"; do
+  # Process managed templates (can be updated)
+  for mapping in "${managed_templates[@]}"; do
     local remote_path="${mapping%%:*}"
     local local_path="${mapping##*:}"
-    local tmp_file="$tmp_dir/$(basename "$local_path")"
+    local tmp_file="$tmp_dir/$(echo "$local_path" | sed 's|/|__|g')"
 
-    # Download to temp
     if ! download "${BASE_URL}/${remote_path}" "$tmp_file" 2>/dev/null; then
       print_red "  failed to download: $remote_path"
       continue
     fi
 
     if [ ! -f "$local_path" ]; then
-      # File doesn't exist locally - it's new
       new_files+=("$mapping")
     elif ! diff -q "$local_path" "$tmp_file" >/dev/null 2>&1; then
-      # File exists but differs - it's modified
       modified_files+=("$mapping")
     else
-      # File exists and is identical - unchanged
       unchanged_files+=("$mapping")
     fi
   done
+
+  # Process seed templates (create-only, never overwrite)
+  for mapping in "${seed_templates[@]}"; do
+    local remote_path="${mapping%%:*}"
+    local local_path="${mapping##*:}"
+    local tmp_file="$tmp_dir/$(echo "$local_path" | sed 's|/|__|g')"
+
+    if ! download "${BASE_URL}/${remote_path}" "$tmp_file" 2>/dev/null; then
+      print_red "  failed to download: $remote_path"
+      continue
+    fi
+
+    if [ ! -f "$local_path" ]; then
+      # Seed file missing — will be added
+      seed_new_files+=("$mapping")
+    else
+      # Seed file exists — never touch it, even if different
+      seed_skipped_files+=("$mapping")
+    fi
+  done
+
+  stop_spinner
 
   # Display summary
   echo ""
   local has_changes=false
 
-  if [ ${#new_files[@]} -gt 0 ]; then
+  if [ ${#new_files[@]} -gt 0 ] || [ ${#seed_new_files[@]} -gt 0 ]; then
     has_changes=true
     for mapping in "${new_files[@]}"; do
       local local_path="${mapping##*:}"
       printf "  ${GREEN}+${NC} %s ${GRAY}(new)${NC}\n" "$local_path"
+    done
+    for mapping in "${seed_new_files[@]}"; do
+      local local_path="${mapping##*:}"
+      printf "  ${GREEN}+${NC} %s ${GRAY}(new — seed template)${NC}\n" "$local_path"
     done
   fi
 
@@ -476,9 +516,17 @@ cmd_update_templates() {
     done
   fi
 
+  if [ ${#seed_skipped_files[@]} -gt 0 ]; then
+    for mapping in "${seed_skipped_files[@]}"; do
+      local local_path="${mapping##*:}"
+      printf "  ${CYAN}•${NC} %s ${GRAY}(user-managed — skipped)${NC}\n" "$local_path"
+    done
+  fi
+
+  local total_new=$((${#new_files[@]} + ${#seed_new_files[@]}))
   echo ""
-  printf "Summary: ${GREEN}%d to add${NC}, ${YELLOW}%d to update${NC}, ${GRAY}%d unchanged${NC}\n" \
-    "${#new_files[@]}" "${#modified_files[@]}" "${#unchanged_files[@]}"
+  printf "Summary: ${GREEN}%d to add${NC}, ${YELLOW}%d to update${NC}, ${GRAY}%d unchanged${NC}, ${CYAN}%d user-managed${NC}\n" \
+    "$total_new" "${#modified_files[@]}" "${#unchanged_files[@]}" "${#seed_skipped_files[@]}"
 
   # If no changes, exit early
   if [ "$has_changes" = false ]; then
@@ -511,7 +559,7 @@ cmd_update_templates() {
       for mapping in "${modified_files[@]}"; do
         local remote_path="${mapping%%:*}"
         local local_path="${mapping##*:}"
-        local tmp_file="$tmp_dir/$(basename "$local_path")"
+        local tmp_file="$tmp_dir/$(echo "$local_path" | sed 's|/|__|g')"
 
         print_cyan "=== $local_path ==="
         # diff exits 1 when files differ (normal), 2 when error (e.g. --color not supported)
@@ -534,38 +582,36 @@ cmd_update_templates() {
   local added=0
   local updated=0
 
+  # Always add new managed files
+  for mapping in "${new_files[@]}"; do
+    local local_path="${mapping##*:}"
+    local dir_path=$(dirname "$local_path")
+    local tmp_file="$tmp_dir/$(echo "$local_path" | sed 's|/|__|g')"
+
+    mkdir -p "$dir_path"
+    cp "$tmp_file" "$local_path"
+    ((added++))
+  done
+
+  # Always add new seed files (they don't exist yet)
+  for mapping in "${seed_new_files[@]}"; do
+    local local_path="${mapping##*:}"
+    local dir_path=$(dirname "$local_path")
+    local tmp_file="$tmp_dir/$(echo "$local_path" | sed 's|/|__|g')"
+
+    mkdir -p "$dir_path"
+    cp "$tmp_file" "$local_path"
+    ((added++))
+  done
+
+  # Update modified managed files only if user said yes
   if [[ "$action" =~ ^[Yy] ]]; then
-    # Add new files
-    for mapping in "${new_files[@]}"; do
-      local remote_path="${mapping%%:*}"
-      local local_path="${mapping##*:}"
-      local dir_path=$(dirname "$local_path")
-      local tmp_file="$tmp_dir/$(basename "$local_path")"
-
-      mkdir -p "$dir_path"
-      cp "$tmp_file" "$local_path"
-      ((added++))
-    done
-
-    # Update modified files
     for mapping in "${modified_files[@]}"; do
       local local_path="${mapping##*:}"
-      local tmp_file="$tmp_dir/$(basename "$local_path")"
+      local tmp_file="$tmp_dir/$(echo "$local_path" | sed 's|/|__|g')"
 
       cp "$tmp_file" "$local_path"
       ((updated++))
-    done
-  else
-    # Only add new files
-    for mapping in "${new_files[@]}"; do
-      local remote_path="${mapping%%:*}"
-      local local_path="${mapping##*:}"
-      local dir_path=$(dirname "$local_path")
-      local tmp_file="$tmp_dir/$(basename "$local_path")"
-
-      mkdir -p "$dir_path"
-      cp "$tmp_file" "$local_path"
-      ((added++))
     done
   fi
 
@@ -592,8 +638,7 @@ Usage:
 
 Commands:
   init                Initialize .context structure + open Claude Code
-  update              Update dotcontext CLI to latest version
-  update --templates  Check and update templates in current project
+  update              Update CLI + templates (if in a project)
 
 Options:
   --help, -h          Show this help message
@@ -605,18 +650,20 @@ Init Options:
   --no-setup          Skip automatic /setup-context execution
 
 Update Options:
-  --templates         Check and update templates in current project
-  --yes, -y           Update without asking (use with --templates)
-  --dry-run           Show what would change without applying (use with --templates)
+  --cli               Only update the CLI (skip templates)
+  --templates         Only update templates (skip CLI)
+  --yes, -y           Update templates without asking
+  --dry-run           Show what would change without applying
 
 Examples:
   dotcontext init
   dotcontext init --name "My Project"
   dotcontext init --no-setup
   dotcontext update
+  dotcontext update --cli
   dotcontext update --templates
-  dotcontext update --templates --dry-run
-  dotcontext update --templates --yes
+  dotcontext update --dry-run
+  dotcontext update --yes
 
 Claude Code Commands (after init):
   /setup-context              Analyze codebase and populate context
@@ -626,6 +673,8 @@ Claude Code Commands (after init):
   /create-pr                  Create PR with auto-detected architecture diagrams
   /pr-comment [PR] [msg]      Add comments to PRs (with optional diagrams)
   /add-decision               Add and populate an ADR interactively
+  /deep-context [query]       Multi-agent business rule discovery
+  /fix-bug [description]      Test-driven bug fixing with parallel agents
   /add-skill                  Add and populate a skill guide
   /add-command                Create a custom slash command
 EOF
