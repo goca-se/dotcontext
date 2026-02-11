@@ -2,7 +2,7 @@
 
 ## Overview
 
-**dotcontext** helps development teams create structured documentation for AI assistants (particularly Claude Code). It solves the problem of AI assistants lacking project-specific context by scaffolding a standardized structure of files that document architecture, decisions, recurring patterns, and feature planning.
+**dotcontext** is an AI context toolkit for Claude Code. It provides commands, decisions, skills, and feature planning workflows that help AI assistants understand and work with your codebase.
 
 **Users:** Developers and teams who use AI coding assistants and want to provide them with project context.
 
