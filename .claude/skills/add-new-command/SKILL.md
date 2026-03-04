@@ -71,7 +71,7 @@ Commands should check relevant context:
 ```markdown
 Before proceeding:
 - Check `.context/decisions/` for related ADRs
-- Consult `.context/skills/` for patterns to follow
+- Consult `.claude/skills/` for patterns to follow
 ```
 
 ### 5. Test the command

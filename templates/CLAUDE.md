@@ -65,5 +65,5 @@ If a requested change conflicts with an existing decision:
 
 - Domain and architecture → `.context/CONTEXT.md`
 - Architectural decisions → `.context/decisions/`
-- Task-specific skills → `.context/skills/`
-- Bug reproduction guide → `.context/skills/bug-reproduction/SKILL.md`
+- Task-specific skills → `.claude/skills/`
+- Bug reproduction guide → `.claude/skills/bug-reproduction/SKILL.md`

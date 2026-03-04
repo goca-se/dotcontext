@@ -56,135 +56,31 @@ Use the **Task tool** to launch 4 agents in parallel. Each agent receives:
 
 **IMPORTANT:** Launch all 4 agents in a SINGLE message with multiple Task tool calls.
 
+**Agent prompt files** — Read these files and use as agent prompts, substituting `{diff}` with the PR diff and `{claude_md_content}` with the CLAUDE.md content:
+
 ---
 
 #### Agent 1: CLAUDE.md Compliance (Primary)
 
-```
-You are a code review agent focused on CLAUDE.md compliance.
-
-**Your mission:** Check if the PR changes violate any rules defined in CLAUDE.md files.
-
-**CLAUDE.md content:**
-{paste all CLAUDE.md content here}
-
-**PR diff:**
-{paste diff here}
-
-**Instructions:**
-1. For each rule in CLAUDE.md, check if any change violates it
-2. Only report violations that are EXPLICITLY mentioned in CLAUDE.md
-3. Do NOT report general best practices unless CLAUDE.md mentions them
-4. For each issue, cite the specific CLAUDE.md rule being violated
-
-**Output format (JSON array):**
-[
-  {
-    "file": "path/to/file.ts",
-    "line_start": 42,
-    "line_end": 45,
-    "issue": "Description of the violation",
-    "rule": "The exact CLAUDE.md rule being violated",
-    "severity": "critical|major|minor"
-  }
-]
-
-If no violations found, return: []
-```
+Read `.claude/agents/code-review/compliance-checker.md` for the agent prompt.
 
 ---
 
 #### Agent 2: CLAUDE.md Compliance (Secondary)
 
-Same prompt as Agent 1. Redundancy ensures we catch compliance issues.
+Same prompt as Agent 1 (read `.claude/agents/code-review/compliance-checker.md`). Redundancy ensures we catch compliance issues.
 
 ---
 
 #### Agent 3: Bug Detection
 
-```
-You are a code review agent focused on finding bugs.
-
-**Your mission:** Find obvious bugs, logic errors, and correctness issues in the PR changes.
-
-**PR diff:**
-{paste diff here}
-
-**Focus areas:**
-- Logic errors and incorrect conditions
-- Null/undefined access without checks
-- Off-by-one errors
-- Race conditions
-- Resource leaks (unclosed connections, missing cleanup)
-- Error handling gaps
-- Edge cases not handled
-- Type mismatches
-
-**DO NOT report:**
-- Style issues (linters catch these)
-- Pre-existing issues not introduced in this PR
-- Hypothetical issues in code paths not touched
-- General "could be improved" suggestions
-
-**Output format (JSON array):**
-[
-  {
-    "file": "path/to/file.ts",
-    "line_start": 42,
-    "line_end": 45,
-    "issue": "Description of the bug",
-    "evidence": "Why this is definitely a bug",
-    "severity": "critical|major|minor"
-  }
-]
-
-If no bugs found, return: []
-```
+Read `.claude/agents/code-review/bug-detector.md` for the agent prompt.
 
 ---
 
 #### Agent 4: Security & History Analysis
 
-```
-You are a code review agent focused on security and historical context.
-
-**Your mission:**
-1. Find security vulnerabilities in the PR changes
-2. Use git blame/history to understand if changes break existing patterns
-
-**PR diff:**
-{paste diff here}
-
-**Security checklist:**
-- Hardcoded secrets or credentials
-- SQL injection vulnerabilities
-- XSS vulnerabilities
-- Command injection
-- Path traversal
-- Insecure deserialization
-- Missing authentication/authorization
-- Sensitive data exposure
-- CSRF vulnerabilities
-
-**History analysis:**
-Run `git blame` on modified files to understand:
-- Are the changes consistent with how the file was previously written?
-- Is there a pattern being broken?
-
-**Output format (JSON array):**
-[
-  {
-    "file": "path/to/file.ts",
-    "line_start": 42,
-    "line_end": 45,
-    "issue": "Description of the security issue or pattern break",
-    "category": "security|pattern-violation",
-    "severity": "critical|major|minor"
-  }
-]
-
-If no issues found, return: []
-```
+Read `.claude/agents/code-review/security-analyst.md` for the agent prompt.
 
 ### Step 4: Score Each Issue
 
@@ -206,7 +102,7 @@ After all agents complete, collect their findings and score each issue for confi
 
 1. **Remove duplicates** - If multiple agents found the same issue, keep only one
 2. **Filter by confidence** - Remove all issues with score < 80
-3. **Sort by severity** - critical → major → minor
+3. **Sort by severity** - critical -> major -> minor
 
 ### Step 6: Generate Output
 
@@ -245,26 +141,26 @@ EOF
 ### Minor Issues
 [Small improvements, optional]
 
-### What's Good ✓
+### What's Good
 [Positive aspects worth acknowledging - good patterns, clean code, etc.]
 
 ---
-*Reviewed by 4 parallel agents with confidence threshold ≥80*
+*Reviewed by 4 parallel agents with confidence threshold >=80*
 ```
 
-**If no issues with confidence ≥80:**
+**If no issues with confidence >=80:**
 ```markdown
 ## Code Review
 
 **Summary:** Changes look good. No significant issues found.
 
-### What's Good ✓
+### What's Good
 [Mention positive aspects of the code]
 
-✅ **Approved** - No blocking issues found.
+Approved - No blocking issues found.
 
 ---
-*Reviewed by 4 parallel agents with confidence threshold ≥80*
+*Reviewed by 4 parallel agents with confidence threshold >=80*
 ```
 
 ## Review Checklist Reference
