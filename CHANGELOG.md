@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.11.0](https://github.com/goca-se/dotcontext/compare/v0.10.2...v0.11.0) (2026-03-04)
+
+### Features
+
+* **`/commit` command** — Smart commit workflow with style-aware message generation:
+  * detects project commit style from git log (conventional commits vs freeform)
+  * interactive staging via AskUserQuestion (multiSelect, directory grouping)
+  * diff analysis and AI-generated commit messages
+  * user confirmation before committing, `--amend` support
+* **`dotcontext doctor`** — New CLI subcommand for project health validation:
+  * 11 checks: Claude CLI, .context/ structure, CLAUDE.md, CONTEXT.md, decisions, commands, agents, skills, MCP config, notification hooks, git status
+  * colored pass/fail/warn output with summary line
+* **StatusLine** — At-a-glance project context in Claude Code:
+  * script showing model, context %, git branch+changes, .context health
+  * configured via new task 8 in `/setup-context`
+  * downloaded during `dotcontext init`, managed on update
+* **Agent extraction** — 13 inline agent prompts extracted to reusable `.claude/agents/` files:
+  * `/code-review`: compliance-checker, bug-detector, security-analyst (3 agents)
+  * `/deep-context`: scope-guardian, primary-explorer, cross-repo-explorer, cross-repo-validator, reviewer-output (5 agents)
+  * `/fix-bug`: investigator, fix-conservative, fix-minimal, fix-refactor, reviewer (5 agents)
+  * commands now reference agents via `Read .claude/agents/...` — behavior unchanged
+  * agents included in managed templates for init and update
+* **ADR-012: Agent File Extraction Pattern** — Documents the file-based agent architecture
+* **Update safety** — `exec` re-exec after CLI update ensures templates use the new managed list in a single `dotcontext update` run
+
+### Changes
+
+* **Skills directory migration** — Moved `.context/skills/` to `.claude/skills/` with updated references across commands and templates
+
 ## [0.10.0](https://github.com/goca-se/dotcontext/compare/v0.9.0...v0.10.0) (2026-02-10)
 
 ### Features
