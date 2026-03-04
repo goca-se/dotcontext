@@ -60,7 +60,7 @@ Look for:
 
 For each, create an ADR file following the template in `.context/decisions/README.md`
 
-### 5. Create Skills in .context/skills/
+### 5. Create Skills in .claude/skills/
 
 Identify 2-3 recurring patterns that would benefit from documentation:
 
@@ -73,7 +73,7 @@ For each, create a skill folder with SKILL.md following the template.
 
 ### 6. Populate Bug Reproduction Skill
 
-If `.context/skills/bug-reproduction/SKILL.md` exists (created by `dotcontext init`), fill in the project-specific sections:
+If `.claude/skills/bug-reproduction/SKILL.md` exists (created by `dotcontext init`), fill in the project-specific sections:
 
 - **Test Framework**: Detect from `package.json` (jest, vitest, mocha), `Gemfile` (rspec, minitest), `pyproject.toml`/`setup.py` (pytest, unittest), `go.mod` (go test), etc.
 - **Run command**: The actual command to run tests (from `CLAUDE.md` or project config)
@@ -81,7 +81,66 @@ If `.context/skills/bug-reproduction/SKILL.md` exists (created by `dotcontext in
 - **E2E Framework**: Detect Cypress, Playwright, Selenium if present
 - **Examples**: Find 1-2 real test examples from the codebase that demonstrate the project's test patterns
 
-### 7. Ensure .gitignore excludes generated context
+### 7. Verify MCP Server Configuration
+
+Check if `.mcp.json` exists in the project root. If it does:
+- Verify the configured servers make sense for this project
+- Report which MCP servers are configured
+
+If `.mcp.json` does NOT exist, ask the user if they'd like to configure MCP servers:
+- **Context7** (`@upstash/context7-mcp`) — provides up-to-date library documentation for LLMs
+- **Atlassian** (`https://mcp.atlassian.com/v1/sse`) — Jira + Confluence access via OAuth
+
+If the user wants MCPs, create `.mcp.json` with the selected servers:
+
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "atlassian": {
+      "type": "http",
+      "url": "https://mcp.atlassian.com/v1/sse"
+    }
+  }
+}
+```
+
+Only include the servers the user selected.
+
+### 8. Configure StatusLine
+
+Check if `.claude/settings.json` exists in the project root. If it does, check if it already has a `statusLine` configuration.
+
+If no StatusLine is configured, **use AskUserQuestion**:
+> "Would you like to enable the StatusLine? It shows git branch, changes count, context health, and model info at the bottom of Claude Code."
+> Options: "Yes, enable StatusLine" (Recommended) | "No, skip StatusLine"
+
+If the user wants StatusLine:
+
+1. Verify `.claude/scripts/statusline.sh` exists (created by `dotcontext init`). If missing, inform the user to run `dotcontext update`.
+
+2. Create or merge `.claude/settings.json` with:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash .claude/scripts/statusline.sh"
+  }
+}
+```
+
+If `.claude/settings.json` already exists with other settings, merge the `statusLine` key without overwriting existing keys.
+
+3. Ensure the script is executable:
+```bash
+chmod +x .claude/scripts/statusline.sh
+```
+
+### 9. Ensure .gitignore excludes generated context
 
 Check if `.gitignore` exists. If it does, verify it includes these entries. If any are missing, add them:
 
@@ -106,7 +165,7 @@ Created/Updated:
 - .context/CONTEXT.md - [brief description]
 - .context/decisions/001-xxx.md - [title]
 - .context/decisions/002-xxx.md - [title]
-- .context/skills/xxx/SKILL.md - [title]
+- .claude/skills/xxx/SKILL.md - [title]
 ```
 
 Ask the user to review and refine any sections that need their input.

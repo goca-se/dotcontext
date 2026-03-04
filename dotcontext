@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.10.0"
+VERSION="0.11.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -75,6 +75,14 @@ confirm() {
   printf "%s [y/N]: " "$message"
   read -r answer
   [[ "$answer" =~ ^[Yy] ]]
+}
+
+confirm_yes() {
+  local message="$1"
+  local answer
+  printf "%s [Y/n]: " "$message"
+  read -r answer
+  [[ ! "$answer" =~ ^[Nn] ]]
 }
 
 download() {
@@ -156,6 +164,47 @@ SETTINGS_EOF
   fi
 }
 
+# Setup MCP servers in .mcp.json
+setup_mcp() {
+  local add_context7="$1"
+  local add_atlassian="$2"
+  local mcp_file=".mcp.json"
+
+  if [ -f "$mcp_file" ]; then
+    return 0
+  fi
+
+  local servers=""
+  local comma=""
+
+  if [ "$add_context7" = true ]; then
+    servers="${servers}${comma}
+    \"context7\": {
+      \"command\": \"npx\",
+      \"args\": [\"-y\", \"@upstash/context7-mcp\"]
+    }"
+    comma=","
+  fi
+
+  if [ "$add_atlassian" = true ]; then
+    servers="${servers}${comma}
+    \"atlassian\": {
+      \"type\": \"http\",
+      \"url\": \"https://mcp.atlassian.com/v1/sse\"
+    }"
+  fi
+
+  if [ -n "$servers" ]; then
+    cat > "$mcp_file" << EOF
+{
+  "mcpServers": {${servers}
+  }
+}
+EOF
+    print_gray "MCP servers configured in .mcp.json"
+  fi
+}
+
 # Command: init
 cmd_init() {
   local project_name=""
@@ -194,13 +243,17 @@ cmd_init() {
 
   # Create directories (mkdir -p is always safe)
   mkdir -p ".context/decisions"
-  mkdir -p ".context/skills"
-  mkdir -p ".context/skills/bug-reproduction"
+  mkdir -p ".claude/skills"
+  mkdir -p ".claude/skills/bug-reproduction"
   mkdir -p ".context/prp/templates"
   mkdir -p ".context/prp/generated"
   mkdir -p ".context/discoveries"
   mkdir -p ".context/bugs"
   mkdir -p ".claude/commands"
+  mkdir -p ".claude/scripts"
+  mkdir -p ".claude/agents/code-review"
+  mkdir -p ".claude/agents/deep-context"
+  mkdir -p ".claude/agents/fix-bug"
 
   # Download templates
   start_spinner "Downloading templates..."
@@ -223,8 +276,8 @@ cmd_init() {
   download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
-  download_if_missing "${BASE_URL}/templates/.context/skills/README.md" ".context/skills/README.md"
-  download_if_missing "${BASE_URL}/templates/.context/skills/bug-reproduction/SKILL.md" ".context/skills/bug-reproduction/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/README.md" ".claude/skills/README.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
 
   # Managed files: dotcontext commands — always downloaded (safe to overwrite)
@@ -239,6 +292,26 @@ cmd_init() {
   download "${BASE_URL}/templates/.claude/commands/pr-comment.md" ".claude/commands/pr-comment.md"
   download "${BASE_URL}/templates/.claude/commands/deep-context.md" ".claude/commands/deep-context.md"
   download "${BASE_URL}/templates/.claude/commands/fix-bug.md" ".claude/commands/fix-bug.md"
+  download "${BASE_URL}/templates/.claude/commands/commit.md" ".claude/commands/commit.md"
+
+  # StatusLine script
+  download "${BASE_URL}/templates/.claude/scripts/statusline.sh" ".claude/scripts/statusline.sh"
+  chmod +x ".claude/scripts/statusline.sh"
+
+  # Agent definition files (always downloaded — managed by dotcontext)
+  download "${BASE_URL}/templates/.claude/agents/code-review/compliance-checker.md" ".claude/agents/code-review/compliance-checker.md"
+  download "${BASE_URL}/templates/.claude/agents/code-review/bug-detector.md" ".claude/agents/code-review/bug-detector.md"
+  download "${BASE_URL}/templates/.claude/agents/code-review/security-analyst.md" ".claude/agents/code-review/security-analyst.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/scope-guardian.md" ".claude/agents/deep-context/scope-guardian.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/primary-explorer.md" ".claude/agents/deep-context/primary-explorer.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/cross-repo-explorer.md" ".claude/agents/deep-context/cross-repo-explorer.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/cross-repo-validator.md" ".claude/agents/deep-context/cross-repo-validator.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/reviewer-output.md" ".claude/agents/deep-context/reviewer-output.md"
+  download "${BASE_URL}/templates/.claude/agents/fix-bug/investigator.md" ".claude/agents/fix-bug/investigator.md"
+  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-conservative.md" ".claude/agents/fix-bug/fix-conservative.md"
+  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-minimal.md" ".claude/agents/fix-bug/fix-minimal.md"
+  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-refactor.md" ".claude/agents/fix-bug/fix-refactor.md"
+  download "${BASE_URL}/templates/.claude/agents/fix-bug/reviewer.md" ".claude/agents/fix-bug/reviewer.md"
 
   stop_spinner
 
@@ -256,6 +329,35 @@ cmd_init() {
   # Setup notifications (optional, don't fail if it doesn't work)
   setup_notifications 2>/dev/null || true
 
+  # MCP server configuration (only if .mcp.json doesn't exist)
+  if [ ! -f ".mcp.json" ]; then
+    local add_context7=false
+    local add_atlassian=false
+
+    if [ "$skip_prompts" = false ]; then
+      echo ""
+      print_blue "MCP Servers"
+      print_gray "Configure Model Context Protocol servers for Claude Code"
+      echo ""
+
+      if confirm_yes "  Add Context7? (up-to-date library docs for LLMs)"; then
+        add_context7=true
+      fi
+
+      if confirm_yes "  Add Atlassian? (Jira + Confluence via OAuth)"; then
+        add_atlassian=true
+      fi
+    else
+      # --yes flag: include both by default
+      add_context7=true
+      add_atlassian=true
+    fi
+
+    setup_mcp "$add_context7" "$add_atlassian"
+  else
+    print_gray "  skipped (exists): .mcp.json"
+  fi
+
   # Substitute project name (only on fresh CLAUDE.md with placeholder)
   if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -271,7 +373,7 @@ cmd_init() {
   else
     printf "  ${GREEN}✓${NC} Context structure created\n"
   fi
-  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (11 commands)${NC}\n"
+  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (12)  .claude/agents/ (13)${NC}\n"
   echo ""
 
   if [ "$skip_setup" = true ]; then
@@ -314,6 +416,19 @@ cmd_update() {
     cmd_update_cli
     if [ -d ".context" ]; then
       echo ""
+      # Re-exec with new binary so template list is up to date
+      local new_bin
+      new_bin=$(command -v dotcontext 2>/dev/null || echo "")
+      if [ -n "$new_bin" ] && [ -x "$new_bin" ]; then
+        local new_ver
+        new_ver=$("$new_bin" --version 2>/dev/null | sed 's/dotcontext //')
+        if [ "$new_ver" != "$VERSION" ]; then
+          local args="update --templates"
+          [ "$auto_yes" = "true" ] && args="$args --yes"
+          [ "$dry_run" = "true" ] && args="$args --dry-run"
+          exec "$new_bin" $args
+        fi
+      fi
       cmd_update_templates "$auto_yes" "$dry_run"
     fi
   fi
@@ -406,6 +521,24 @@ cmd_update_templates() {
     return 1
   fi
 
+  # Migration: move skills from .context/skills/ to .claude/skills/
+  if [ -d ".context/skills" ] && [ ! -d ".claude/skills" ]; then
+    mkdir -p ".claude/skills"
+    cp -r .context/skills/* .claude/skills/ 2>/dev/null || true
+    rm -rf .context/skills
+    print_green "  Migrated .context/skills/ → .claude/skills/"
+  elif [ -d ".context/skills" ] && [ -d ".claude/skills" ]; then
+    # Both exist — merge old into new (don't overwrite existing)
+    for dir in .context/skills/*/; do
+      local skill_name=$(basename "$dir")
+      if [ ! -d ".claude/skills/$skill_name" ]; then
+        cp -r "$dir" ".claude/skills/$skill_name"
+      fi
+    done
+    rm -rf .context/skills
+    print_green "  Migrated remaining skills from .context/skills/ → .claude/skills/"
+  fi
+
   start_spinner "Checking templates..."
 
   # MANAGED templates: dotcontext-owned code (commands). Always offered for update.
@@ -421,6 +554,21 @@ cmd_update_templates() {
     "templates/.claude/commands/pr-comment.md:.claude/commands/pr-comment.md"
     "templates/.claude/commands/deep-context.md:.claude/commands/deep-context.md"
     "templates/.claude/commands/fix-bug.md:.claude/commands/fix-bug.md"
+    "templates/.claude/commands/commit.md:.claude/commands/commit.md"
+    "templates/.claude/scripts/statusline.sh:.claude/scripts/statusline.sh"
+    "templates/.claude/agents/code-review/compliance-checker.md:.claude/agents/code-review/compliance-checker.md"
+    "templates/.claude/agents/code-review/bug-detector.md:.claude/agents/code-review/bug-detector.md"
+    "templates/.claude/agents/code-review/security-analyst.md:.claude/agents/code-review/security-analyst.md"
+    "templates/.claude/agents/deep-context/scope-guardian.md:.claude/agents/deep-context/scope-guardian.md"
+    "templates/.claude/agents/deep-context/primary-explorer.md:.claude/agents/deep-context/primary-explorer.md"
+    "templates/.claude/agents/deep-context/cross-repo-explorer.md:.claude/agents/deep-context/cross-repo-explorer.md"
+    "templates/.claude/agents/deep-context/cross-repo-validator.md:.claude/agents/deep-context/cross-repo-validator.md"
+    "templates/.claude/agents/deep-context/reviewer-output.md:.claude/agents/deep-context/reviewer-output.md"
+    "templates/.claude/agents/fix-bug/investigator.md:.claude/agents/fix-bug/investigator.md"
+    "templates/.claude/agents/fix-bug/fix-conservative.md:.claude/agents/fix-bug/fix-conservative.md"
+    "templates/.claude/agents/fix-bug/fix-minimal.md:.claude/agents/fix-bug/fix-minimal.md"
+    "templates/.claude/agents/fix-bug/fix-refactor.md:.claude/agents/fix-bug/fix-refactor.md"
+    "templates/.claude/agents/fix-bug/reviewer.md:.claude/agents/fix-bug/reviewer.md"
   )
 
   # SEED templates: created once during init, customized by user or /setup-context.
@@ -428,8 +576,8 @@ cmd_update_templates() {
   declare -a seed_templates=(
     "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
-    "templates/.context/skills/README.md:.context/skills/README.md"
-    "templates/.context/skills/bug-reproduction/SKILL.md:.context/skills/bug-reproduction/SKILL.md"
+    "templates/.claude/skills/README.md:.claude/skills/README.md"
+    "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
 
   # Create temp directory for downloads
@@ -626,6 +774,181 @@ cmd_update_templates() {
   else
     print_gray "No changes made"
   fi
+
+  # Offer MCP configuration if .mcp.json doesn't exist
+  if [ ! -f ".mcp.json" ]; then
+    local add_context7=false
+    local add_atlassian=false
+
+    if [ "$auto_yes" = "true" ]; then
+      add_context7=true
+      add_atlassian=true
+    else
+      echo ""
+      print_blue "MCP Servers"
+      print_gray "Configure Model Context Protocol servers for Claude Code"
+      echo ""
+
+      if confirm_yes "  Add Context7? (up-to-date library docs for LLMs)"; then
+        add_context7=true
+      fi
+
+      if confirm_yes "  Add Atlassian? (Jira + Confluence via OAuth)"; then
+        add_atlassian=true
+      fi
+    fi
+
+    setup_mcp "$add_context7" "$add_atlassian"
+  fi
+}
+
+# Command: doctor
+cmd_doctor() {
+  printf "${BLUE}dotcontext doctor${NC} — checking project health\n\n"
+
+  local pass=0
+  local fail=0
+  local warn=0
+
+  check_pass() {
+    printf "  ${GREEN}✓${NC} %s\n" "$1"
+    pass=$((pass + 1))
+  }
+
+  check_fail() {
+    printf "  ${RED}✗${NC} %s\n" "$1"
+    fail=$((fail + 1))
+  }
+
+  check_warn() {
+    printf "  ${YELLOW}⚠${NC} %s\n" "$1"
+    warn=$((warn + 1))
+  }
+
+  # Check: Git repository
+  if git rev-parse --is-inside-work-tree &>/dev/null; then
+    check_pass "Git repository"
+  else
+    check_fail "Git repository — not a git repo"
+  fi
+
+  # Check: Claude CLI installed
+  if command -v claude &>/dev/null; then
+    local claude_ver
+    claude_ver=$(claude --version 2>/dev/null || echo "unknown")
+    check_pass "Claude CLI installed ($claude_ver)"
+  else
+    check_fail "Claude CLI — not installed"
+  fi
+
+  # Check: .context/ directory
+  if [ -d ".context" ]; then
+    check_pass ".context/ directory exists"
+  else
+    check_fail ".context/ directory — missing (run dotcontext init)"
+  fi
+
+  # Check: CLAUDE.md exists and non-empty
+  if [ -s "CLAUDE.md" ]; then
+    if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
+      check_warn "CLAUDE.md — exists but has unfilled placeholders"
+    else
+      check_pass "CLAUDE.md populated"
+    fi
+  elif [ -f "CLAUDE.md" ]; then
+    check_warn "CLAUDE.md — exists but empty"
+  else
+    check_fail "CLAUDE.md — missing"
+  fi
+
+  # Check: CONTEXT.md exists and non-empty
+  if [ -s ".context/CONTEXT.md" ]; then
+    check_pass ".context/CONTEXT.md populated"
+  elif [ -f ".context/CONTEXT.md" ]; then
+    check_warn ".context/CONTEXT.md — exists but empty"
+  else
+    check_fail ".context/CONTEXT.md — missing"
+  fi
+
+  # Check: decisions directory has ADRs
+  local adr_count=0
+  if [ -d ".context/decisions" ]; then
+    adr_count=$(find .context/decisions -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
+  fi
+  if [ "$adr_count" -gt 0 ]; then
+    check_pass ".context/decisions/ — $adr_count ADR(s)"
+  else
+    check_warn ".context/decisions/ — no ADRs found"
+  fi
+
+  # Check: .claude/commands/ present
+  local cmd_count=0
+  if [ -d ".claude/commands" ]; then
+    cmd_count=$(find .claude/commands -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  fi
+  if [ "$cmd_count" -gt 0 ]; then
+    check_pass ".claude/commands/ — $cmd_count command(s)"
+  else
+    check_fail ".claude/commands/ — no commands found"
+  fi
+
+  # Check: .claude/agents/ present
+  local agent_count=0
+  if [ -d ".claude/agents" ]; then
+    agent_count=$(find .claude/agents -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  fi
+  if [ "$agent_count" -gt 0 ]; then
+    check_pass ".claude/agents/ — $agent_count agent(s)"
+  else
+    check_warn ".claude/agents/ — no agents found (run dotcontext update)"
+  fi
+
+  # Check: .claude/skills/ present
+  if [ -d ".claude/skills" ]; then
+    local skill_count
+    skill_count=$(find .claude/skills -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$skill_count" -gt 0 ]; then
+      check_pass ".claude/skills/ — $skill_count skill(s)"
+    else
+      check_warn ".claude/skills/ — directory exists but no skills"
+    fi
+  else
+    check_warn ".claude/skills/ — missing"
+  fi
+
+  # Check: .mcp.json
+  if [ -f ".mcp.json" ]; then
+    if command -v jq &>/dev/null; then
+      local server_count
+      server_count=$(jq '.mcpServers | length' .mcp.json 2>/dev/null || echo "0")
+      check_pass ".mcp.json — $server_count MCP server(s)"
+    else
+      check_pass ".mcp.json exists"
+    fi
+  else
+    check_warn ".mcp.json — missing (no MCP servers configured)"
+  fi
+
+  # Check: notification hooks
+  if [ -f "$HOME/.claude/settings.json" ]; then
+    if grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
+      check_pass "Notification hooks configured"
+    else
+      check_warn "Notification hooks — not configured in ~/.claude/settings.json"
+    fi
+  else
+    check_warn "~/.claude/settings.json — missing"
+  fi
+
+  # Summary
+  echo ""
+  printf "  ${GREEN}%d passed${NC}  ${RED}%d failed${NC}  ${YELLOW}%d warnings${NC}\n" "$pass" "$fail" "$warn"
+
+  if [ "$fail" -gt 0 ]; then
+    echo ""
+    print_gray "  Fix failures with: dotcontext init"
+    return 1
+  fi
 }
 
 # Command: help
@@ -639,6 +962,7 @@ Usage:
 Commands:
   init                Initialize .context structure + open Claude Code
   update              Update CLI + templates (if in a project)
+  doctor              Check project setup health
 
 Options:
   --help, -h          Show this help message
@@ -670,6 +994,7 @@ Claude Code Commands (after init):
   /generate-prp [feature]     Plan a new feature with clarifying questions
   /execute-prp [name]         Implement a planned feature
   /code-review [--comment]    Multi-agent code review
+  /commit [--amend]           Smart commit with style-aware message generation
   /create-pr                  Create PR with auto-detected architecture diagrams
   /pr-comment [PR] [msg]      Add comments to PRs (with optional diagrams)
   /add-decision               Add and populate an ADR interactively
@@ -684,6 +1009,7 @@ EOF
 case "${1:-}" in
   init) shift; cmd_init "$@" ;;
   update) shift; cmd_update "$@" ;;
+  doctor) cmd_doctor ;;
   --version|-v) echo "dotcontext $VERSION" ;;
   --help|-h|"") cmd_help ;;
   *) print_red "Unknown command: $1. Run 'dotcontext --help' for usage."; exit 1 ;;

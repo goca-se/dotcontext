@@ -37,6 +37,9 @@ dotcontext update                     # Update CLI + templates (if in project)
 dotcontext update --cli               # Only update CLI
 dotcontext update --templates         # Only update templates
 
+# Validate project setup
+dotcontext doctor
+
 # Help
 dotcontext --help
 dotcontext --version
@@ -49,6 +52,7 @@ dotcontext --version
 /generate-prp [feature]    # Plan a new feature
 /execute-prp [name]        # Implement a planned feature
 /code-review               # Review code changes
+/commit [--amend]          # Smart commit with style-aware messages
 /deep-context [query]      # Multi-agent business rule discovery
 /fix-bug [description]     # Test-driven bug fixing with parallel agents
 /create-pr                 # Create PR with auto-generated description
@@ -89,5 +93,5 @@ Slash commands in `.claude/commands/` provide interactive workflows that integra
 
 - Domain and architecture → `.context/CONTEXT.md`
 - Architectural decisions → `.context/decisions/`
-- Task-specific skills → `.context/skills/`
-- Bug reproduction guide → `.context/skills/bug-reproduction/SKILL.md`
+- Task-specific skills → `.claude/skills/`
+- Bug reproduction guide → `.claude/skills/bug-reproduction/SKILL.md`

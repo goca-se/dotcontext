@@ -74,7 +74,7 @@ Checking templates...
   + .claude/commands/fix-bug.md (new)
   ~ .claude/commands/code-review.md (modified)
   = .claude/commands/setup-context.md (unchanged)
-  • .context/skills/bug-reproduction/SKILL.md (user-managed — skipped)
+  • .claude/skills/bug-reproduction/SKILL.md (user-managed — skipped)
 
 Summary: 1 to add, 1 to update, 8 unchanged, 1 user-managed
 
@@ -137,18 +137,25 @@ your-project/
 │       ├── templates/
 │       └── generated/
 └── .claude/
-    └── commands/
-        ├── setup-context.md          # Auto-setup command
-        ├── code-review.md            # Code review command
-        ├── generate-prp.md           # Generate feature PRPs
-        ├── execute-prp.md            # Execute PRPs step-by-step
-        ├── create-pr.md              # Create PRs with diagrams
-        ├── pr-comment.md             # Comment on PRs
-        ├── add-decision.md           # Add ADR interactively
-        ├── add-skill.md              # Add skill interactively
-        ├── add-command.md            # Add custom command
-        ├── deep-context.md           # Multi-agent business rule discovery
-        └── fix-bug.md               # Test-driven bug fixing
+    ├── commands/
+    │   ├── setup-context.md          # Auto-setup command
+    │   ├── code-review.md            # Code review command
+    │   ├── commit.md                 # Smart commit command
+    │   ├── generate-prp.md           # Generate feature PRPs
+    │   ├── execute-prp.md            # Execute PRPs step-by-step
+    │   ├── create-pr.md              # Create PRs with diagrams
+    │   ├── pr-comment.md             # Comment on PRs
+    │   ├── add-decision.md           # Add ADR interactively
+    │   ├── add-skill.md              # Add skill interactively
+    │   ├── add-command.md            # Add custom command
+    │   ├── deep-context.md           # Multi-agent business rule discovery
+    │   └── fix-bug.md               # Test-driven bug fixing
+    ├── agents/                       # Extracted agent prompts
+    │   ├── code-review/              # 3 review agents
+    │   ├── deep-context/             # 5 discovery agents
+    │   └── fix-bug/                  # 5 bug-fix agents
+    └── scripts/
+        └── statusline.sh            # StatusLine script (git + context health)
 ```
 
 Additionally, `dotcontext init` configures **native OS notifications** in `~/.claude/`:
@@ -173,6 +180,7 @@ Additionally, `dotcontext init` configures **native OS notifications** in `~/.cl
 | `dotcontext update --templates`        | Only update templates                          |
 | `dotcontext update --yes`              | Update templates without prompting             |
 | `dotcontext update --dry-run`          | Preview template changes only                  |
+| `dotcontext doctor`                    | Check project setup health                     |
 | `dotcontext --help`                    | Show help                                      |
 | `dotcontext --version`                 | Show version                                   |
 
@@ -184,6 +192,7 @@ Additionally, `dotcontext init` configures **native OS notifications** in `~/.cl
 | `/generate-prp [feature]`    | Plan a new feature with clarifying questions   |
 | `/execute-prp [name]`        | Implement a planned feature                    |
 | `/code-review [--comment]`   | Multi-agent code review with confidence scoring |
+| `/commit [--amend]`          | Smart commit with style-aware message generation |
 | `/create-pr`                 | Create PR with auto-detected architecture diagrams |
 | `/pr-comment [PR] [message]` | Add comments to PRs with optional diagrams     |
 | `/deep-context [query]`      | Multi-agent business rule discovery across repos |
