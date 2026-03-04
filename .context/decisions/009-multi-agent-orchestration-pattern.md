@@ -54,7 +54,9 @@ Each agent returns its findings as structured text in the Task tool response. Th
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-02-10 | Initial decision |
+| 1.1 | 2026-03-04 | Agent prompts extracted to `.claude/agents/` files (see ADR-012) |
 
 ## Related
 - ADR-004: Claude Code Integration via Slash Commands
 - ADR-005: Mandatory AskUserQuestion Tool Usage
+- ADR-012: Agent File Extraction Pattern
