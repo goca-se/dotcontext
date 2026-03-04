@@ -28,12 +28,12 @@ Search the codebase to find:
 ### 4. Create Skill Structure
 
 ```bash
-mkdir -p .context/skills/[skill-slug]
+mkdir -p .claude/skills/[skill-slug]
 ```
 
 ### 5. Populate SKILL.md
 
-Create `.context/skills/[skill-slug]/SKILL.md`:
+Create `.claude/skills/[skill-slug]/SKILL.md`:
 
 ```markdown
 # Skill: [Name]
@@ -108,7 +108,7 @@ Located at: `[file path]`
 ## Output
 
 ```
-Created: .context/skills/[slug]/SKILL.md
+Created: .claude/skills/[slug]/SKILL.md
 
 Skill: [Name]
 
