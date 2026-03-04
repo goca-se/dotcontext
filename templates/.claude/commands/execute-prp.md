@@ -15,7 +15,7 @@ Execute the PRP specified in $ARGUMENTS.
 
 ## During Implementation
 
-- Follow patterns in `.context/skills/`
+- Follow patterns in `.claude/skills/`
 - Respect decisions in `.context/decisions/`
 - Check `CLAUDE.md` for critical rules
 

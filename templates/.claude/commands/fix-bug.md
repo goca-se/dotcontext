@@ -42,7 +42,7 @@ Combine all sources into a single `BUG_CONTEXT` block.
 Read these files to understand the project:
 - `CLAUDE.md` — project rules, stack, test commands
 - `.context/CONTEXT.md` — domain context
-- `.context/skills/bug-reproduction/SKILL.md` — bug reproduction patterns (if exists)
+- `.claude/skills/bug-reproduction/SKILL.md` — bug reproduction patterns (if exists)
 
 From `CLAUDE.md`, identify:
 - **Test framework** and **test command** (e.g., `npm test`, `pytest`, `go test`)
@@ -58,80 +58,7 @@ Then **use AskUserQuestion** to get the test command, or allow the user to proce
 
 Use the **Task tool** with `subagent_type: "general-purpose"`:
 
-```
-You are the Investigator agent for a test-driven bug fix.
-
-**Your mission:** Find the root cause of the bug and write a failing test that reproduces it.
-
-**Bug description:**
-{BUG_CONTEXT}
-
-**Project stack:**
-{stack from CLAUDE.md}
-
-**Test framework:** {test framework}
-**Test command:** {test command}
-
-**Bug reproduction skill:**
-{paste SKILL.md content if it exists}
-
-**Instructions:**
-
-1. **Search for related code:**
-   - Use Grep to search for keywords from the bug description
-   - Use Glob to find relevant files
-   - Read the files to understand the code path
-
-2. **Identify root cause:**
-   - Trace the execution path that triggers the bug
-   - Identify the exact file(s), function(s), and line(s) where the bug occurs
-   - Explain WHY the bug happens (not just WHERE)
-
-3. **Write a reproduction test:**
-   - Use the project's test framework and patterns
-   - Test name should describe the bug: "should [expected behavior] when [condition]"
-   - Test must assert the CORRECT (expected) behavior
-   - The test should FAIL because the bug prevents the correct behavior
-
-4. **Run the test:**
-   - Execute the test using the project's test command
-   - Confirm the test FAILS
-   - Verify it fails for the RIGHT reason (the assertion fails due to the bug, not due to test setup errors)
-
-5. **If test PASSES (bug not reproduced):**
-   - Do NOT proceed to fix phase
-   - Report what you found and what you tried
-   - Include your best understanding of the bug
-
-**Output format:**
-
-## Investigation Results
-
-### Root Cause
-[Detailed explanation of what's wrong and why]
-
-### Affected Files
-| File | Lines | Issue |
-|------|-------|-------|
-| [path] | [lines] | [what's wrong] |
-
-### Reproduction Test
-- **File:** [path to test file]
-- **Test name:** [test function/describe name]
-- **Status:** FAILING / PASSING (not reproduced)
-- **Failure output:**
-```
-[test output showing the failure]
-```
-
-### Test Code
-```
-[the full test code written]
-```
-
-### Suggested Fix Areas
-[Which files/functions need to change and general approach]
-```
+Read `.claude/agents/fix-bug/investigator.md` for the agent prompt. Substitute `{bug_context}`, `{stack}`, `{test_framework}`, `{test_command}`, and `{reproduction_skill}` with actual values.
 
 After the Investigator completes, check the result:
 
@@ -144,7 +71,7 @@ After the Investigator completes, check the result:
 
 Launch N agents (from `--agents` flag, default 3) in a SINGLE message with multiple Task tool calls. All agents run in background (`run_in_background: true`).
 
-Each agent receives the Investigator's output and has a different strategy.
+Each agent receives the Investigator's output and has a different strategy. Read the agent prompt files and substitute `{bug_context}`, `{investigator_output}`, `{test_file}`, and `{test_command}` with actual values.
 
 ---
 
@@ -152,53 +79,7 @@ Each agent receives the Investigator's output and has a different strategy.
 
 Use the **Task tool** with `subagent_type: "general-purpose"` and `run_in_background: true`:
 
-```
-You are Fix Agent 1 (Conservative) for a test-driven bug fix.
-
-**Your strategy:** Make the SMALLEST possible change to fix the bug. Prefer the minimal diff. Do not refactor, do not improve surrounding code. Just fix the exact issue.
-
-**Bug context:**
-{BUG_CONTEXT}
-
-**Investigator findings:**
-{paste Investigator output}
-
-**Test file:** {test file path}
-**Test command:** {test command}
-
-**Instructions:**
-1. Read the affected files identified by the Investigator
-2. Make the minimal change needed to fix the root cause
-3. Run the reproduction test: {test command} {test file}
-4. Report your results
-
-**Output format:**
-
-## Fix Agent 1: Conservative Fix
-
-### Strategy
-Minimal change — smallest diff possible
-
-### Changes Made
-| File | Change |
-|------|--------|
-| [path] | [what was changed and why] |
-
-### Diff
-```diff
-[the actual diff of changes]
-```
-
-### Test Result
-- **Reproduction test:** PASS / FAIL
-- **Output:**
-```
-[test output]
-```
-
-### Explanation
-[Why this fix works]
-```
+Read `.claude/agents/fix-bug/fix-conservative.md` for the agent prompt.
 
 ---
 
@@ -206,54 +87,7 @@ Minimal change — smallest diff possible
 
 Use the **Task tool** with `subagent_type: "general-purpose"` and `run_in_background: true`:
 
-```
-You are Fix Agent 2 (Minimal Change) for a test-driven bug fix.
-
-**Your strategy:** Focus on the EXACT line(s) causing the issue. One-liner if possible. Think surgically — what's the most precise change?
-
-**Bug context:**
-{BUG_CONTEXT}
-
-**Investigator findings:**
-{paste Investigator output}
-
-**Test file:** {test file path}
-**Test command:** {test command}
-
-**Instructions:**
-1. Read the affected files identified by the Investigator
-2. Identify the exact line(s) that need to change
-3. Make the most precise, surgical fix possible
-4. Run the reproduction test: {test command} {test file}
-5. Report your results
-
-**Output format:**
-
-## Fix Agent 2: Minimal Change Fix
-
-### Strategy
-Surgical change — exact line(s) only
-
-### Changes Made
-| File | Change |
-|------|--------|
-| [path] | [what was changed and why] |
-
-### Diff
-```diff
-[the actual diff of changes]
-```
-
-### Test Result
-- **Reproduction test:** PASS / FAIL
-- **Output:**
-```
-[test output]
-```
-
-### Explanation
-[Why this fix works]
-```
+Read `.claude/agents/fix-bug/fix-minimal.md` for the agent prompt.
 
 ---
 
@@ -261,54 +95,7 @@ Surgical change — exact line(s) only
 
 Use the **Task tool** with `subagent_type: "general-purpose"` and `run_in_background: true`:
 
-```
-You are Fix Agent 3 (Refactor) for a test-driven bug fix.
-
-**Your strategy:** Fix the bug AND improve the surrounding code. Better abstractions, clearer logic, defensive coding. Make the code less likely to have similar bugs in the future.
-
-**Bug context:**
-{BUG_CONTEXT}
-
-**Investigator findings:**
-{paste Investigator output}
-
-**Test file:** {test file path}
-**Test command:** {test command}
-
-**Instructions:**
-1. Read the affected files identified by the Investigator
-2. Fix the root cause
-3. Improve the surrounding code: better variable names, clearer logic, edge case handling, comments if needed
-4. Run the reproduction test: {test command} {test file}
-5. Report your results
-
-**Output format:**
-
-## Fix Agent 3: Refactor Fix
-
-### Strategy
-Fix + improve — better code quality around the bug
-
-### Changes Made
-| File | Change |
-|------|--------|
-| [path] | [what was changed and why] |
-
-### Diff
-```diff
-[the actual diff of changes]
-```
-
-### Test Result
-- **Reproduction test:** PASS / FAIL
-- **Output:**
-```
-[test output]
-```
-
-### Explanation
-[Why this fix works and what was improved]
-```
+Read `.claude/agents/fix-bug/fix-refactor.md` for the agent prompt.
 
 ---
 
@@ -331,85 +118,7 @@ Wait for ALL fix agents to complete. Read each background agent's output.
 
 Use the **Task tool** with `subagent_type: "general-purpose"`:
 
-```
-You are the Reviewer agent for a test-driven bug fix.
-
-**Your mission:** Evaluate all fix attempts and select (or combine) the best solution.
-
-**Bug context:**
-{BUG_CONTEXT}
-
-**Investigator findings:**
-{paste Investigator output}
-
-**Fix Agent Results:**
-
-{paste ALL fix agent outputs}
-
-**Test command:** {test command}
-
-**Instructions:**
-
-1. **Count successful fixes** (reproduction test passed)
-
-2. **If 0 agents succeeded:**
-   - Report failure
-   - Summarize what each agent tried
-   - Identify the most promising partial approach
-   - Output recommendation: "No fix found"
-
-3. **If 1 agent succeeded:**
-   - Verify the fix by re-running the reproduction test
-   - Run the full test suite to check for regressions
-   - Output the fix details
-
-4. **If >1 agents succeeded:**
-   - Compare each successful fix:
-     - Diff size (smaller is better)
-     - Code quality (clarity, maintainability)
-     - Test coverage (does the fix handle edge cases?)
-     - Risk of regression (how much was changed?)
-   - Attempt to combine the best aspects into an optimized fix
-   - If combined fix passes reproduction test: include it as an option
-   - If combined fix fails: discard it
-
-5. **Run full test suite** on the recommended fix to check for regressions
-
-6. **Generate the fix comparison**
-
-**Output format:**
-
-## Review Results
-
-### Summary
-- Agents that succeeded: [N of N]
-- Recommended fix: [Agent N: strategy name] or [Combined]
-
-### Fix Comparison (if >1 succeeded)
-| Agent | Strategy | Diff Size | Test Pass | Quality Notes |
-|-------|----------|-----------|-----------|---------------|
-
-### Recommended Fix
-- **Source:** [Agent N / Combined]
-- **Files changed:** [N]
-- **Diff size:** [N lines]
-- **Why this fix:** [reasoning]
-
-### Changes to Apply
-| File | Change |
-|------|--------|
-
-```diff
-[the full diff to apply]
-```
-
-### Regression Check
-- Reproduction test: PASS / FAIL
-- Full test suite: PASS / FAIL / [specific failures]
-
-### Alternative Fixes (if applicable)
-[Brief description of other successful fixes not selected]
-```
+Read `.claude/agents/fix-bug/reviewer.md` for the agent prompt. Substitute `{bug_context}`, `{investigator_output}`, `{fix_results}` (all fix agent outputs concatenated), and `{test_command}` with actual values.
 
 ### Step 8: Present Fix to User
 
