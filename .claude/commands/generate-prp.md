@@ -6,7 +6,7 @@ Generate a PRP (Product Requirements Prompt) for the feature described in $ARGUM
 
 1. **Read the request** in $ARGUMENTS
 2. **Analyze the codebase** to understand existing patterns
-3. **Consult relevant skills** in `.context/skills/`
+3. **Consult relevant skills** in `.claude/skills/`
 4. **Check decisions** in `.context/decisions/` - identify any that might be affected
 5. **Generate PRP** following the template in `.context/prp/templates/feature.md`
 
