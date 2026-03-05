@@ -52,13 +52,31 @@ dotcontext/
 
 ### System Overview
 
-dotcontext is a single-executable CLI tool (Bash 3.2+) distributed as one script file. It follows a command-router pattern where all commands are functions within the main script, dispatched via a case statement. It integrates with Claude Code through markdown-based slash commands that orchestrate multi-agent workflows.
+dotcontext is a single-executable CLI tool (Bash 3.2+) distributed as one script file. Source code is modular (`src/`) and bundled via `make build` into the single `dotcontext` executable (~1266 lines). It follows a command-router pattern where all commands are functions dispatched via a case statement. It integrates with Claude Code through markdown-based slash commands that orchestrate multi-agent workflows.
 
 ### Directory Structure
 
 ```
 dotcontext/
-├── dotcontext           # Main CLI executable (~1000 lines, all commands)
+├── dotcontext           # Built CLI executable (~1266 lines, bundled from src/)
+├── src/                 # Modular source code (bundled via make build)
+│   ├── header.sh        # Shebang, set -e, version, repo constants
+│   ├── main.sh          # Command router (case statement)
+│   ├── core/            # Shared utilities
+│   │   ├── colors.sh    # ANSI color constants
+│   │   ├── icons.sh     # Unicode icon constants
+│   │   ├── ui.sh        # Print helpers (print_red, print_green, etc.)
+│   │   ├── spinner.sh   # Braille animation spinner
+│   │   └── utils.sh     # URL encoding, temp dir, download helpers
+│   ├── commands/        # CLI command implementations
+│   │   ├── init.sh      # dotcontext init (cmd_init)
+│   │   ├── update.sh    # dotcontext update (cmd_update, ~423 lines)
+│   │   ├── doctor.sh    # dotcontext doctor (cmd_doctor)
+│   │   ├── help.sh      # dotcontext --help (cmd_help)
+│   │   └── completion.sh # Shell tab completion (cmd_completion)
+│   └── setup/           # Post-init setup helpers
+│       ├── notifications.sh # Claude Code hook config for notifications
+│       └── mcp.sh       # MCP server config (.mcp.json)
 ├── install.sh           # Installation script (curl-based)
 ├── scripts/
 │   ├── notify.sh        # Cross-platform notification (macOS/Linux/Windows)
@@ -71,7 +89,7 @@ dotcontext/
     ├── commands/        # 13 slash command definitions
     ├── agents/          # 12 agent prompt files (3 subdirs)
     ├── scripts/         # StatusLine script
-    └── skills/          # Seed skills (bug-reproduction)
+    └── skills/          # Seed skills (bug-reproduction, add-cli-subcommand, add-new-command)
 ```
 
 ### Key Dependencies
