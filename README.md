@@ -188,6 +188,7 @@ Additionally, `dotcontext init` configures:
 | `dotcontext update --yes`              | Update templates without prompting             |
 | `dotcontext update --dry-run`          | Preview template changes only                  |
 | `dotcontext doctor`                    | Check project setup health                     |
+| `dotcontext completion [bash\|zsh]`    | Generate shell tab completions                 |
 | `dotcontext --help`                    | Show help                                      |
 | `dotcontext --version`                 | Show version                                   |
 
@@ -207,6 +208,7 @@ Additionally, `dotcontext init` configures:
 | `/add-decision`              | Add and populate an ADR interactively          |
 | `/add-skill`                 | Add and populate a skill guide                 |
 | `/add-command`               | Create a custom slash command                  |
+| `/release`                   | Version bump and release                       |
 
 ## Built-in Slash Commands
 
@@ -464,6 +466,20 @@ Create a custom Claude Code slash command:
 - **Windows/WSL**: PowerShell toast notifications
 
 No additional dependencies required.
+
+## Shell Completion
+
+Enable tab completion for dotcontext commands and options:
+
+```bash
+# Bash (add to ~/.bashrc)
+eval "$(dotcontext completion bash)"
+
+# Zsh (add to ~/.zshrc)
+eval "$(dotcontext completion zsh)"
+```
+
+Completes subcommands (`init`, `update`, `doctor`, `completion`) and per-command options.
 
 ## Requirements
 
