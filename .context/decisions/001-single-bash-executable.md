@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2025-01-01
-**Version:** 1.0
+**Version:** 2.0
 **Deciders:** Gocase Team
 
 ## Context
@@ -15,7 +15,7 @@ We needed to distribute a CLI tool that helps developers set up AI context docum
 
 ## Decision
 
-Implement the entire CLI as a single bash script (~700 lines) with all commands as internal functions.
+Implement the entire CLI as a single bash script with all commands as internal functions. Source code is organized in `src/` modules (`core/`, `commands/`, `setup/`) for maintainability, bundled into a single executable via `make build`. The distributed artifact remains a single file.
 
 ## Alternatives Considered
 
@@ -49,6 +49,7 @@ Implement the entire CLI as a single bash script (~700 lines) with all commands 
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-01-01 | Initial decision |
+| 2.0 | 2026-03-05 | Updated for modular source (src/) with build-time bundling — still ships as single file |
 
 ## Related
 - ADR-002: Template download strategy
