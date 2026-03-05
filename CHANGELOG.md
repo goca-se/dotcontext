@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.13.0](https://github.com/goca-se/dotcontext/compare/v0.12.0...v0.13.0) (2026-03-05)
+
+### Features
+
+* **modular source architecture** — split monolithic script into 14 `src/` modules (`core/`, `commands/`, `setup/`) with `Makefile` build system; still ships as single executable
+* **colored help screen** — grouped layout with BLUE BOLD headers, CYAN commands, YELLOW options, and adaptive column widths based on terminal width
+* **icon system** — 16 `ICON_*` constants replacing hardcoded symbols across doctor, init, and update output; structured output blocks with `print_block_header`/`print_block_footer`
+* **shell tab completion** — `dotcontext completion bash|zsh` generates working completions with per-subcommand option awareness
+* **TTY-safe colors** — `[[ -t 1 ]]` detection strips escape codes when output is piped
+
+### Changes
+
+* **ADR-001 v2.0** — updated to reflect modular source with build-time bundling
+* **CLAUDE.md** — architecture section updated, `completion` command documented
+
 ## [0.12.0](https://github.com/goca-se/dotcontext/compare/v0.11.0...v0.12.0) (2026-03-05)
 
 ### Features
