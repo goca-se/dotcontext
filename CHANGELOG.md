@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.1](https://github.com/goca-se/dotcontext/compare/v0.13.0...v0.13.1) (2026-03-05)
+
+### Docs
+
+* **README** — added `completion` to CLI commands table, `/release` to Claude Code commands table, new "Shell Completion" section with bash/zsh setup instructions
+
 ## [0.13.0](https://github.com/goca-se/dotcontext/compare/v0.12.0...v0.13.0) (2026-03-05)
 
 ### Features
