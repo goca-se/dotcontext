@@ -53,7 +53,7 @@ dotcontext --version
 /execute-prp [name]        # Implement a planned feature
 /code-review               # Review code changes
 /commit [--amend]          # Smart commit with style-aware messages
-/deep-context [query]      # Multi-agent business rule discovery
+/deep-context [query]      # Structured 4-step codebase exploration
 /fix-bug [description]     # Test-driven bug fixing with parallel agents
 /create-pr                 # Create PR with auto-generated description
 /pr-comment                # Add comment to existing PR
@@ -75,7 +75,7 @@ dotcontext --version
 
 ### Single Executable Pattern
 
-The entire CLI is a single `dotcontext` bash script (~700 lines). All commands are implemented as functions within this script, routed via a case statement. This simplifies distribution and installation.
+The entire CLI is a single `dotcontext` bash script (~1000 lines). All commands are implemented as functions within this script, routed via a case statement. This simplifies distribution and installation.
 
 ### Template-Based Init
 

@@ -55,6 +55,7 @@ Each agent returns its findings as structured text in the Task tool response. Th
 |---------|------|---------|
 | 1.0 | 2026-02-10 | Initial decision |
 | 1.1 | 2026-03-04 | Agent prompts extracted to `.claude/agents/` files (see ADR-012) |
+| 1.2 | 2026-03-05 | Deep-context restructured from 5-agent to 4-step exploration flow (see ADR-013) |
 
 ## Related
 - ADR-004: Claude Code Integration via Slash Commands
