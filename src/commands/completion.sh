@@ -1,7 +1,14 @@
 # ── Command: completion ───────────────────────────────────────────────────────
 
 cmd_completion() {
-  local shell="${1:-bash}"
+  local shell="${1:-}"
+  if [ -z "$shell" ]; then
+    if [ -n "$ZSH_VERSION" ]; then
+      shell="zsh"
+    else
+      shell="bash"
+    fi
+  fi
 
   case "$shell" in
     bash)
@@ -89,7 +96,7 @@ _dotcontext() {
   esac
 }
 
-_dotcontext "$@"
+compdef _dotcontext dotcontext
 ZSH_COMP
       ;;
     *)
