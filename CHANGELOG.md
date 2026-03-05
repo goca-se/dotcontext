@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/goca-se/dotcontext/compare/v0.13.1...v0.13.2) (2026-03-05)
+
+### Fixes
+
+* **zsh completion** — replaced `_dotcontext "$@"` with `compdef _dotcontext dotcontext` to prevent `_arguments` error when eval'd
+* **shell auto-detection** — `dotcontext completion` without arguments now detects zsh vs bash automatically via `$ZSH_VERSION`
+
 ## [0.13.1](https://github.com/goca-se/dotcontext/compare/v0.13.0...v0.13.1) (2026-03-05)
 
 ### Docs
