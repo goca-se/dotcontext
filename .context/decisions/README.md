@@ -17,6 +17,8 @@ Record of significant technical decisions in this project.
 | [009](009-multi-agent-orchestration-pattern.md) | Multi-Agent Orchestration Pattern | Accepted |
 | [010](010-discovery-output-format.md) | Discovery Output Format | Accepted |
 | [011](011-test-driven-bug-fixing-pattern.md) | Test-Driven Bug Fixing Pattern | Accepted |
+| [012](012-agent-file-extraction-pattern.md) | Agent File Extraction Pattern | Accepted |
+| [013](013-structured-exploration-pattern.md) | Structured Exploration Pattern | Accepted |
 
 ## Template
 
