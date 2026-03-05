@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.3](https://github.com/goca-se/dotcontext/compare/v0.13.2...v0.13.3) (2026-03-05)
+
+### Changes
+
+* **context** - update CONTEXT.md with modular src/ directory structure
+* **decisions** - add ADR-012 (Agent File Extraction) and ADR-013 (Structured Exploration)
+* **mcp** - add .mcp.json with context7 MCP server configuration
+
 ## [0.13.2](https://github.com/goca-se/dotcontext/compare/v0.13.1...v0.13.2) (2026-03-05)
 
 ### Fixes
