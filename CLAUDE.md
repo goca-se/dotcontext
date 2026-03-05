@@ -40,6 +40,9 @@ dotcontext update --templates         # Only update templates
 # Validate project setup
 dotcontext doctor
 
+# Shell tab completion
+dotcontext completion [bash|zsh]
+
 # Help
 dotcontext --help
 dotcontext --version
@@ -75,7 +78,7 @@ dotcontext --version
 
 ### Single Executable Pattern
 
-The entire CLI is a single `dotcontext` bash script (~1000 lines). All commands are implemented as functions within this script, routed via a case statement. This simplifies distribution and installation.
+The CLI is distributed as a single `dotcontext` bash script. Source code lives in `src/` modules (`core/`, `commands/`, `setup/`) and is bundled into the single executable via `make build`. All commands are implemented as functions, routed via a case statement. This keeps development modular while simplifying distribution.
 
 ### Template-Based Init
 

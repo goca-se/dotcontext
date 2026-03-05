@@ -5,25 +5,101 @@ VERSION="0.12.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
+# ── Colors ────────────────────────────────────────────────────────────────────
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-GRAY='\033[0;90m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+if [[ -t 1 ]]; then
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[0;33m'
+  BLUE='\033[0;34m'
+  PURPLE='\033[0;35m'
+  CYAN='\033[0;36m'
+  GRAY='\033[0;90m'
+  BOLD='\033[1m'
+  DIM='\033[2m'
+  NC='\033[0m'
+else
+  RED='' GREEN='' YELLOW='' BLUE='' PURPLE='' CYAN='' GRAY='' BOLD='' DIM='' NC=''
+fi
 
-# Helper functions
+# Helper print functions
 print_green() { printf "${GREEN}%s${NC}\n" "$1"; }
 print_red() { printf "${RED}%s${NC}\n" "$1"; }
 print_yellow() { printf "${YELLOW}%s${NC}\n" "$1"; }
 print_blue() { printf "${BLUE}%s${NC}\n" "$1"; }
 print_gray() { printf "${GRAY}%s${NC}\n" "$1"; }
 print_cyan() { printf "${CYAN}%s${NC}\n" "$1"; }
+# ── Icons ─────────────────────────────────────────────────────────────────────
 
-# Braille spinner for network operations
+ICON_SUCCESS="✓"
+ICON_ERROR="✗"
+ICON_WARNING="⚠"
+ICON_ARROW="➤"
+ICON_INFO="ℹ"
+ICON_SECTION="◆"
+ICON_DOWNLOAD="↓"
+ICON_SKIP="○"
+ICON_UPDATE="↻"
+ICON_CHECK="◎"
+ICON_ADMIN="⚙"
+ICON_NAV="↳"
+ICON_ADD="+"
+ICON_MODIFY="~"
+ICON_UNCHANGED="="
+ICON_MANAGED="•"
+# ── UI Utilities ──────────────────────────────────────────────────────────────
+
+get_term_width() {
+  local width
+  width=$(tput cols 2>/dev/null || echo "")
+  if [ -z "$width" ] || [ "$width" -lt 40 ] 2>/dev/null; then
+    width=80
+  fi
+  echo "$width"
+}
+
+# Print a section header with divider line
+# Usage: print_block_header "Title"
+print_block_header() {
+  local title="$1"
+  local width
+  width=$(get_term_width)
+  local title_len=${#title}
+  local pad=$((width - title_len - 6))
+  [ "$pad" -lt 4 ] && pad=4
+  local line=""
+  local i
+  for ((i = 0; i < pad; i++)); do
+    line="${line}─"
+  done
+  printf "\n  ${BOLD}── %s ${NC}${GRAY}%s${NC}\n" "$title" "$line"
+}
+
+# Print a block footer divider
+print_block_footer() {
+  local width
+  width=$(get_term_width)
+  local pad=$((width - 4))
+  [ "$pad" -lt 10 ] && pad=10
+  local line=""
+  local i
+  for ((i = 0; i < pad; i++)); do
+    line="${line}─"
+  done
+  printf "  ${GRAY}%s${NC}\n" "$line"
+}
+
+# Print aligned label-value pair
+# Usage: print_aligned "label" "value" [indent]
+print_aligned() {
+  local label="$1"
+  local value="$2"
+  local indent="${3:-4}"
+  local pad_fmt="%-${indent}s"
+  printf "  ${pad_fmt}${GRAY}%s${NC}\n" "$label" "$value"
+}
+# ── Spinner ───────────────────────────────────────────────────────────────────
+
 SPINNER_PID=""
 start_spinner() {
   local msg="$1"
@@ -49,6 +125,7 @@ stop_spinner() {
     echo "$msg"
   fi
 }
+# ── Utilities ─────────────────────────────────────────────────────────────────
 
 slugify() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//'
@@ -123,6 +200,7 @@ cleanup_managed_dir() {
     fi
   done
 }
+# ── Notification Setup ────────────────────────────────────────────────────────
 
 # Setup notifications for Claude Code
 setup_notifications() {
@@ -189,6 +267,7 @@ SETTINGS_EOF
     fi
   fi
 }
+# ── MCP Server Setup ──────────────────────────────────────────────────────────
 
 # Setup MCP servers in .mcp.json
 setup_mcp() {
@@ -230,8 +309,8 @@ EOF
     print_gray "MCP servers configured in .mcp.json"
   fi
 }
+# ── Command: init ─────────────────────────────────────────────────────────────
 
-# Command: init
 cmd_init() {
   local project_name=""
   local skip_prompts=false
@@ -405,9 +484,9 @@ cmd_init() {
 
   echo ""
   if [ "$is_reinit" = true ]; then
-    printf "  ${GREEN}✓${NC} Context structure updated\n"
+    printf "  ${GREEN}${ICON_SUCCESS}${NC} Context structure updated\n"
   else
-    printf "  ${GREEN}✓${NC} Context structure created\n"
+    printf "  ${GREEN}${ICON_SUCCESS}${NC} Context structure created\n"
   fi
   printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (12)  .claude/agents/ (12)${NC}\n"
   echo ""
@@ -424,8 +503,8 @@ cmd_init() {
   fi
   echo ""
 }
+# ── Command: update ───────────────────────────────────────────────────────────
 
-# Command: update
 cmd_update() {
   local templates_only=false
   local cli_only=false
@@ -507,7 +586,7 @@ cmd_update_cli() {
   fi
 
   if [ "$VERSION" = "$latest_version" ]; then
-    stop_spinner "$(printf "${GREEN}✅ CLI already at latest version ($VERSION)${NC}")"
+    stop_spinner "$(printf "${GREEN}${ICON_SUCCESS} CLI already at latest version ($VERSION)${NC}")"
     return 0
   fi
 
@@ -545,7 +624,7 @@ cmd_update_cli() {
     sudo chmod +x "$install_path"
   fi
 
-  print_green "✅ CLI updated to $latest_version"
+  print_green "${ICON_SUCCESS} CLI updated to $latest_version"
 }
 
 cmd_update_templates() {
@@ -676,11 +755,11 @@ cmd_update_templates() {
     has_changes=true
     for mapping in "${new_files[@]}"; do
       local local_path="${mapping##*:}"
-      printf "  ${GREEN}+${NC} %s ${GRAY}(new)${NC}\n" "$local_path"
+      printf "  ${GREEN}${ICON_ADD}${NC} %s ${GRAY}(new)${NC}\n" "$local_path"
     done
     for mapping in "${seed_new_files[@]}"; do
       local local_path="${mapping##*:}"
-      printf "  ${GREEN}+${NC} %s ${GRAY}(new — seed template)${NC}\n" "$local_path"
+      printf "  ${GREEN}${ICON_ADD}${NC} %s ${GRAY}(new — seed template)${NC}\n" "$local_path"
     done
   fi
 
@@ -688,21 +767,21 @@ cmd_update_templates() {
     has_changes=true
     for mapping in "${modified_files[@]}"; do
       local local_path="${mapping##*:}"
-      printf "  ${YELLOW}~${NC} %s ${GRAY}(modified)${NC}\n" "$local_path"
+      printf "  ${YELLOW}${ICON_MODIFY}${NC} %s ${GRAY}(modified)${NC}\n" "$local_path"
     done
   fi
 
   if [ ${#unchanged_files[@]} -gt 0 ]; then
     for mapping in "${unchanged_files[@]}"; do
       local local_path="${mapping##*:}"
-      printf "  ${GRAY}=${NC} %s ${GRAY}(unchanged)${NC}\n" "$local_path"
+      printf "  ${GRAY}${ICON_UNCHANGED}${NC} %s ${GRAY}(unchanged)${NC}\n" "$local_path"
     done
   fi
 
   if [ ${#seed_skipped_files[@]} -gt 0 ]; then
     for mapping in "${seed_skipped_files[@]}"; do
       local local_path="${mapping##*:}"
-      printf "  ${CYAN}•${NC} %s ${GRAY}(user-managed — skipped)${NC}\n" "$local_path"
+      printf "  ${CYAN}${ICON_MANAGED}${NC} %s ${GRAY}(user-managed — skipped)${NC}\n" "$local_path"
     done
   fi
 
@@ -714,7 +793,7 @@ cmd_update_templates() {
   # If no changes, exit early
   if [ "$has_changes" = false ]; then
     echo ""
-    print_green "✅ All templates up to date"
+    print_green "${ICON_SUCCESS} All templates up to date"
     return 0
   fi
 
@@ -812,10 +891,10 @@ cmd_update_templates() {
   echo ""
   if [ $added -gt 0 ] || [ $updated -gt 0 ]; then
     if [ $added -gt 0 ]; then
-      print_green "✅ Added $added new file(s)"
+      print_green "${ICON_SUCCESS} Added $added new file(s)"
     fi
     if [ $updated -gt 0 ]; then
-      print_green "✅ Updated $updated file(s)"
+      print_green "${ICON_SUCCESS} Updated $updated file(s)"
     fi
   else
     print_gray "No changes made"
@@ -847,27 +926,28 @@ cmd_update_templates() {
     setup_mcp "$add_context7" "$add_atlassian"
   fi
 }
+# ── Command: doctor ───────────────────────────────────────────────────────────
 
-# Command: doctor
 cmd_doctor() {
-  printf "${BLUE}dotcontext doctor${NC} — checking project health\n\n"
+  print_block_header "dotcontext doctor"
+  echo ""
 
   local pass=0
   local fail=0
   local warn=0
 
   check_pass() {
-    printf "  ${GREEN}✓${NC} %s\n" "$1"
+    printf "  ${GREEN}${ICON_SUCCESS}${NC} %s\n" "$1"
     pass=$((pass + 1))
   }
 
   check_fail() {
-    printf "  ${RED}✗${NC} %s\n" "$1"
+    printf "  ${RED}${ICON_ERROR}${NC} %s\n" "$1"
     fail=$((fail + 1))
   }
 
   check_warn() {
-    printf "  ${YELLOW}⚠${NC} %s\n" "$1"
+    printf "  ${YELLOW}${ICON_WARNING}${NC} %s\n" "$1"
     warn=$((warn + 1))
   }
 
@@ -987,7 +1067,7 @@ cmd_doctor() {
   fi
 
   # Summary
-  echo ""
+  print_block_footer
   printf "  ${GREEN}%d passed${NC}  ${RED}%d failed${NC}  ${YELLOW}%d warnings${NC}\n" "$pass" "$fail" "$warn"
 
   if [ "$fail" -gt 0 ]; then
@@ -996,66 +1076,190 @@ cmd_doctor() {
     return 1
   fi
 }
+# ── Command: help ─────────────────────────────────────────────────────────────
 
-# Command: help
 cmd_help() {
-  cat << 'EOF'
-dotcontext - AI context toolkit for Claude Code
+  local width
+  width=$(get_term_width)
 
-Usage:
-  dotcontext <command> [options]
+  # Determine column widths based on terminal
+  local cmd_col=20
+  local opt_col=22
+  if [ "$width" -ge 100 ]; then
+    cmd_col=24
+    opt_col=26
+  fi
 
-Commands:
-  init                Initialize .context structure + open Claude Code
-  update              Update CLI + templates (if in a project)
-  doctor              Check project setup health
+  echo ""
+  printf "  ${BOLD}dotcontext${NC} ${GRAY}— AI context toolkit for Claude Code${NC}\n"
+  echo ""
 
-Options:
-  --help, -h          Show this help message
-  --version, -v       Show version number
+  # Usage
+  printf "  ${BLUE}${BOLD}Usage${NC}\n"
+  printf "    dotcontext <command> [options]\n"
+  echo ""
 
-Init Options:
-  --name, -n <name>   Project name
-  --yes, -y           Skip prompts and use defaults
-  --no-setup          Skip automatic /setup-context execution
+  # Commands
+  printf "  ${BLUE}${BOLD}Commands${NC}\n"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "init"       "Initialize .context structure + open Claude Code"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "update"     "Update CLI and/or templates"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "doctor"     "Check project setup health"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "completion" "Generate shell tab completions"
+  echo ""
 
-Update Options:
-  --cli               Only update the CLI (skip templates)
-  --templates         Only update templates (skip CLI)
-  --yes, -y           Update templates without asking
-  --dry-run           Show what would change without applying
+  # Init Options
+  printf "  ${BLUE}${BOLD}Init Options${NC}\n"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--name, -n <name>" "Project name"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--yes, -y"         "Skip prompts, use defaults"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--no-setup"        "Skip automatic /setup-context"
+  echo ""
 
-Examples:
-  dotcontext init
-  dotcontext init --name "My Project"
-  dotcontext init --no-setup
-  dotcontext update
-  dotcontext update --cli
-  dotcontext update --templates
-  dotcontext update --dry-run
-  dotcontext update --yes
+  # Update Options
+  printf "  ${BLUE}${BOLD}Update Options${NC}\n"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--cli"       "Only update CLI"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--templates" "Only update templates"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--yes, -y"   "Update without asking"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--dry-run"   "Show what would change"
+  echo ""
 
-Claude Code Commands (after init):
-  /setup-context              Analyze codebase and populate context
-  /generate-prp [feature]     Plan a new feature with clarifying questions
-  /execute-prp [name]         Implement a planned feature
-  /code-review [--comment]    Multi-agent code review
-  /commit [--amend]           Smart commit with style-aware message generation
-  /create-pr                  Create PR with auto-detected architecture diagrams
-  /pr-comment [PR] [msg]      Add comments to PRs (with optional diagrams)
-  /add-decision               Add and populate an ADR interactively
-  /deep-context [query]       Multi-agent business rule discovery
-  /fix-bug [description]      Test-driven bug fixing with parallel agents
-  /add-skill                  Add and populate a skill guide
-  /add-command                Create a custom slash command
-EOF
+  # Global Options
+  printf "  ${BLUE}${BOLD}Global Options${NC}\n"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--help, -h"    "Show this help"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--version, -v" "Show version"
+  echo ""
+
+  # Claude Code Commands
+  printf "  ${BLUE}${BOLD}Claude Code Commands${NC} ${GRAY}(after init)${NC}\n"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/setup-context"  "Analyze codebase and populate context"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/generate-prp"   "Plan a new feature"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/execute-prp"    "Implement a planned feature"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/code-review"    "Multi-agent code review"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/commit"         "Smart commit messages"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/create-pr"      "Create PR with description"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/deep-context"   "Structured codebase exploration"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/fix-bug"        "Test-driven bug fixing"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-decision"   "Add architectural decision"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-skill"      "Add skill guide"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-command"    "Create custom command"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/release"        "Version bump and release"
+  echo ""
+
+  # Examples
+  printf "  ${BLUE}${BOLD}Examples${NC}\n"
+  printf "    ${GRAY}\$${NC} dotcontext init\n"
+  printf "    ${GRAY}\$${NC} dotcontext init --name \"My Project\"\n"
+  printf "    ${GRAY}\$${NC} dotcontext update --dry-run\n"
+  printf "    ${GRAY}\$${NC} dotcontext doctor\n"
+  printf "    ${GRAY}\$${NC} eval \"\$(dotcontext completion bash)\"\n"
+  echo ""
+}
+# ── Command: completion ───────────────────────────────────────────────────────
+
+cmd_completion() {
+  local shell="${1:-bash}"
+
+  case "$shell" in
+    bash)
+      cat << 'BASH_COMP'
+_dotcontext() {
+  local cur prev commands
+  COMPREPLY=()
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+  commands="init update doctor completion"
+
+  case "$prev" in
+    dotcontext)
+      COMPREPLY=( $(compgen -W "$commands --help --version" -- "$cur") )
+      return 0
+      ;;
+    init)
+      COMPREPLY=( $(compgen -W "--name -n --yes -y --no-setup" -- "$cur") )
+      return 0
+      ;;
+    update)
+      COMPREPLY=( $(compgen -W "--cli --templates --yes -y --dry-run" -- "$cur") )
+      return 0
+      ;;
+    completion)
+      COMPREPLY=( $(compgen -W "bash zsh" -- "$cur") )
+      return 0
+      ;;
+  esac
+
+  COMPREPLY=( $(compgen -W "$commands --help --version" -- "$cur") )
+}
+complete -F _dotcontext dotcontext
+BASH_COMP
+      ;;
+    zsh)
+      cat << 'ZSH_COMP'
+#compdef dotcontext
+
+_dotcontext() {
+  local -a commands
+  commands=(
+    'init:Initialize .context structure + open Claude Code'
+    'update:Update CLI and/or templates'
+    'doctor:Check project setup health'
+    'completion:Generate shell tab completions'
+  )
+
+  _arguments -C \
+    '1:command:->command' \
+    '*::arg:->args'
+
+  case "$state" in
+    command)
+      _describe 'command' commands
+      _arguments \
+        '--help[Show help]' \
+        '-h[Show help]' \
+        '--version[Show version]' \
+        '-v[Show version]'
+      ;;
+    args)
+      case "${words[1]}" in
+        init)
+          _arguments \
+            '--name[Project name]:name:' \
+            '-n[Project name]:name:' \
+            '--yes[Skip prompts]' \
+            '-y[Skip prompts]' \
+            '--no-setup[Skip automatic /setup-context]'
+          ;;
+        update)
+          _arguments \
+            '--cli[Only update CLI]' \
+            '--templates[Only update templates]' \
+            '--yes[Update without asking]' \
+            '-y[Update without asking]' \
+            '--dry-run[Show what would change]'
+          ;;
+        completion)
+          _arguments '1:shell:(bash zsh)'
+          ;;
+      esac
+      ;;
+  esac
 }
 
-# Main routing
+_dotcontext "$@"
+ZSH_COMP
+      ;;
+    *)
+      print_red "Unknown shell: $shell (supported: bash, zsh)"
+      return 1
+      ;;
+  esac
+}
+# ── Main Routing ──────────────────────────────────────────────────────────────
+
 case "${1:-}" in
   init) shift; cmd_init "$@" ;;
   update) shift; cmd_update "$@" ;;
   doctor) cmd_doctor ;;
+  completion) shift; cmd_completion "$@" ;;
   --version|-v) echo "dotcontext $VERSION" ;;
   --help|-h|"") cmd_help ;;
   *) print_red "Unknown command: $1. Run 'dotcontext --help' for usage."; exit 1 ;;
