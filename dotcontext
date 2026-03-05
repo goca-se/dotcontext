@@ -98,6 +98,32 @@ download() {
   fi
 }
 
+# Declarative cleanup: remove files in a managed directory that aren't in the expected list.
+# Usage: cleanup_managed_dir <dir> <expected_file1> [expected_file2] ...
+cleanup_managed_dir() {
+  local dir="$1"; shift
+  local expected=("$@")
+
+  [ -d "$dir" ] || return 0
+  [ ${#expected[@]} -eq 0 ] && return 0
+
+  for file in "$dir"/*; do
+    [ -L "$file" ] && continue
+    [ -f "$file" ] || continue
+    local name=$(basename "$file")
+    local keep=false
+    for expected_name in "${expected[@]}"; do
+      if [ "$name" = "$expected_name" ]; then
+        keep=true
+        break
+      fi
+    done
+    if [ "$keep" = false ]; then
+      rm -f "$file"
+    fi
+  done
+}
+
 # Setup notifications for Claude Code
 setup_notifications() {
   local claude_dir="$HOME/.claude"
@@ -302,16 +328,26 @@ cmd_init() {
   download "${BASE_URL}/templates/.claude/agents/code-review/compliance-checker.md" ".claude/agents/code-review/compliance-checker.md"
   download "${BASE_URL}/templates/.claude/agents/code-review/bug-detector.md" ".claude/agents/code-review/bug-detector.md"
   download "${BASE_URL}/templates/.claude/agents/code-review/security-analyst.md" ".claude/agents/code-review/security-analyst.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/scope-guardian.md" ".claude/agents/deep-context/scope-guardian.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/primary-explorer.md" ".claude/agents/deep-context/primary-explorer.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/cross-repo-explorer.md" ".claude/agents/deep-context/cross-repo-explorer.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/cross-repo-validator.md" ".claude/agents/deep-context/cross-repo-validator.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/reviewer-output.md" ".claude/agents/deep-context/reviewer-output.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/step1-overview.md" ".claude/agents/deep-context/step1-overview.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/step2-subsystems.md" ".claude/agents/deep-context/step2-subsystems.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/step3-drill.md" ".claude/agents/deep-context/step3-drill.md"
+  download "${BASE_URL}/templates/.claude/agents/deep-context/step4-dataflow.md" ".claude/agents/deep-context/step4-dataflow.md"
   download "${BASE_URL}/templates/.claude/agents/fix-bug/investigator.md" ".claude/agents/fix-bug/investigator.md"
   download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-conservative.md" ".claude/agents/fix-bug/fix-conservative.md"
   download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-minimal.md" ".claude/agents/fix-bug/fix-minimal.md"
   download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-refactor.md" ".claude/agents/fix-bug/fix-refactor.md"
   download "${BASE_URL}/templates/.claude/agents/fix-bug/reviewer.md" ".claude/agents/fix-bug/reviewer.md"
+
+  # Declarative cleanup: remove stale files from managed-only directories
+  # NOTE: .claude/commands/ is excluded — users create custom commands there via /add-command
+  cleanup_managed_dir ".claude/agents/code-review" \
+    compliance-checker.md bug-detector.md security-analyst.md
+  cleanup_managed_dir ".claude/agents/deep-context" \
+    step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
+  cleanup_managed_dir ".claude/agents/fix-bug" \
+    investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
+  cleanup_managed_dir ".claude/scripts" \
+    statusline.sh
 
   stop_spinner
 
@@ -373,7 +409,7 @@ cmd_init() {
   else
     printf "  ${GREEN}✓${NC} Context structure created\n"
   fi
-  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (12)  .claude/agents/ (13)${NC}\n"
+  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (12)  .claude/agents/ (12)${NC}\n"
   echo ""
 
   if [ "$skip_setup" = true ]; then
@@ -559,11 +595,10 @@ cmd_update_templates() {
     "templates/.claude/agents/code-review/compliance-checker.md:.claude/agents/code-review/compliance-checker.md"
     "templates/.claude/agents/code-review/bug-detector.md:.claude/agents/code-review/bug-detector.md"
     "templates/.claude/agents/code-review/security-analyst.md:.claude/agents/code-review/security-analyst.md"
-    "templates/.claude/agents/deep-context/scope-guardian.md:.claude/agents/deep-context/scope-guardian.md"
-    "templates/.claude/agents/deep-context/primary-explorer.md:.claude/agents/deep-context/primary-explorer.md"
-    "templates/.claude/agents/deep-context/cross-repo-explorer.md:.claude/agents/deep-context/cross-repo-explorer.md"
-    "templates/.claude/agents/deep-context/cross-repo-validator.md:.claude/agents/deep-context/cross-repo-validator.md"
-    "templates/.claude/agents/deep-context/reviewer-output.md:.claude/agents/deep-context/reviewer-output.md"
+    "templates/.claude/agents/deep-context/step1-overview.md:.claude/agents/deep-context/step1-overview.md"
+    "templates/.claude/agents/deep-context/step2-subsystems.md:.claude/agents/deep-context/step2-subsystems.md"
+    "templates/.claude/agents/deep-context/step3-drill.md:.claude/agents/deep-context/step3-drill.md"
+    "templates/.claude/agents/deep-context/step4-dataflow.md:.claude/agents/deep-context/step4-dataflow.md"
     "templates/.claude/agents/fix-bug/investigator.md:.claude/agents/fix-bug/investigator.md"
     "templates/.claude/agents/fix-bug/fix-conservative.md:.claude/agents/fix-bug/fix-conservative.md"
     "templates/.claude/agents/fix-bug/fix-minimal.md:.claude/agents/fix-bug/fix-minimal.md"
@@ -762,6 +797,17 @@ cmd_update_templates() {
       ((updated++))
     done
   fi
+
+  # Declarative cleanup: remove stale files from managed-only directories
+  # NOTE: .claude/commands/ is excluded — users create custom commands there via /add-command
+  cleanup_managed_dir ".claude/agents/code-review" \
+    compliance-checker.md bug-detector.md security-analyst.md
+  cleanup_managed_dir ".claude/agents/deep-context" \
+    step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
+  cleanup_managed_dir ".claude/agents/fix-bug" \
+    investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
+  cleanup_managed_dir ".claude/scripts" \
+    statusline.sh
 
   echo ""
   if [ $added -gt 0 ] || [ $updated -gt 0 ]; then
