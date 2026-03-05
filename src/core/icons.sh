@@ -1,0 +1,18 @@
+# ── Icons ─────────────────────────────────────────────────────────────────────
+
+ICON_SUCCESS="✓"
+ICON_ERROR="✗"
+ICON_WARNING="⚠"
+ICON_ARROW="➤"
+ICON_INFO="ℹ"
+ICON_SECTION="◆"
+ICON_DOWNLOAD="↓"
+ICON_SKIP="○"
+ICON_UPDATE="↻"
+ICON_CHECK="◎"
+ICON_ADMIN="⚙"
+ICON_NAV="↳"
+ICON_ADD="+"
+ICON_MODIFY="~"
+ICON_UNCHANGED="="
+ICON_MANAGED="•"
