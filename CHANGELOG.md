@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.12.0](https://github.com/goca-se/dotcontext/compare/v0.11.0...v0.12.0) (2026-03-05)
+
+### Features
+
+* **`/deep-context` restructured to 4-step exploration** — Replaced the 5-agent model (scope-guardian, primary-explorer, cross-repo-explorer, cross-repo-validator, reviewer-output) with a structured 4-step progression:
+  * Step 1: Overview Agent — architecture summary, key files, entry points
+  * Step 2: Subsystem Agent — module map, interdependencies, boundaries
+  * Step 3: Drill Agent — targeted deep-dive into relevant areas
+  * Step 4: Data Flow Agent — trace information movement through the system
+  * Steps 1+2 run in parallel, Steps 3+4 run sequentially (each builds on prior outputs)
+  * Cross-repo analysis integrated into Steps 1+2 via appended instructions
+* **Declarative managed directory cleanup** — New `cleanup_managed_dir()` function removes stale files from managed-only directories (agents, scripts) using a desired-state allow-list, eliminating the need for explicit migration code on future renames or removals
+  * Guards against empty expected list (no-op) and preserves symlinks
+  * Excludes `.claude/commands/` since users create custom commands there via `/add-command`
+* **ADR-013: Structured Exploration Pattern** — Documents the 4-step exploration architecture and rationale
+
+### Fixes
+
+* **Stale agent references** — `dotcontext init` and `update` referenced deleted deep-context agent files (would 404 on download); updated to new step-based agents
+* **Agent count** — Init output corrected from 13 to 12 agents
+
+### Changes
+
+* **README updated** — Skills directory corrected (`.context/skills/` → `.claude/skills/`), MCP server configuration documented, deep-context architecture updated from 5-agent to 4-step model
+
 ## [0.11.0](https://github.com/goca-se/dotcontext/compare/v0.10.2...v0.11.0) (2026-03-04)
 
 ### Features
