@@ -1,6 +1,6 @@
-# Deep Context — Multi-Agent Business Rule Discovery
+# Deep Context — Structured Codebase Exploration
 
-Orchestrate 5 specialized agents to discover business rules across the current repository and a related repository. Produces a structured discovery document with executive summary, detailed findings, code references, and cross-repo validation.
+Orchestrate 4 specialized agents in a structured progression (overview → subsystems → targeted drill → data flow mapping) to deeply explore and document a codebase domain. Produces a structured discovery document with findings, code references, and data flow analysis.
 
 **Usage:** `/deep-context [query]`
 - `/deep-context "checkout flow"` — Search main repo only (auto-detects related repo from CONTEXT.md)
@@ -63,73 +63,136 @@ If `--cache` flag is present:
 2. For each file, extract the "Executive Summary" and "Business Rules Discovered" sections
 3. Note the date — if any discovery is older than 30 days, warn:
    > "Discovery [filename] is from [date] (>30 days old). Findings may be outdated."
-4. Pass cached summaries to Agent 5 for reference
+4. Pass cached summaries to the final output step for reference
 
-### Step 5: Launch Phase 1 Agents (Parallel)
+### Step 5: Build Agent Context
 
 Read the following files to build context for agents:
 - `.context/CONTEXT.md` (full file)
 - `CLAUDE.md` (full file)
 - All files in `.context/decisions/` (read each ADR)
 
-**IMPORTANT:** Launch Agent 1, Agent 2, and Agent 3 in a SINGLE message with multiple Task tool calls. Agent 2 and Agent 3 run in background.
+### Step 6: Launch Exploration Agents
 
-**Agent prompt files** — Read these files and use as agent prompts, substituting the placeholders with actual data gathered above.
+The 4-step exploration follows a structured progression. Steps 1+2 run in parallel (both do broad exploration), then Steps 3+4 run sequentially (each needs prior outputs).
 
----
-
-#### Agent 1 — Compliance & Scope Guardian
-
-Use the **Task tool** with `subagent_type: "Explore"`:
-
-Read `.claude/agents/deep-context/scope-guardian.md` for the agent prompt. Substitute `{query}`, `{focus_areas}`, `{context_md}`, `{claude_md}`, and `{decisions}` with actual values.
+**Agent prompt files** — Read each file and substitute placeholders with actual data gathered above.
 
 ---
 
-#### Agent 2 — Primary Explorer (Background)
+#### Phase 1 (Parallel): Steps 1 + 2
 
-Use the **Task tool** with `subagent_type: "Explore"` and `run_in_background: true`:
+**IMPORTANT:** Launch both agents in a SINGLE message. Step 2 runs in background.
 
-Read `.claude/agents/deep-context/primary-explorer.md` for the agent prompt. Substitute `{query}`, `{focus_areas}`, and `{context_md}` with actual values.
+##### Step 1 Agent — Overview (Foreground)
+
+Use the **Agent tool** with `subagent_type: "Explore"`, `max_turns: 30`:
+
+Read `.claude/agents/deep-context/step1-overview.md` for the agent prompt. Substitute `{query}`, `{focus_areas}`, `{context_md}`, `{claude_md}`, and `{decisions}` with actual values.
+
+**If a related repo was resolved in Step 2**, append to the agent prompt:
+> Also explore the related repository at {related_repo_path} for its architecture and entry points.
+
+##### Step 2 Agent — Subsystems (Background)
+
+Use the **Agent tool** with `subagent_type: "Explore"`, `run_in_background: true`, `max_turns: 30`:
+
+Read `.claude/agents/deep-context/step2-subsystems.md` for the agent prompt. Substitute `{query}`, `{focus_areas}`, and `{context_md}` with actual values.
+
+**If a related repo was resolved in Step 2**, append to the agent prompt:
+> Also map modules in the related repository at {related_repo_path} and their relationships to the main repo.
 
 ---
 
-#### Agent 3 — Cross-Repo Explorer (Background)
+#### Wait for Phase 1 Completion
 
-**Only launch this agent if a related repo was resolved in Step 2.**
+1. Step 1 Agent completes first (foreground) — save its overview output
+2. Read Step 2 Agent's output (background task) — save its subsystem map
 
-Use the **Task tool** with `subagent_type: "Explore"` and `run_in_background: true`:
+---
 
-Read `.claude/agents/deep-context/cross-repo-explorer.md` for the agent prompt. Substitute `{query}`, `{related_repo_path}`, and `{context_md}` with actual values.
+#### Phase 2 (Sequential): Steps 3 + 4
 
-### Step 6: Wait for Phase 1 Completion
+##### Step 3 Agent — Targeted Drill
 
-1. Agent 1 completes first (foreground) — save its scope definition
-2. Read Agent 2's output (background task) — save its findings
-3. Read Agent 3's output (background task, if launched) — save its findings
+Use the **Agent tool** with `subagent_type: "Explore"`, `max_turns: 30`:
 
-### Step 7: Launch Agent 4 — Cross-Repo Validator
+Read `.claude/agents/deep-context/step3-drill.md` for the agent prompt. Substitute:
+- `{query}`, `{focus_areas}` — from user input
+- `{step1_output}` — Step 1 Agent output
+- `{step2_output}` — Step 2 Agent output
 
-**Only launch if Agent 3 was used (cross-repo analysis exists).**
+##### Step 4 Agent — Data Flow Mapping
 
-Use the **Task tool** with `subagent_type: "general-purpose"`:
+Use the **Agent tool** with `subagent_type: "general-purpose"`, `max_turns: 30`:
 
-Read `.claude/agents/deep-context/cross-repo-validator.md` for the agent prompt. Substitute `{query}`, `{scope_definition}`, `{primary_findings}`, and `{cross_repo_findings}` with actual agent outputs.
+Read `.claude/agents/deep-context/step4-dataflow.md` for the agent prompt. Substitute:
+- `{query}` — from user input
+- `{step1_output}` — Step 1 Agent output
+- `{step2_output}` — Step 2 Agent output
+- `{step3_output}` — Step 3 Agent output
 
-### Step 8: Launch Agent 5 — Reviewer & Output Generator
+### Step 7: Compile Final Output
 
-Use the **Task tool** with `subagent_type: "general-purpose"`:
+After all 4 agents complete, compile the final discovery document yourself. Do NOT use another agent for this.
 
-Read `.claude/agents/deep-context/reviewer-output.md` for the agent prompt. Substitute all placeholders with actual data:
-- `{query}`, `{repos}`, `{date}` — basic info
-- `{scope_output}` — Agent 1 output
-- `{primary_output}` — Agent 2 output
-- `{cross_repo_section}` — Agent 3 + Agent 4 outputs (if applicable, otherwise empty)
-- `{cache_section}` — cached discovery summaries (if --cache, otherwise empty)
-- `{cache_status}` — "enabled" or "disabled"
-- `{previous_discoveries}` — list of referenced files or "none"
+**Compilation rules:**
+1. **Filter**: Remove any finding with Confidence < 50%
+2. **Deduplicate**: If the same finding appears in multiple steps, keep the most detailed version
+3. **Verify**: Every finding MUST have a file:line reference — remove any that don't
+4. **Never invent**: You are a compiler, not a creator. Only include what agents actually found
+5. If cache was provided, note findings that confirm or update previous discoveries
 
-### Step 9: Save Output
+**Output the document in this format:**
+
+```markdown
+# Deep Context: {query}
+> Generated: {date} | Repos: {repos}
+
+## Executive Summary
+- [Key finding 1]
+- [Key finding 2]
+- [Key finding 3]
+- [Key finding 4 if significant]
+
+## System Overview
+[Paste relevant parts from Step 1 output]
+
+## Subsystem Map
+[Paste relevant parts from Step 2 output — module inventory and relationships]
+
+## Detailed Findings
+
+### [Category 1]
+| Finding | File:Line | Confidence |
+|---------|-----------|------------|
+| [description] | [path:line] | [N]% |
+
+#### Details
+[Code snippets and expanded explanations for important findings]
+
+### [Category 2]
+...
+
+## Data Flow Analysis
+[Paste flow diagrams and analysis from Step 4 output]
+
+## Potential Issues
+[Consolidate issues from Steps 3 and 4]
+
+## References
+- [List of all files analyzed with line ranges]
+
+## Metadata
+- Query: {query}
+- Repos analyzed: {repos}
+- Exploration steps: 4 (Overview → Subsystems → Drill → Data Flow)
+- Confidence threshold: 50%
+- Cache: {cache_status}
+- Previous discoveries referenced: {previous_discoveries}
+```
+
+### Step 8: Save Output
 
 1. Generate filename: `YYYYMMDD-{slugified-query}.md`
    - Slug: lowercase, hyphens instead of spaces, no special chars
@@ -143,16 +206,15 @@ Deep Context analysis complete
 Saved to: .context/discoveries/{filename}
 
 Summary:
-- [N] business rules discovered
-- [N] cross-repo validations
-- [N] contradictions found
-- [N] gaps identified
+- [N] findings discovered across [N] categories
+- [N] data flows traced
+- [N] potential issues identified
 
 Key findings:
 [paste executive summary bullets]
 ```
 
-### Step 10: Cleanup
+### Step 9: Cleanup
 
 - If a temporary clone was created in Step 2, remove it:
   ```bash
@@ -165,13 +227,14 @@ Key findings:
 - Every finding MUST reference a specific file and line number
 - Agents use Grep and Glob to search — never fabricate code or file paths
 - If unsure about a finding, include it with lower confidence score
-- Agent 5 removes anything below 50% confidence
+- Final compilation removes anything below 50% confidence
 
 ### Agent Communication
 - Agents communicate through the orchestrator (this command)
-- No temp files — data passes through Task tool returns
-- Phase 1 agents run in parallel; Phase 2-3 are sequential
+- No temp files — data passes through Agent tool returns
+- Steps 1+2 run in parallel; Steps 3+4 are sequential
 - See ADR-009 for the orchestration pattern
+- See ADR-013 for the structured exploration pattern
 
 ### Output Format
 - Follows ADR-010: Discovery Output Format
@@ -181,9 +244,9 @@ Key findings:
 
 ### Performance
 - Agents use focused Grep/Glob searches, not full file reads
-- Agent 1 narrows scope early to prevent context overflow
-- Background agents (2, 3) run in parallel for speed
-- Set `max_turns: 30` on explorer agents to prevent runaway searches
+- Step 1 identifies key areas early to prevent unfocused exploration
+- Step 2 runs in background while Step 1 executes
+- Set `max_turns: 30` on all agents to prevent runaway searches
 
 ## If You Get Stuck
 

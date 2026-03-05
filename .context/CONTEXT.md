@@ -34,22 +34,92 @@ dotcontext/
 │   └── setup-hooks.sh   # Claude Code hook configuration
 ├── templates/           # Template files downloaded during init
 │   ├── CLAUDE.md
-│   └── .context/
-│       ├── CONTEXT.md
-│       ├── decisions/
-│       ├── discoveries/
-│       ├── bugs/
-│       ├── skills/
-│       │   └── bug-reproduction/
-│       └── prp/
-└── .claude/commands/    # Slash commands for Claude Code
-    ├── setup-context.md
-    ├── generate-prp.md
-    ├── execute-prp.md
-    ├── code-review.md
-    ├── deep-context.md
-    └── fix-bug.md
+│   ├── .context/
+│   │   ├── CONTEXT.md
+│   │   ├── decisions/
+│   │   ├── discoveries/
+│   │   ├── bugs/
+│   │   └── prp/
+│   └── .claude/
+│       ├── commands/    # 13 slash command templates
+│       ├── agents/      # 12 agent prompt files (code-review, fix-bug, deep-context)
+│       ├── scripts/     # StatusLine script
+│       └── skills/      # Seed skills (bug-reproduction)
+└── .claude/commands/    # This repo's slash commands (mirrors templates)
 ```
+
+## Architecture
+
+### System Overview
+
+dotcontext is a single-executable CLI tool (Bash 3.2+) distributed as one script file. It follows a command-router pattern where all commands are functions within the main script, dispatched via a case statement. It integrates with Claude Code through markdown-based slash commands that orchestrate multi-agent workflows.
+
+### Directory Structure
+
+```
+dotcontext/
+├── dotcontext           # Main CLI executable (~1000 lines, all commands)
+├── install.sh           # Installation script (curl-based)
+├── scripts/
+│   ├── notify.sh        # Cross-platform notification (macOS/Linux/Windows)
+│   └── setup-hooks.sh   # Claude Code hook configuration
+├── templates/           # Template files downloaded during init
+│   ├── CLAUDE.md        # Root context template
+│   ├── .context/        # Context structure templates
+│   └── .claude/         # Commands, agents, skills, scripts
+└── .claude/
+    ├── commands/        # 13 slash command definitions
+    ├── agents/          # 12 agent prompt files (3 subdirs)
+    ├── scripts/         # StatusLine script
+    └── skills/          # Seed skills (bug-reproduction)
+```
+
+### Key Dependencies
+
+| Category | Dependency | Purpose |
+|----------|-----------|---------|
+| Runtime | Bash 3.2+ | POSIX-compatible script execution |
+| Network | curl/wget | Template downloads from GitHub |
+| Text Processing | sed, grep | File manipulation and search |
+| JSON (optional) | jq | GitHub API response parsing |
+| AI Integration | Claude Code | Slash command execution and agent orchestration |
+
+### Data Flow
+
+```
+User → CLI (dotcontext) → GitHub API (templates/releases)
+User → Claude Code → Slash Command (.md) → Agent Prompts (.md) → Task Tool (sub-agents)
+Sub-agents → Grep/Glob/Read tools → Codebase → Structured findings → Orchestrator → Output file
+```
+
+## Conventions
+
+### Naming Patterns
+
+- **Files:** kebab-case for commands and agents (`setup-context.md`, `step1-overview.md`)
+- **Bash functions:** snake_case with `cmd_` prefix for commands (`cmd_init`, `cmd_update`)
+- **Variables:** UPPER_CASE for constants and environment vars, lower_case for locals
+- **ADRs:** `NNN-kebab-case-title.md` numbering scheme
+
+### Error Handling
+
+Bash `set -e` with explicit error messages via `echo "Error: ..."` to stderr. Functions return non-zero exit codes on failure. No exception framework — fail-fast with descriptive messages.
+
+### Testing Style
+
+No automated test suite. Validation is manual/functional — run commands on sample projects and verify output. The `dotcontext doctor` command provides health-check validation.
+
+### Import Organization
+
+Not applicable (single Bash script). Agent prompt files use placeholder substitution (`{variable}`) for dynamic content injection.
+
+### State Management
+
+File-based state only. No database, no in-memory state between runs. Context persists in `.context/` directory structure. Agent communication passes through Task tool return values (no temp files per ADR-009).
+
+### API Response Format
+
+CLI output uses plain text with Unicode indicators (braille spinner, checkmarks). Discovery and bug report outputs use structured Markdown with tables.
 
 ## Main Flows
 
@@ -129,14 +199,17 @@ User runs: /deep-context "checkout flow" --repo ~/api
     │
     ├─→ Ask clarifying questions (scope, focus areas)
     │
-    ├─→ Phase 1 (parallel): Launch 3 agents
-    │   ├── Agent 1: Compliance & Scope Guardian
-    │   ├── Agent 2: Primary Explorer (background)
-    │   └── Agent 3: Cross-Repo Explorer (background)
+    ├─→ Phase 1 (parallel): Steps 1 + 2
+    │   ├── Step 1: Overview Agent — architecture summary, key files
+    │   └── Step 2: Subsystem Agent — module map, interdependencies
     │
-    ├─→ Phase 2 (sequential): Agent 4 validates cross-repo findings
+    ├─→ Phase 2 (sequential): Step 3
+    │   └── Drill Agent — targeted deep-dive using Steps 1+2 output
     │
-    ├─→ Phase 3 (sequential): Agent 5 unifies and produces final document
+    ├─→ Phase 3 (sequential): Step 4
+    │   └── Data Flow Agent — trace information movement
+    │
+    ├─→ Compile final document from all 4 agent outputs
     │
     └─→ Save to .context/discoveries/YYYYMMDD-[slug].md
 ```

@@ -27,11 +27,10 @@ Extract all agent prompts into individual `.claude/agents/{command}/{agent-name}
 │   ├── bug-detector.md
 │   └── security-analyst.md
 ├── deep-context/
-│   ├── scope-guardian.md
-│   ├── primary-explorer.md
-│   ├── cross-repo-explorer.md
-│   ├── cross-repo-validator.md
-│   └── reviewer-output.md
+│   ├── step1-overview.md
+│   ├── step2-subsystems.md
+│   ├── step3-drill.md
+│   └── step4-dataflow.md
 └── fix-bug/
     ├── investigator.md
     ├── fix-conservative.md
@@ -67,7 +66,7 @@ Agent files are **managed templates** — always downloaded during `dotcontext i
 
 ### Negative
 - Additional Read tool call per agent at runtime (negligible latency for small .md files)
-- More files in `.claude/agents/` directory (13 files across 3 subdirectories)
+- More files in `.claude/agents/` directory (12 files across 3 subdirectories)
 - Commands must document which placeholders to substitute
 
 ## History

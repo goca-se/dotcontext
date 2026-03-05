@@ -131,11 +131,10 @@ your-project/
 │   ├── decisions/               # ADRs (versioned)
 │   ├── discoveries/             # Deep context analysis outputs
 │   ├── bugs/                    # Bug fix reports
-│   ├── skills/                  # Step-by-step guides
-│   │   └── bug-reproduction/    # Bug reproduction patterns
 │   └── prp/                     # Feature planning docs
 │       ├── templates/
 │       └── generated/
+├── .mcp.json                    # MCP server config (Context7, Atlassian)
 └── .claude/
     ├── commands/
     │   ├── setup-context.md          # Auto-setup command
@@ -148,17 +147,25 @@ your-project/
     │   ├── add-decision.md           # Add ADR interactively
     │   ├── add-skill.md              # Add skill interactively
     │   ├── add-command.md            # Add custom command
-    │   ├── deep-context.md           # Multi-agent business rule discovery
+    │   ├── deep-context.md           # Structured codebase exploration
     │   └── fix-bug.md               # Test-driven bug fixing
     ├── agents/                       # Extracted agent prompts
     │   ├── code-review/              # 3 review agents
-    │   ├── deep-context/             # 5 discovery agents
+    │   ├── deep-context/             # 4 exploration agents
     │   └── fix-bug/                  # 5 bug-fix agents
+    ├── skills/                       # Step-by-step guides
+    │   └── bug-reproduction/         # Bug reproduction patterns
     └── scripts/
         └── statusline.sh            # StatusLine script (git + context health)
 ```
 
-Additionally, `dotcontext init` configures **native OS notifications** in `~/.claude/`:
+Additionally, `dotcontext init` configures:
+
+- **MCP servers** in `.mcp.json` (optional, prompted during init):
+  - [Context7](https://github.com/upstash/context7-mcp) — up-to-date library docs for LLMs
+  - [Atlassian](https://mcp.atlassian.com) — Jira + Confluence via OAuth
+
+- **Native OS notifications** in `~/.claude/`:
 
 ```
 ~/.claude/
@@ -195,7 +202,7 @@ Additionally, `dotcontext init` configures **native OS notifications** in `~/.cl
 | `/commit [--amend]`          | Smart commit with style-aware message generation |
 | `/create-pr`                 | Create PR with auto-detected architecture diagrams |
 | `/pr-comment [PR] [message]` | Add comments to PRs with optional diagrams     |
-| `/deep-context [query]`      | Multi-agent business rule discovery across repos |
+| `/deep-context [query]`      | Structured 4-step codebase exploration            |
 | `/fix-bug [description]`    | Test-driven bug fixing with parallel agents    |
 | `/add-decision`              | Add and populate an ADR interactively          |
 | `/add-skill`                 | Add and populate a skill guide                 |
@@ -209,9 +216,10 @@ Analyzes your codebase and populates context files:
 
 - Fills `CLAUDE.md` with stack, commands, rules
 - Documents domain in `.context/CONTEXT.md`
+- **Generates Architecture section** — system overview, directory structure, key dependencies, data flow
+- **Detects coding conventions** — adaptive sampling (5-20 files based on project size) across 6 categories: naming patterns, error handling, testing style, import organization, state management, API response format
 - Creates ADRs for existing architectural decisions
 - Sets up skills for recurring patterns
-- Adds example files showing well-structured code
 
 ### `/code-review [--comment]`
 
@@ -360,16 +368,15 @@ Example:
 
 ### `/deep-context [query]`
 
-Multi-agent business rule discovery across the current repository and a related one:
+Structured 4-step codebase exploration with specialized agents:
 
 **Architecture:**
-- Orchestrates **5 specialized agents**:
-  - Agent 1: Compliance & Scope Guardian — defines search boundaries
-  - Agent 2: Primary Explorer — deep searches main repo for business rules
-  - Agent 3: Cross-Repo Explorer — searches related repository
-  - Agent 4: Cross-Repo Validator — compares rules between repos
-  - Agent 5: Reviewer — unifies findings, filters low-confidence items
-- **Phased execution**: Agents 1-3 run in parallel, Agent 4 waits for 2+3, Agent 5 waits for all
+- Follows a **structured progression** from high-level to detailed:
+  - Step 1: **Overview Agent** — architecture summary, key files, entry points
+  - Step 2: **Subsystem Agent** — module map, interdependencies, boundaries
+  - Step 3: **Drill Agent** — targeted deep-dive into relevant areas
+  - Step 4: **Data Flow Agent** — trace information movement through the system
+- **Phased execution**: Steps 1+2 run in parallel, Steps 3+4 run sequentially (each builds on prior outputs)
 - **Confidence filtering**: findings below 50% are auto-removed
 
 **Features:**
