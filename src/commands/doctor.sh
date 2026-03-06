@@ -127,15 +127,25 @@ cmd_doctor() {
     check_warn ".mcp.json — missing (no MCP servers configured)"
   fi
 
-  # Check: notification hooks
-  if [ -f "$HOME/.claude/settings.json" ]; then
-    if grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
-      check_pass "Notification hooks configured"
+  # Check: hooks (project-local)
+  if [ -f ".claude/settings.json" ]; then
+    if grep -q "notify.sh" ".claude/settings.json" 2>/dev/null; then
+      check_pass "Notification hooks configured (project-local)"
     else
-      check_warn "Notification hooks — not configured in ~/.claude/settings.json"
+      check_warn "Notification hooks — not configured in .claude/settings.json"
+    fi
+    if grep -q "tool-failure-guard" ".claude/settings.json" 2>/dev/null; then
+      check_pass "Tool failure guard hook configured"
+    else
+      check_warn "Tool failure guard — not configured (run dotcontext init to add)"
     fi
   else
-    check_warn "~/.claude/settings.json — missing"
+    check_warn ".claude/settings.json — missing (no hooks configured)"
+  fi
+
+  # Warn about legacy global hooks
+  if [ -f "$HOME/.claude/settings.json" ] && grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
+    check_warn "Legacy global hooks detected in ~/.claude/settings.json — remove manually to avoid duplicates"
   fi
 
   # Summary

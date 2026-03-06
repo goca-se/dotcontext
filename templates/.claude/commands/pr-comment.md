@@ -6,21 +6,30 @@ Add comments to an existing pull request, optionally with Mermaid diagrams.
 
 ## Process
 
-### 1. Identify the PR
+### 0. Detect Git Platform
 
-If PR number/URL not provided, detect from current branch:
+Read `.claude/skills/git-platform/SKILL.md` and follow the detection steps. Use the correct CLI and PR/MR terminology throughout.
+
+### 1. Identify the PR/MR
+
+If PR/MR number/URL not provided, detect from current branch:
 
 ```bash
+# GitHub
 gh pr view --json number,url,title,state 2>/dev/null
+
+# GitLab
+glab mr view 2>/dev/null
+
+# Azure DevOps
+az repos pr list --source-branch "$(git branch --show-current)" 2>/dev/null
 ```
 
-If no PR found and not provided, **use AskUserQuestion** to ask for PR number.
+If no PR/MR found and not provided, **use AskUserQuestion** to ask for the number.
 
-### 2. Validate PR State
+### 2. Validate PR/MR State
 
-```bash
-gh pr view <number> --json state,title,url
-```
+Use the detected platform CLI to check the state. If closed/merged, warn the user but allow commenting if they confirm.
 
 If PR is closed/merged, warn the user but allow commenting if they confirm.
 
@@ -89,15 +98,23 @@ Based on type, structure the comment appropriately:
 
 ### 5. Post Comment
 
-For general/diagram/summary comments:
+Use the detected platform CLI (see Step 0):
+
 ```bash
+# GitHub
 gh pr comment <number> --body "$(cat <<'EOF'
+<comment content>
+EOF
+)"
+
+# GitLab
+glab mr note <number> --message "$(cat <<'EOF'
 <comment content>
 EOF
 )"
 ```
 
-For review comments, use:
+For review comments (GitHub):
 ```bash
 gh pr review <number> --comment --body "$(cat <<'EOF'
 <review content>
@@ -115,10 +132,7 @@ Output:
 
 When the user asks for a diagram or mentions architecture/flow/structure:
 
-1. Fetch the PR diff:
-   ```bash
-   gh pr diff <number>
-   ```
+1. Fetch the PR/MR diff using the detected platform CLI (e.g., `gh pr diff`, `glab mr diff`).
 
 2. Analyze changes and generate appropriate diagram type:
    - **Sequence diagram** - For API flows, request/response patterns

@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+vendor/
+.venv/
+__pycache__/
+
+# Build output
+dist/
+build/
+out/
+target/
+*.min.js
+*.min.css
+*.map
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+Gemfile.lock
+composer.lock
+Cargo.lock
+go.sum
+poetry.lock
+
+# Generated code
+*.generated.*
+*.g.dart
+*.pb.go
+
+# Coverage and test artifacts
+coverage/
+.nyc_output/
+htmlcov/
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
