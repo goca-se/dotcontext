@@ -1,61 +1,77 @@
 #!/bin/bash
-# Setup Claude Code hooks for notifications
-# This script merges notification hooks into existing settings
+# Setup Claude Code hooks (project-local)
+# - Notification + Stop: native OS notifications
+# - PostToolUseFailure: tool failure guard
 
-CLAUDE_DIR="$HOME/.claude"
-SETTINGS_FILE="$CLAUDE_DIR/settings.json"
-NOTIFY_SCRIPT="$CLAUDE_DIR/scripts/notify.sh"
+SCRIPTS_DIR=".claude/scripts"
+SETTINGS_FILE=".claude/settings.json"
 
 # Ensure directories exist
-mkdir -p "$CLAUDE_DIR/scripts"
+mkdir -p "$SCRIPTS_DIR"
 
-# Copy notify script
+# Copy scripts into project
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cp "$SCRIPT_DIR/notify.sh" "$NOTIFY_SCRIPT"
-chmod +x "$NOTIFY_SCRIPT"
+cp "$SCRIPT_DIR/notify.sh" "$SCRIPTS_DIR/notify.sh"
+chmod +x "$SCRIPTS_DIR/notify.sh"
+cp "$SCRIPT_DIR/tool-failure-guard.sh" "$SCRIPTS_DIR/tool-failure-guard.sh"
+chmod +x "$SCRIPTS_DIR/tool-failure-guard.sh"
 
-# Create or update settings.json
+# Warn about legacy global hooks
+if [ -f "$HOME/.claude/settings.json" ] && grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
+  echo "Warning: Global notification hooks detected in ~/.claude/settings.json"
+  echo "dotcontext now configures hooks per-project. You can remove the global hooks manually."
+  echo ""
+fi
+
+# Create or update project-local settings.json
 if [ ! -f "$SETTINGS_FILE" ]; then
-  # Create new settings file
   cat > "$SETTINGS_FILE" << 'EOF'
 {
   "hooks": {
     "Notification": [
       {
         "matcher": "",
-        "command": "~/.claude/scripts/notify.sh 'Claude Code' 'Needs your attention' question"
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh 'Claude Code' 'Needs your attention' question"}]
       }
     ],
     "Stop": [
       {
         "matcher": "",
-        "command": "~/.claude/scripts/notify.sh 'Claude Code' 'Task completed' success"
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh 'Claude Code' 'Task completed' success"}]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [{"type": "command", "command": ".claude/scripts/tool-failure-guard.sh"}]
       }
     ]
   }
 }
 EOF
-  echo "Created $SETTINGS_FILE with notification hooks"
+  echo "Created $SETTINGS_FILE with hooks"
 else
-  # Check if jq is available for proper JSON merging
   if command -v jq &>/dev/null; then
-    # Merge hooks into existing settings
     TEMP_FILE=$(mktemp)
 
     jq '
       .hooks.Notification = ((.hooks.Notification // []) + [{
         "matcher": "",
-        "command": "~/.claude/scripts/notify.sh '\''Claude Code'\'' '\''Needs your attention'\'' question"
-      }] | unique_by(.command)) |
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh '\''Claude Code'\'' '\''Needs your attention'\'' question"}]
+      }] | unique_by(.hooks[0].command)) |
       .hooks.Stop = ((.hooks.Stop // []) + [{
         "matcher": "",
-        "command": "~/.claude/scripts/notify.sh '\''Claude Code'\'' '\''Task completed'\'' success"
-      }] | unique_by(.command))
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh '\''Claude Code'\'' '\''Task completed'\'' success"}]
+      }] | unique_by(.hooks[0].command)) |
+      .hooks.PostToolUseFailure = ((.hooks.PostToolUseFailure // []) + [{
+        "matcher": "",
+        "hooks": [{"type": "command", "command": ".claude/scripts/tool-failure-guard.sh"}]
+      }] | unique_by(.hooks[0].command))
     ' "$SETTINGS_FILE" > "$TEMP_FILE" 2>/dev/null
 
     if [ $? -eq 0 ] && [ -s "$TEMP_FILE" ]; then
       mv "$TEMP_FILE" "$SETTINGS_FILE"
-      echo "Updated $SETTINGS_FILE with notification hooks"
+      echo "Updated $SETTINGS_FILE with hooks"
     else
       rm -f "$TEMP_FILE"
       echo "Warning: Could not update settings.json automatically"
@@ -72,13 +88,19 @@ else
     "Notification": [
       {
         "matcher": "",
-        "command": "~/.claude/scripts/notify.sh 'Claude Code' 'Needs your attention' question"
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh 'Claude Code' 'Needs your attention' question"}]
       }
     ],
     "Stop": [
       {
         "matcher": "",
-        "command": "~/.claude/scripts/notify.sh 'Claude Code' 'Task completed' success"
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh 'Claude Code' 'Task completed' success"}]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [{"type": "command", "command": ".claude/scripts/tool-failure-guard.sh"}]
       }
     ]
   }
@@ -88,7 +110,9 @@ EOF
 fi
 
 echo ""
-echo "Notification script installed at: $NOTIFY_SCRIPT"
+echo "Hooks installed in $SCRIPTS_DIR:"
+echo "  notify.sh             — OS notifications"
+echo "  tool-failure-guard.sh — stops retrying after 4+ failures"
 echo ""
-echo "Test it with:"
-echo "  $NOTIFY_SCRIPT 'Test' 'Hello World' default"
+echo "Test notification with:"
+echo "  $SCRIPTS_DIR/notify.sh 'Test' 'Hello World' default"

@@ -59,6 +59,29 @@ If a requested change conflicts with an existing decision:
 
 [Brief description of another key pattern]
 
+## Efficiency Rules
+
+- **Read before changing** — Always read a file before editing it. Never modify code based on assumptions about its content.
+- **Follow existing patterns** — Before implementing something new, look at how similar things are done in the codebase. Match the existing style, conventions, and patterns.
+- **Scope reads to the task** — Only read files directly relevant to the change. Do not explore broadly before acting on focused tasks.
+- **Load context progressively** — Start with the minimum files needed. Only expand to related files when the current context is insufficient to complete the task.
+- **Code only** — When implementing changes, output code. Skip explanations, preamble, and commentary unless the user asks for them.
+- **Skip summaries** — After making changes, do not summarize what you did unless asked. Show `git diff` instead.
+- **Run targeted tests** — After a change, run only tests related to the modified files. Only run the full suite when asked or before committing.
+- **Never read generated files** — Do not read lock files, build output, vendored dependencies, or source maps. These are listed in `.claudeignore`.
+
+## Compact Instructions
+
+When compacting, preserve:
+- Test results and error output
+- File paths and code changes made
+- Key decisions and their rationale
+
+Remove:
+- Exploratory file reads that did not lead to changes
+- Verbose command output that has been summarized
+- Discussion of rejected approaches
+
 ---
 
 ## Additional Context
@@ -67,3 +90,5 @@ If a requested change conflicts with an existing decision:
 - Architectural decisions → `.context/decisions/`
 - Task-specific skills → `.claude/skills/`
 - Bug reproduction guide → `.claude/skills/bug-reproduction/SKILL.md`
+- Batch operations guide → `.claude/skills/batch-operations/SKILL.md`
+- Git platform detection → `.claude/skills/git-platform/SKILL.md`

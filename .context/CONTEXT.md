@@ -156,7 +156,7 @@ User runs: dotcontext init
     ├─→ Create directory structure
     │   └── CLAUDE.md, .context/, .claude/commands/
     │
-    ├─→ Setup notifications in ~/.claude/settings.json
+    ├─→ Setup notifications in .claude/settings.json (project-local)
     │   └── Hooks for Notification and Stop events
     │
     └─→ Auto-run Claude Code with /setup-context (unless --no-setup)
