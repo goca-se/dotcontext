@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.14.0](https://github.com/goca-se/dotcontext/compare/v0.13.3...v0.14.0) (2026-03-06)
+
+### Features
+
+* **project-local hooks** — notification and stop hooks now configured in `.claude/settings.json` (project) instead of `~/.claude/settings.json` (global)
+* **tool failure guard** — new `PostToolUseFailure` hook that stops Claude after 4+ consecutive failures, triggers error sound + notification + AskUserQuestion
+* **batch-operations skill** — 4-step workflow (scope, batch, verify, clean up) for large refactors
+* **git-platform detection skill** — auto-detects GitHub/GitLab/Azure DevOps/Bitbucket from remote URL
+* **multi-platform commands** — create-pr, pr-comment, code-review, fix-bug now detect git platform
+* **improved fix-bug investigator** — stack trace analysis, binary search debugging, type tracing, intermittent bug handling
+* **.claudeignore template** — shipped on init with sensible defaults for all project types
+* **CLAUDE.md efficiency rules** — read before changing, follow existing patterns, code only, progressive loading, targeted tests
+* **CLAUDE.md compact instructions** — what to preserve/remove during context compaction
+
+### Changes
+
+* doctor now checks project-local hooks and warns about legacy global hooks
+* `notify.sh` and `tool-failure-guard.sh` installed to project `.claude/scripts/`
+
 ## [0.13.3](https://github.com/goca-se/dotcontext/compare/v0.13.2...v0.13.3) (2026-03-05)
 
 ### Changes
