@@ -39,6 +39,8 @@ cmd_init() {
   mkdir -p ".context/decisions"
   mkdir -p ".claude/skills"
   mkdir -p ".claude/skills/bug-reproduction"
+  mkdir -p ".claude/skills/batch-operations"
+  mkdir -p ".claude/skills/git-platform"
   mkdir -p ".context/prp/templates"
   mkdir -p ".context/prp/generated"
   mkdir -p ".context/discoveries"
@@ -67,11 +69,14 @@ cmd_init() {
   }
 
   # Seed files: user-customizable content — only created if missing
+  download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
   download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/README.md" ".claude/skills/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
 
   # Managed files: dotcontext commands — always downloaded (safe to overwrite)
@@ -115,7 +120,7 @@ cmd_init() {
   cleanup_managed_dir ".claude/agents/fix-bug" \
     investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
   cleanup_managed_dir ".claude/scripts" \
-    statusline.sh
+    statusline.sh notify.sh tool-failure-guard.sh
 
   stop_spinner
 

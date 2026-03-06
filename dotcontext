@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.13.3"
+VERSION="0.13.2"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -200,30 +200,42 @@ cleanup_managed_dir() {
     fi
   done
 }
-# ── Notification Setup ────────────────────────────────────────────────────────
+# ── Hook Setup ────────────────────────────────────────────────────────────────
 
-# Setup notifications for Claude Code
+# Setup Claude Code hooks (project-local)
+# - Notification + Stop: native OS notifications
+# - PostToolUseFailure: tool failure guard (asks user after 4+ consecutive failures)
 setup_notifications() {
-  local claude_dir="$HOME/.claude"
-  local scripts_dir="$claude_dir/scripts"
-  local settings_file="$claude_dir/settings.json"
-  local notify_script="$scripts_dir/notify.sh"
+  local scripts_dir=".claude/scripts"
+  local settings_file=".claude/settings.json"
 
   # Create scripts directory
   mkdir -p "$scripts_dir"
 
-  # Download and install notify script
-  download "${BASE_URL}/scripts/notify.sh" "$notify_script"
-  chmod +x "$notify_script"
+  # Download and install scripts into project
+  download "${BASE_URL}/scripts/notify.sh" "$scripts_dir/notify.sh"
+  chmod +x "$scripts_dir/notify.sh"
+  download "${BASE_URL}/scripts/tool-failure-guard.sh" "$scripts_dir/tool-failure-guard.sh"
+  chmod +x "$scripts_dir/tool-failure-guard.sh"
 
-  # Create or update settings.json with hooks (matcher is string regex, empty = match all)
+  # Warn if global hooks exist from a previous dotcontext version
+  if [ -f "$HOME/.claude/settings.json" ] && grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
+    print_yellow "Global notification hooks detected in ~/.claude/settings.json"
+    print_yellow "dotcontext now configures hooks per-project. You can remove the global hooks manually."
+  fi
+
+  # Create or update project-local settings.json with hooks
   local notification_hook='{
     "matcher": "",
-    "hooks": [{"type": "command", "command": "~/.claude/scripts/notify.sh '\''Claude Code'\'' '\''Needs your attention'\'' question"}]
+    "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh '\''Claude Code'\'' '\''Needs your attention'\'' question"}]
   }'
   local stop_hook='{
     "matcher": "",
-    "hooks": [{"type": "command", "command": "~/.claude/scripts/notify.sh '\''Claude Code'\'' '\''Task completed'\'' success"}]
+    "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh '\''Claude Code'\'' '\''Task completed'\'' success"}]
+  }'
+  local failure_guard_hook='{
+    "matcher": "",
+    "hooks": [{"type": "command", "command": ".claude/scripts/tool-failure-guard.sh"}]
   }'
 
   if [ ! -f "$settings_file" ]; then
@@ -233,19 +245,25 @@ setup_notifications() {
     "Notification": [
       {
         "matcher": "",
-        "hooks": [{"type": "command", "command": "~/.claude/scripts/notify.sh 'Claude Code' 'Needs your attention' question"}]
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh 'Claude Code' 'Needs your attention' question"}]
       }
     ],
     "Stop": [
       {
         "matcher": "",
-        "hooks": [{"type": "command", "command": "~/.claude/scripts/notify.sh 'Claude Code' 'Task completed' success"}]
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh 'Claude Code' 'Task completed' success"}]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [{"type": "command", "command": ".claude/scripts/tool-failure-guard.sh"}]
       }
     ]
   }
 }
 SETTINGS_EOF
-    print_gray "Notifications configured in ~/.claude/settings.json"
+    print_gray "Hooks configured in .claude/settings.json"
   else
     # Check if hooks already configured
     if ! grep -q "notify.sh" "$settings_file" 2>/dev/null; then
@@ -257,12 +275,28 @@ SETTINGS_EOF
         ' "$settings_file" > "$temp_file" 2>/dev/null
         if [ $? -eq 0 ] && [ -s "$temp_file" ]; then
           mv "$temp_file" "$settings_file"
-          print_gray "Notification hooks added to ~/.claude/settings.json"
+          print_gray "Notification hooks added to .claude/settings.json"
         else
           rm -f "$temp_file"
         fi
       else
-        print_yellow "Install jq to auto-configure notification hooks, or add manually"
+        print_yellow "Install jq to auto-configure hooks, or add manually"
+      fi
+    fi
+
+    # Add failure guard if not already present
+    if ! grep -q "tool-failure-guard" "$settings_file" 2>/dev/null; then
+      if command -v jq &>/dev/null; then
+        local temp_file=$(mktemp)
+        jq --argjson guard "$failure_guard_hook" '
+          .hooks.PostToolUseFailure = ((.hooks.PostToolUseFailure // []) + [$guard])
+        ' "$settings_file" > "$temp_file" 2>/dev/null
+        if [ $? -eq 0 ] && [ -s "$temp_file" ]; then
+          mv "$temp_file" "$settings_file"
+          print_gray "Tool failure guard hook added to .claude/settings.json"
+        else
+          rm -f "$temp_file"
+        fi
       fi
     fi
   fi
@@ -350,6 +384,8 @@ cmd_init() {
   mkdir -p ".context/decisions"
   mkdir -p ".claude/skills"
   mkdir -p ".claude/skills/bug-reproduction"
+  mkdir -p ".claude/skills/batch-operations"
+  mkdir -p ".claude/skills/git-platform"
   mkdir -p ".context/prp/templates"
   mkdir -p ".context/prp/generated"
   mkdir -p ".context/discoveries"
@@ -378,11 +414,14 @@ cmd_init() {
   }
 
   # Seed files: user-customizable content — only created if missing
+  download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
   download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/README.md" ".claude/skills/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
 
   # Managed files: dotcontext commands — always downloaded (safe to overwrite)
@@ -426,7 +465,7 @@ cmd_init() {
   cleanup_managed_dir ".claude/agents/fix-bug" \
     investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
   cleanup_managed_dir ".claude/scripts" \
-    statusline.sh
+    statusline.sh notify.sh tool-failure-guard.sh
 
   stop_spinner
 
@@ -1055,15 +1094,25 @@ cmd_doctor() {
     check_warn ".mcp.json — missing (no MCP servers configured)"
   fi
 
-  # Check: notification hooks
-  if [ -f "$HOME/.claude/settings.json" ]; then
-    if grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
-      check_pass "Notification hooks configured"
+  # Check: hooks (project-local)
+  if [ -f ".claude/settings.json" ]; then
+    if grep -q "notify.sh" ".claude/settings.json" 2>/dev/null; then
+      check_pass "Notification hooks configured (project-local)"
     else
-      check_warn "Notification hooks — not configured in ~/.claude/settings.json"
+      check_warn "Notification hooks — not configured in .claude/settings.json"
+    fi
+    if grep -q "tool-failure-guard" ".claude/settings.json" 2>/dev/null; then
+      check_pass "Tool failure guard hook configured"
+    else
+      check_warn "Tool failure guard — not configured (run dotcontext init to add)"
     fi
   else
-    check_warn "~/.claude/settings.json — missing"
+    check_warn ".claude/settings.json — missing (no hooks configured)"
+  fi
+
+  # Warn about legacy global hooks
+  if [ -f "$HOME/.claude/settings.json" ] && grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
+    check_warn "Legacy global hooks detected in ~/.claude/settings.json — remove manually to avoid duplicates"
   fi
 
   # Summary

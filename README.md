@@ -165,10 +165,10 @@ Additionally, `dotcontext init` configures:
   - [Context7](https://github.com/upstash/context7-mcp) — up-to-date library docs for LLMs
   - [Atlassian](https://mcp.atlassian.com) — Jira + Confluence via OAuth
 
-- **Native OS notifications** in `~/.claude/`:
+- **Native OS notifications** in `.claude/` (project-local):
 
 ```
-~/.claude/
+.claude/
 ├── scripts/
 │   └── notify.sh          # Cross-platform notification script
 └── settings.json          # Hooks for Notification and Stop events
@@ -452,7 +452,7 @@ Create a custom Claude Code slash command:
 
 ## Notifications
 
-`dotcontext init` automatically configures native OS notifications for Claude Code:
+`dotcontext init` automatically configures native OS notifications for Claude Code in the project's `.claude/settings.json`:
 
 | Event | When | Sound (macOS) |
 |-------|------|---------------|
