@@ -156,7 +156,7 @@ your-project/
     ├── skills/                       # Step-by-step guides
     │   └── bug-reproduction/         # Bug reproduction patterns
     └── scripts/
-        └── statusline.sh            # StatusLine script (git + context health)
+        └── statusline.sh            # StatusLine: model, dir, git, ctx-usage bar, cost/time/lines
 ```
 
 Additionally, `dotcontext init` configures:

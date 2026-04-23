@@ -158,8 +158,10 @@ Only include the servers the user selected.
 Check if `.claude/settings.json` exists in the project root. If it does, check if it already has a `statusLine` configuration.
 
 If no StatusLine is configured, **use AskUserQuestion**:
-> "Would you like to enable the StatusLine? It shows git branch, changes count, context health, and model info at the bottom of Claude Code."
+> "Would you like to enable the StatusLine? It shows the model (with 1M-context awareness), current directory, git branch + change count, live context-window usage bar, session cost/duration/net lines, and .context health."
 > Options: "Yes, enable StatusLine" (Recommended) | "No, skip StatusLine"
+
+Note: the status line script requires `jq` at runtime. Without `jq` installed, it degrades gracefully and prints an install hint instead of rendering.
 
 If the user wants StatusLine:
 
