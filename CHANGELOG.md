@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.1](https://github.com/goca-se/dotcontext/compare/v0.14.0...v0.14.1) (2026-04-23)
+
+### Features
+
+* **statusline rewrite** — richer StatusLine output with new segments and accurate context tracking:
+  * **1M-context awareness** — detects Opus 4.7 `[1m]` extended mode and scales the context window to 1,000,000 tokens (falls back to 200k otherwise)
+  * **context usage bar** — 8-segment colored bar (🟢 🟡 🟠 🔴 🚨) driven by the latest assistant `usage` from the transcript, with `AUTO-COMPACT!` / `LOW!` alerts surfaced from `system_message` entries
+  * **session metrics** — cost (💰, colored by threshold and formatted in ¢ under $0.01), duration (⏱), and net lines (📝 ±N) pulled from the hook JSON
+  * **relative directory** — shows the current dir relative to project root when nested
+  * **richer git segment** — branch with change count, colored red when dirty / green when clean
+  * **graceful jq fallback** — prints an install hint and exits cleanly when `jq` is missing instead of producing a broken line
+
+### Docs
+
+* **`/setup-context`** — StatusLine prompt updated to describe the new segments and notes the `jq` runtime dependency
+* **README** — StatusLine description updated to match the new output
+
 ## [0.14.0](https://github.com/goca-se/dotcontext/compare/v0.13.3...v0.14.0) (2026-03-06)
 
 ### Features
