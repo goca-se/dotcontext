@@ -23,19 +23,16 @@ If no description is provided and no --issue/--pr flag, stop and tell the user:
 
 ### Step 2: Gather Bug Context
 
+Read `.claude/skills/git-platform/SKILL.md` to detect the platform and use the correct CLI.
+
 Build a complete bug context from all available sources:
 
 1. **Text description** (always present): Use as-is
-2. **If --issue N provided:**
-```bash
-gh issue view N --json title,body,comments
-```
-3. **If --pr N provided:**
-```bash
-gh pr view N --json title,body,comments,files,diff
-```
+2. **If --issue N provided:** Use the detected platform CLI to fetch the issue (e.g., `gh issue view N`, `glab issue view N`, `az boards work-item show --id N`)
+3. **If --pr N provided:** Use the detected platform CLI to fetch the PR/MR (e.g., `gh pr view N`, `glab mr view N`, `az repos pr show --id N`)
+4. **If error logs / stack traces are included:** Extract every source file path mentioned in the trace — these are the starting points for investigation, not the bug description text.
 
-Combine all sources into a single `BUG_CONTEXT` block.
+Combine all sources into a single `BUG_CONTEXT` block. Focus on **root causes, not symptoms** — if the user says "fix the null check", rephrase as "find why the value is null" in the context.
 
 ### Step 3: Read Project Context
 
@@ -43,6 +40,7 @@ Read these files to understand the project:
 - `CLAUDE.md` — project rules, stack, test commands
 - `.context/CONTEXT.md` — domain context
 - `.claude/skills/bug-reproduction/SKILL.md` — bug reproduction patterns (if exists)
+- `.context/bugs/` — check for previous similar bugs (patterns may repeat)
 
 From `CLAUDE.md`, identify:
 - **Test framework** and **test command** (e.g., `npm test`, `pytest`, `go test`)
@@ -245,11 +243,31 @@ Report saved to: .context/bugs/[filename]
 - This ensures the best possible fix, not just the first one
 - Use `run_in_background: true` for all fix agents
 
+## Debugging Strategies
+
+When the bug is hard to find, use these techniques in order:
+
+1. **Stack trace analysis** — Read every source file in the trace. The bug is often NOT in the file the error points to — trace upstream.
+2. **Binary search** — Find the midpoint of the execution path, check if data is correct there, narrow to the broken half. Repeat.
+3. **Type tracing** — For type errors, trace the value through every transformation from origin to failure. Log the type/shape at each step.
+4. **Git bisect** — If the bug is a regression, use `git bisect` to find the introducing commit before diving into code.
+5. **Constraint isolation** — Remove components until the bug disappears. The last removed component is the cause.
+
+For **intermittent / async bugs**, look for:
+- Shared mutable state between concurrent operations
+- Missing `await` or unhandled promise rejections
+- Assumptions about execution order
+- Premature resource cleanup
+
 ## If You Get Stuck
 
 If you cannot make progress after 3 attempts at the same step:
 1. Stop immediately
-2. Explain what you're trying to do and what's blocking you
-3. **Use AskUserQuestion tool** to ask the user how to proceed
+2. Explain what you tried, what you expected, and what happened instead
+3. **Use AskUserQuestion tool** with concrete options:
+   - "Try a different debugging approach (binary search / git bisect / constraint isolation)"
+   - "Provide more context about the bug"
+   - "Fix without reproduction test"
+   - "Cancel"
 
 Never loop indefinitely. If you find yourself repeating the same actions without progress, stop and ask for help.

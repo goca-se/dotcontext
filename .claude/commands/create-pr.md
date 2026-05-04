@@ -4,6 +4,10 @@ Create a well-structured pull request with automatic architectural diagram detec
 
 ## Process
 
+### 0. Detect Git Platform
+
+Read `.claude/skills/git-platform/SKILL.md` and follow the detection steps. Determine which platform and CLI to use (GitHub/`gh`, GitLab/`glab`, Azure DevOps/`az repos`, etc.) before running any commands. Use the correct PR/MR terminology and CLI for the detected platform throughout this workflow.
+
 ### 1. Analyze Changes
 
 First, gather context about the current branch:
@@ -100,12 +104,25 @@ Types:
 Generated with [Claude Code](https://claude.ai/code)
 ```
 
-### 5. Create the PR
+### 5. Create the PR/MR
 
-Use `gh pr create`:
+Use the detected platform CLI (see Step 0). Examples:
 
 ```bash
+# GitHub
 gh pr create --title "<title>" --body "$(cat <<'EOF'
+<body content here>
+EOF
+)"
+
+# GitLab
+glab mr create --title "<title>" --description "$(cat <<'EOF'
+<body content here>
+EOF
+)"
+
+# Azure DevOps
+az repos pr create --title "<title>" --description "$(cat <<'EOF'
 <body content here>
 EOF
 )"
@@ -171,4 +188,4 @@ Keep diagrams simple and focused on what changed, not the entire system.
 - **Always use AskUserQuestion** when clarification is needed
 - Never create empty or placeholder PRs
 - If you can't determine the changes, ask the user to explain
-- Respect existing PR templates in `.github/PULL_REQUEST_TEMPLATE.md` if present
+- Respect existing PR/MR templates: `.github/PULL_REQUEST_TEMPLATE.md` (GitHub), `.gitlab/merge_request_templates/` (GitLab), or similar

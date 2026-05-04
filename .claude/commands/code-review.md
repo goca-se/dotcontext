@@ -4,20 +4,30 @@ Review the code changes using multiple specialized agents with confidence-based 
 
 **Usage:** `/code-review [--comment]`
 - Default: outputs review to terminal
-- `--comment`: posts review as PR comment on GitHub
+- `--comment`: posts review as PR/MR comment
 
 ## Execution Flow
 
+### Step 0: Detect Git Platform
+
+Read `.claude/skills/git-platform/SKILL.md` and follow the detection steps. Use the correct CLI and PR/MR terminology throughout.
+
 ### Step 1: Pre-flight Checks
 
-Run these checks first. If any fail, skip the review and explain why:
+Run these checks first using the detected platform CLI. If any fail, skip the review and explain why:
 
 ```bash
-# Check if we're in a git repo with GitHub remote
+# GitHub
 gh repo view --json name 2>/dev/null
-
-# Check PR status (skip if closed, draft, or already reviewed by this tool)
 gh pr view --json state,isDraft,comments
+
+# GitLab
+glab repo view 2>/dev/null
+glab mr view
+
+# Azure DevOps
+az repos show 2>/dev/null
+az repos pr list --source-branch "$(git branch --show-current)"
 ```
 
 Skip review if:
@@ -30,10 +40,7 @@ Skip review if:
 
 Collect all relevant context before launching agents:
 
-1. **Get the PR diff:**
-```bash
-gh pr diff
-```
+1. **Get the PR/MR diff** using the detected platform CLI (e.g., `gh pr diff`, `glab mr diff`)
 
 2. **Find all CLAUDE.md files** (project guidelines):
 ```bash
@@ -42,10 +49,7 @@ find . -name "CLAUDE.md" -o -name "*.claude.md" | head -20
 
 3. **Read CLAUDE.md files** found above to understand project rules
 
-4. **Get PR metadata:**
-```bash
-gh pr view --json title,body,files,additions,deletions
-```
+4. **Get PR/MR metadata** using the detected platform CLI (e.g., `gh pr view --json title,body,files`, `glab mr view`)
 
 ### Step 3: Launch Parallel Review Agents
 
@@ -107,11 +111,18 @@ After all agents complete, collect their findings and score each issue for confi
 ### Step 6: Generate Output
 
 **If `--comment` flag is present:**
-Post the review as a PR comment using:
+Post the review as a PR/MR comment using the detected platform CLI:
 ```bash
+# GitHub
 gh pr comment --body "$(cat <<'EOF'
 ## Code Review
+{review content}
+EOF
+)"
 
+# GitLab
+glab mr note --message "$(cat <<'EOF'
+## Code Review
 {review content}
 EOF
 )"

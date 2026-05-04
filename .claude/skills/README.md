@@ -8,6 +8,9 @@ Skills are step-by-step guides for recurring tasks in this project.
 |-------|-------------|
 | [add-new-command](add-new-command/SKILL.md) | Add a new Claude Code slash command |
 | [add-cli-subcommand](add-cli-subcommand/SKILL.md) | Add a new subcommand to the dotcontext CLI |
+| [bug-reproduction](bug-reproduction/SKILL.md) | Reproduce a bug with a failing test before fixing |
+| [batch-operations](batch-operations/SKILL.md) | Batch related file/tool operations into one round |
+| [git-platform](git-platform/SKILL.md) | Detect GitHub vs GitLab and pick the right CLI (gh/glab) |
 
 ## Structure
 
