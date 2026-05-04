@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-03-04
-**Version:** 1.0
+**Version:** 2.0
 **Deciders:** Nicholas (Gocase)
 
 ## Context
@@ -48,7 +48,11 @@ The orchestrator (Claude) reads the agent file, performs placeholder substitutio
 
 ### Distribution
 
-Agent files are **managed templates** — always downloaded during `dotcontext init` and offered for update during `dotcontext update`. They follow the same pattern as command files.
+**v1.0:** Agent files were managed templates — always downloaded during `dotcontext init`.
+
+**v2.0 (current):** Agent files travel **with their command bundle** as one atomic unit (ADR-017). Only the deep-context agents — which belong to a Layer 1 command (`/deep-context`) — are still downloaded by `init`. Agents for Layer 2 commands (`code-review`, `fix-bug`, etc.) are downloaded *only* when the user installs that command bundle from the marketplace. Removing the bundle removes its agents.
+
+This change keeps the file-extraction pattern (each agent is its own file, easy to read and iterate on) while honoring the layered distribution model: Layer 1 ships everything its commands need; Layer 2 items are self-contained bundles.
 
 ## Alternatives Considered
 
@@ -73,8 +77,11 @@ Agent files are **managed templates** — always downloaded during `dotcontext i
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | 2026-03-04 | Initial decision |
+| 1.0 | 2026-03-04 | Initial decision (extract agents to per-file under `.claude/agents/`) |
+| 2.0 | 2026-04-30 | Layer 2 agents bundle with their command (atomic install/remove) instead of being always-downloaded; only Layer 1 agents (deep-context) ship via init (PRP: marketplace-tui-and-layered-distribution) |
 
 ## Related
 - ADR-009: Multi-Agent Orchestration Pattern (updated to reference file-based agents)
 - ADR-004: Claude Code Integration via Slash Commands
+- ADR-015: Two-Layer Distribution Model
+- ADR-017: Bundle Granularity (Atomic Items)
