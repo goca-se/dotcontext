@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.14.1"
+VERSION="0.15.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -200,6 +200,1481 @@ cleanup_managed_dir() {
     fi
   done
 }
+# ── lib/ui/menu_paginated.sh ──────────────────────────────────────────────────
+#
+# Paginated menu with arrow navigation. Bash 3.2+.
+#
+# Public API:
+#   ui_menu_init              # enter alt-screen, hide cursor, set raw mode
+#   ui_menu_term_height       # echoes terminal height (lines)
+#   ui_menu_term_width        # echoes terminal width (cols)
+#   ui_menu_read_key          # blocking read of one key; echoes a name (UP/DOWN/LEFT/RIGHT/SPACE/ENTER/TAB/STAB/ESC/q/g/l/i/u/h/?/...)
+#   ui_menu_cleanup           # restore screen, cursor, mode (idempotent)
+#   ui_menu_save_cursor / ui_menu_restore_cursor
+#   ui_menu_clear_screen      # clears alt-screen
+#   ui_menu_move_cursor row col
+#
+# Notes:
+#   - ESC followed by [ then A/B/C/D maps to UP/DOWN/RIGHT/LEFT.
+#   - Bare ESC returns "ESC" (after a 1-second timeout).
+#   - Tab returns "TAB", Shift-Tab returns "STAB".
+#   - Bash 3.2 only supports integer `read -t`. Bare ESC therefore has a 1s
+#     lag before resolving; arrow keys resolve instantly because the trailing
+#     bytes are already buffered when ESC arrives.
+
+# Capability / state ----------------------------------------------------------
+
+UI_MENU_ALT_ACTIVE=0
+UI_MENU_ORIG_STTY=""
+
+ui_menu_supports_alt_screen() {
+  command -v tput >/dev/null 2>&1 || return 1
+  tput smcup >/dev/null 2>&1
+}
+
+ui_menu_term_height() {
+  local h
+  h=$(tput lines 2>/dev/null || echo "")
+  if [ -z "$h" ] || [ "$h" -lt 10 ] 2>/dev/null; then h=24; fi
+  echo "$h"
+}
+
+ui_menu_term_width() {
+  local w
+  w=$(tput cols 2>/dev/null || echo "")
+  if [ -z "$w" ] || [ "$w" -lt 40 ] 2>/dev/null; then w=80; fi
+  echo "$w"
+}
+
+# Setup / teardown ------------------------------------------------------------
+
+ui_menu_init() {
+  UI_MENU_ORIG_STTY=$(stty -g 2>/dev/null || echo "")
+  stty -echo 2>/dev/null || true
+  if ui_menu_supports_alt_screen; then
+    tput smcup
+    UI_MENU_ALT_ACTIVE=1
+  else
+    printf '\n'
+  fi
+  tput civis 2>/dev/null || printf '\033[?25l'
+  trap 'ui_menu_cleanup' EXIT INT TERM
+}
+
+ui_menu_cleanup() {
+  tput cnorm 2>/dev/null || printf '\033[?25h'
+  if [ "$UI_MENU_ALT_ACTIVE" -eq 1 ]; then
+    tput rmcup
+    UI_MENU_ALT_ACTIVE=0
+  fi
+  if [ -n "$UI_MENU_ORIG_STTY" ]; then
+    stty "$UI_MENU_ORIG_STTY" 2>/dev/null || stty echo 2>/dev/null || true
+  else
+    stty echo 2>/dev/null || true
+  fi
+}
+
+# Cursor / screen helpers -----------------------------------------------------
+
+ui_menu_clear_screen() { printf '\033[2J\033[H'; }
+ui_menu_move_cursor()  { printf '\033[%s;%sH' "$1" "$2"; }
+ui_menu_save_cursor()  { printf '\033[s'; }
+ui_menu_restore_cursor() { printf '\033[u'; }
+ui_menu_clear_line()   { printf '\033[2K'; }
+
+# Key reading -----------------------------------------------------------------
+
+# Reads one logical key. Echoes a stable name.
+#
+# Bash 3.2 caveat: `read -t` only accepts INTEGER seconds (fractional was added
+# in bash 4.0). macOS ships 3.2.57, so we use `-t 1`. After an ESC, an arrow
+# key's remaining bytes are already buffered, so `read` returns immediately —
+# the 1s only fires for a bare ESC press, which is acceptable lag.
+ui_menu_read_key() {
+  local k1 rest
+  IFS= read -rsn1 k1 || return 1
+  case "$k1" in
+    "")          echo "ENTER"; return 0 ;;
+    $'\n')       echo "ENTER"; return 0 ;;
+    $'\r')       echo "ENTER"; return 0 ;;
+    " ")         echo "SPACE"; return 0 ;;
+    $'\t')       echo "TAB"; return 0 ;;
+    $'\033')
+      # Read up to 2 more chars in one syscall. Buffered escape sequences
+      # (`[A`, `[B`, ..., `OA`, `[Z`) come back instantly.
+      rest=""
+      IFS= read -rsn2 -t 1 rest 2>/dev/null
+      case "$rest" in
+        "[A"|"OA") echo "UP";    return 0 ;;
+        "[B"|"OB") echo "DOWN";  return 0 ;;
+        "[C"|"OC") echo "RIGHT"; return 0 ;;
+        "[D"|"OD") echo "LEFT";  return 0 ;;
+        "[Z")      echo "STAB";  return 0 ;;
+        *)         echo "ESC";   return 0 ;;
+      esac
+      ;;
+    *) echo "$k1"; return 0 ;;
+  esac
+}
+
+# Pagination math -------------------------------------------------------------
+
+# Compute first visible index given:
+#   $1 = selected (0-based)
+#   $2 = page_size
+#   $3 = total
+ui_menu_first_visible() {
+  local sel="$1" page="$2" total="$3"
+  local first=0
+  if [ "$total" -le "$page" ]; then
+    echo 0; return 0
+  fi
+  first=$(( sel - page / 2 ))
+  [ "$first" -lt 0 ] && first=0
+  if [ $(( first + page )) -gt "$total" ]; then
+    first=$(( total - page ))
+  fi
+  echo "$first"
+}
+# ── lib/ui/multi_select.sh ────────────────────────────────────────────────────
+#
+# State tracking for multi-select lists. Bash 3.2 (no assoc arrays).
+#
+# Selection is stored in a parallel boolean array UI_SEL_STATE, indexed by item
+# position. Callers populate item arrays themselves; this file only manages
+# selection, focus, and rendering of checkbox glyphs.
+#
+# Public API:
+#   ui_select_init <count>           # zero out selection state for N items
+#   ui_select_toggle <index>         # flip item at index
+#   ui_select_set <index> <0|1>
+#   ui_select_get <index>            # echoes 0 or 1
+#   ui_select_count                  # echoes number selected
+#   ui_select_box <index>            # echoes "[x]" or "[ ]" for rendering
+#   ui_select_select_all <count>
+#   ui_select_clear_all <count>
+
+# Indexed array; parallel to caller's items.
+UI_SEL_STATE=()
+
+ui_select_init() {
+  local n="$1" i
+  UI_SEL_STATE=()
+  for (( i = 0; i < n; i++ )); do
+    UI_SEL_STATE[$i]=0
+  done
+}
+
+ui_select_toggle() {
+  local idx="$1"
+  if [ "${UI_SEL_STATE[$idx]:-0}" = "1" ]; then
+    UI_SEL_STATE[$idx]=0
+  else
+    UI_SEL_STATE[$idx]=1
+  fi
+}
+
+ui_select_set() {
+  local idx="$1" val="$2"
+  UI_SEL_STATE[$idx]="$val"
+}
+
+ui_select_get() {
+  local idx="$1"
+  echo "${UI_SEL_STATE[$idx]:-0}"
+}
+
+ui_select_count() {
+  local i count=0
+  for i in "${UI_SEL_STATE[@]}"; do
+    [ "$i" = "1" ] && count=$(( count + 1 ))
+  done
+  echo "$count"
+}
+
+ui_select_box() {
+  local idx="$1"
+  if [ "${UI_SEL_STATE[$idx]:-0}" = "1" ]; then
+    echo "[x]"
+  else
+    echo "[ ]"
+  fi
+}
+
+ui_select_select_all() {
+  local n="$1" i
+  for (( i = 0; i < n; i++ )); do
+    UI_SEL_STATE[$i]=1
+  done
+}
+
+ui_select_clear_all() {
+  local n="$1" i
+  for (( i = 0; i < n; i++ )); do
+    UI_SEL_STATE[$i]=0
+  done
+}
+# ── lib/ui/detail_pane.sh ─────────────────────────────────────────────────────
+#
+# Renders a side panel describing the focused item. Bash 3.2+.
+#
+# Public API:
+#   ui_detail_render <row> <col> <width> <height> <title> <body...>
+#       — draws a simple bordered box at (row, col) with the title and a body
+#         that wraps to width, truncated at height.
+#
+# This is intentionally minimal — orchestrator passes formatted lines.
+
+ui_detail_render() {
+  local row="$1" col="$2" width="$3" height="$4" title="$5"; shift 5
+  local body_lines=("$@")
+
+  # Title row
+  printf '\033[%s;%sH' "$row" "$col"
+  printf '\033[1m%s\033[0m' "$(ui_detail_truncate "$title" "$width")"
+
+  # Separator
+  printf '\033[%s;%sH' "$(( row + 1 ))" "$col"
+  ui_detail_hline "$width"
+
+  # Body
+  local r=$(( row + 2 ))
+  local available=$(( height - 2 ))
+  local printed=0
+  local ln
+  for ln in "${body_lines[@]}"; do
+    [ "$printed" -ge "$available" ] && break
+    printf '\033[%s;%sH' "$r" "$col"
+    printf '\033[2K%s' "$(ui_detail_truncate "$ln" "$width")"
+    r=$(( r + 1 ))
+    printed=$(( printed + 1 ))
+  done
+  # Pad remaining rows so leftover from a previous render is wiped.
+  while [ "$printed" -lt "$available" ]; do
+    printf '\033[%s;%sH\033[2K' "$r" "$col"
+    r=$(( r + 1 ))
+    printed=$(( printed + 1 ))
+  done
+}
+
+ui_detail_truncate() {
+  local s="$1" max="$2"
+  if [ "${#s}" -le "$max" ]; then
+    printf '%s' "$s"
+  else
+    local ellipsis_len=1
+    local cut=$(( max - ellipsis_len ))
+    [ "$cut" -lt 1 ] && cut=1
+    printf '%s…' "${s:0:$cut}"
+  fi
+}
+
+ui_detail_hline() {
+  local w="$1" line="" i
+  for (( i = 0; i < w; i++ )); do line="${line}─"; done
+  printf '%s' "$line"
+}
+# ── lib/ui/confirm.sh ─────────────────────────────────────────────────────────
+#
+# y/N prompts. Consolidates ad-hoc confirm helpers from src/core/ui.sh.
+#
+# Public API:
+#   ui_confirm <prompt> [default-yes|default-no]
+#       Returns 0 if yes, 1 if no. Default is "no" if not specified.
+
+ui_confirm() {
+  local prompt="$1"
+  local default="${2:-default-no}"
+  local hint reply
+
+  if [ "$default" = "default-yes" ]; then
+    hint="[Y/n]"
+  else
+    hint="[y/N]"
+  fi
+
+  printf '%s %s ' "$prompt" "$hint"
+  IFS= read -r reply || reply=""
+
+  case "$reply" in
+    y|Y|yes|Yes|YES) return 0 ;;
+    n|N|no|No|NO) return 1 ;;
+    "")
+      if [ "$default" = "default-yes" ]; then
+        return 0
+      else
+        return 1
+      fi
+      ;;
+    *) return 1 ;;
+  esac
+}
+# ── lib/ui/spinner_alt.sh ─────────────────────────────────────────────────────
+#
+# Spinner that coexists with alt-screen (lib/ui/menu_paginated.sh). Renders at
+# a fixed (row, col) without disturbing other regions.
+#
+# Public API:
+#   ui_spinner_alt_start <row> <col> <message>
+#   ui_spinner_alt_stop  [final-message]
+#
+# Differences from src/core/spinner.sh:
+#   - absolute-position render (won't overwrite list rows)
+#   - clears its row on stop
+#   - safe to call from inside an alt-screen session
+
+UI_SPINNER_ALT_PID=""
+UI_SPINNER_ALT_ROW=""
+UI_SPINNER_ALT_COL=""
+
+ui_spinner_alt_start() {
+  local row="$1" col="$2" msg="$3"
+  UI_SPINNER_ALT_ROW="$row"
+  UI_SPINNER_ALT_COL="$col"
+  local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+  (
+    local i=0
+    while true; do
+      printf '\033[s\033[%s;%sH\033[2K\033[34m%s\033[0m %s\033[u' \
+        "$row" "$col" "${frames[$i]}" "$msg"
+      i=$(( (i + 1) % 10 ))
+      sleep 0.1
+    done
+  ) &
+  UI_SPINNER_ALT_PID=$!
+  disown 2>/dev/null || true
+}
+
+ui_spinner_alt_stop() {
+  local final="${1:-}"
+  if [ -n "$UI_SPINNER_ALT_PID" ]; then
+    kill "$UI_SPINNER_ALT_PID" 2>/dev/null
+    wait "$UI_SPINNER_ALT_PID" 2>/dev/null || true
+    UI_SPINNER_ALT_PID=""
+  fi
+  if [ -n "$UI_SPINNER_ALT_ROW" ] && [ -n "$UI_SPINNER_ALT_COL" ]; then
+    printf '\033[s\033[%s;%sH\033[2K' "$UI_SPINNER_ALT_ROW" "$UI_SPINNER_ALT_COL"
+    if [ -n "$final" ]; then
+      printf '%s' "$final"
+    fi
+    printf '\033[u'
+  fi
+  UI_SPINNER_ALT_ROW=""
+  UI_SPINNER_ALT_COL=""
+}
+# ── lib/ui/tabs.sh ────────────────────────────────────────────────────────────
+#
+# Tab strip header. Caller manages active index; this renders the strip.
+#
+# Public API:
+#   ui_tabs_render <row> <col> <active-index> <tab1> [tab2 ...]
+
+ui_tabs_render() {
+  local row="$1" col="$2" active="$3"; shift 3
+  local tabs=("$@")
+  local i=0 t
+  printf '\033[%s;%sH\033[2K' "$row" "$col"
+  for t in "${tabs[@]}"; do
+    if [ "$i" -eq "$active" ]; then
+      # Bold + reverse video for active tab
+      printf '  \033[1;7m %s \033[0m' "$t"
+    else
+      printf '  \033[2m %s \033[0m' "$t"
+    fi
+    i=$(( i + 1 ))
+  done
+}
+# ── lib/marketplace/manifest.sh ───────────────────────────────────────────────
+#
+# Loads, queries, and caches the marketplace manifest.
+#
+# Runtime requires jq. We chose this over a pure-bash JSON parser to keep
+# install handlers small. validate-manifest (build-time) works without jq.
+#
+# Public API:
+#   mp_manifest_require_jq           # exits with helpful message if jq missing
+#   mp_manifest_path                 # echoes path to embedded manifest
+#   mp_manifest_load [path]          # caches contents of the manifest into MP_MANIFEST_JSON
+#   mp_manifest_ids                  # echoes all item ids
+#   mp_manifest_starter_pack_ids     # echoes starter pack ids
+#   mp_manifest_field <id> <field>   # echoes a top-level field (.type, .name, etc.)
+#   mp_manifest_files <id>           # echoes "src<TAB>dest" pairs, one per line
+#   mp_manifest_depends_on <id>      # echoes dependency ids
+#   mp_manifest_scopes <id>          # echoes scopes_supported
+#   mp_manifest_default_scope <id>
+#   mp_manifest_pm_for_os <id> <os-key>   # for external-cli; echoes JSON object for that OS
+
+MP_MANIFEST_JSON=""
+MP_MANIFEST_PATH=""
+
+mp_manifest_require_jq() {
+  if ! command -v jq >/dev/null 2>&1; then
+    printf 'dotcontext: jq is required for the marketplace TUI.\n' >&2
+    printf 'Install jq:\n' >&2
+    printf '  macOS:    brew install jq\n' >&2
+    printf '  Debian:   sudo apt-get install jq\n' >&2
+    printf '  Fedora:   sudo dnf install jq\n' >&2
+    return 1
+  fi
+}
+
+# Returns the path to the embedded manifest. When dotcontext is bundled the
+# manifest lives under the install prefix (~/.local/share/dotcontext or beside
+# the binary). For development, it's marketplace/manifest.json relative to repo.
+mp_manifest_path() {
+  if [ -n "$MP_MANIFEST_PATH" ]; then
+    echo "$MP_MANIFEST_PATH"; return 0
+  fi
+  local candidates=(
+    "${DOTCONTEXT_MANIFEST:-}"
+    "$(dirname "$0")/marketplace/manifest.json"
+    "$(dirname "$0")/../marketplace/manifest.json"
+    "$HOME/.local/share/dotcontext/manifest.json"
+    "/usr/local/share/dotcontext/manifest.json"
+  )
+  local p
+  for p in "${candidates[@]}"; do
+    [ -z "$p" ] && continue
+    if [ -f "$p" ]; then
+      MP_MANIFEST_PATH="$p"
+      echo "$p"; return 0
+    fi
+  done
+  printf 'dotcontext: manifest.json not found. Set DOTCONTEXT_MANIFEST or reinstall.\n' >&2
+  return 1
+}
+
+mp_manifest_load() {
+  mp_manifest_require_jq || return 1
+  local path="${1:-$(mp_manifest_path)}"
+  [ -f "$path" ] || { printf 'manifest not found: %s\n' "$path" >&2; return 1; }
+  MP_MANIFEST_JSON="$(cat "$path")"
+  MP_MANIFEST_PATH="$path"
+}
+
+mp_manifest_ids() {
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r '.items[].id'
+}
+
+mp_manifest_starter_pack_ids() {
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r '.items[] | select(.starter_pack == true) | .id'
+}
+
+mp_manifest_field() {
+  local id="$1" field="$2"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" --arg f "$field" \
+    '.items[] | select(.id == $id) | .[$f] // ""'
+}
+
+mp_manifest_files() {
+  local id="$1"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .files // [] | .[] | "\(.src)\t\(.dest)"'
+}
+
+mp_manifest_depends_on() {
+  local id="$1"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .depends_on // [] | .[]'
+}
+
+mp_manifest_scopes() {
+  local id="$1"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .scopes_supported[]'
+}
+
+mp_manifest_default_scope() {
+  local id="$1"
+  local s
+  s="$(printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .default_scope // empty')"
+  if [ -z "$s" ]; then
+    s="$(printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+      '.items[] | select(.id == $id) | .scopes_supported[0]')"
+  fi
+  echo "$s"
+}
+
+mp_manifest_pm_for_os() {
+  local id="$1" os="$2"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -c --arg id "$id" --arg os "$os" \
+    '.items[] | select(.id == $id) | .package_managers[$os] // {}'
+}
+
+mp_manifest_mcp_config() {
+  local id="$1"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -c --arg id "$id" \
+    '.items[] | select(.id == $id) | .mcp_config // {}'
+}
+
+# Returns mcp_key if set in the manifest, else id.
+mp_manifest_mcp_key() {
+  local id="$1" key
+  key="$(printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .mcp_key // empty')"
+  if [ -z "$key" ]; then
+    echo "$id"
+  else
+    echo "$key"
+  fi
+}
+
+mp_manifest_settings_keys() {
+  local id="$1"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .settings_keys // [] | .[]'
+}
+
+mp_manifest_auth_required() {
+  local id="$1"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .auth_required // false'
+}
+
+mp_manifest_verify_command() {
+  local id="$1"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .verify_command // ""'
+}
+
+mp_manifest_auth_command() {
+  local id="$1"
+  printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .auth_command // ""'
+}
+# ── lib/marketplace/lockfile.sh ───────────────────────────────────────────────
+#
+# Read/write per-scope lockfile.
+#
+# Schemas: see ADR-016.
+#   local:  <project>/.context/.dotcontext-state.json
+#   global: ~/.dotcontext/state.json
+#
+# Public API:
+#   mp_lock_path <scope>           # echoes path
+#   mp_lock_init <scope>           # creates empty lockfile if missing
+#   mp_lock_has <scope> <id>       # exit 0 if installed, 1 otherwise
+#   mp_lock_get_field <scope> <id> <field>
+#   mp_lock_add <scope> <id> <version> <files-newline-list> [extra-jq-merge]
+#   mp_lock_remove <scope> <id>
+#   mp_lock_list_ids <scope>
+#   mp_lock_list_with_dependents <scope> <id>   # returns ids depending on id
+
+mp_lock_path() {
+  local scope="$1"
+  case "$scope" in
+    local)
+      if [ -d "${PWD}/.context" ]; then
+        echo "${PWD}/.context/.dotcontext-state.json"
+      else
+        # Walk up to find a .context dir (project root).
+        local d="$PWD"
+        while [ "$d" != "/" ] && [ -n "$d" ]; do
+          if [ -d "$d/.context" ]; then
+            echo "$d/.context/.dotcontext-state.json"
+            return 0
+          fi
+          d="$(dirname "$d")"
+        done
+        echo "${PWD}/.context/.dotcontext-state.json"
+      fi
+      ;;
+    global|machine)
+      mkdir -p "$HOME/.dotcontext" 2>/dev/null
+      echo "$HOME/.dotcontext/state.json"
+      ;;
+    *)
+      printf 'mp_lock_path: unknown scope %s\n' "$scope" >&2
+      return 1
+      ;;
+  esac
+}
+
+mp_lock_init() {
+  local scope="$1"
+  local path
+  path="$(mp_lock_path "$scope")" || return 1
+  if [ ! -f "$path" ]; then
+    mkdir -p "$(dirname "$path")"
+    printf '{ "$schema_version": "1.0", "items": [] }\n' > "$path"
+  fi
+}
+
+# Atomic write helper.
+mp_lock_write() {
+  local path="$1"
+  local content="$2"
+  local tmp="${path}.tmp.$$"
+  printf '%s\n' "$content" > "$tmp"
+  mv "$tmp" "$path"
+}
+
+mp_lock_has() {
+  local scope="$1" id="$2"
+  local path
+  path="$(mp_lock_path "$scope")" || return 1
+  [ -f "$path" ] || return 1
+  jq -e --arg id "$id" '.items[] | select(.id == $id)' "$path" >/dev/null 2>&1
+}
+
+mp_lock_get_field() {
+  local scope="$1" id="$2" field="$3"
+  local path
+  path="$(mp_lock_path "$scope")" || return 1
+  [ -f "$path" ] || return 1
+  jq -r --arg id "$id" --arg f "$field" \
+    '.items[] | select(.id == $id) | .[$f] // empty' "$path"
+}
+
+mp_lock_list_ids() {
+  local scope="$1"
+  local path
+  path="$(mp_lock_path "$scope")" || return 1
+  [ -f "$path" ] || return 0
+  jq -r '.items[].id' "$path"
+}
+
+# mp_lock_add: idempotent — if id already present, replace entry.
+mp_lock_add() {
+  local scope="$1" id="$2" version="$3" files="$4"
+  local path now files_json
+  path="$(mp_lock_path "$scope")" || return 1
+  mp_lock_init "$scope" || return 1
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  # files arg is newline-separated.
+  if [ -n "$files" ]; then
+    files_json="$(printf '%s\n' "$files" | jq -R . | jq -s .)"
+  else
+    files_json="[]"
+  fi
+
+  local content
+  content="$(jq --arg id "$id" --arg v "$version" --arg s "$scope" --arg t "$now" \
+    --argjson files "$files_json" \
+    '
+      .items |= (map(select(.id != $id))) |
+      .items += [{ id: $id, version: $v, scope: $s, installed_at: $t, files: $files }]
+    ' "$path")" || return 1
+  mp_lock_write "$path" "$content"
+}
+
+# Variant for items with settings_keys (mcp/hook).
+mp_lock_add_with_keys() {
+  local scope="$1" id="$2" version="$3" keys_csv="$4"
+  local path now keys_json
+  path="$(mp_lock_path "$scope")" || return 1
+  mp_lock_init "$scope" || return 1
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  if [ -n "$keys_csv" ]; then
+    keys_json="$(printf '%s' "$keys_csv" | tr ',' '\n' | jq -R . | jq -s .)"
+  else
+    keys_json="[]"
+  fi
+
+  local content
+  content="$(jq --arg id "$id" --arg v "$version" --arg s "$scope" --arg t "$now" \
+    --argjson keys "$keys_json" \
+    '
+      .items |= (map(select(.id != $id))) |
+      .items += [{ id: $id, version: $v, scope: $s, installed_at: $t, settings_keys: $keys }]
+    ' "$path")" || return 1
+  mp_lock_write "$path" "$content"
+}
+
+# Variant for external-cli.
+mp_lock_add_cli() {
+  local id="$1" version="$2" pm="$3"
+  local path now
+  path="$(mp_lock_path machine)" || return 1
+  mp_lock_init machine || return 1
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  local content
+  content="$(jq --arg id "$id" --arg v "$version" --arg pm "$pm" --arg t "$now" \
+    '
+      .items |= (map(select(.id != $id))) |
+      .items += [{ id: $id, version: $v, scope: "machine", installed_at: $t, package_manager_used: $pm }]
+    ' "$path")" || return 1
+  mp_lock_write "$path" "$content"
+}
+
+mp_lock_remove() {
+  local scope="$1" id="$2"
+  local path content
+  path="$(mp_lock_path "$scope")" || return 1
+  [ -f "$path" ] || return 0
+  content="$(jq --arg id "$id" '.items |= map(select(.id != $id))' "$path")" || return 1
+  mp_lock_write "$path" "$content"
+}
+
+# List ids whose depends_on includes <id> in the given scope.
+mp_lock_list_dependents() {
+  local scope="$1" id="$2"
+  # Note: depends_on lives in the manifest, not the lockfile. Caller should
+  # cross-reference manifest using mp_manifest_depends_on against
+  # mp_lock_list_ids. Implemented here for convenience.
+  local installed dep
+  installed="$(mp_lock_list_ids "$scope")"
+  while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    if mp_manifest_depends_on "$dep" 2>/dev/null | grep -qx "$id"; then
+      echo "$dep"
+    fi
+  done <<EOF
+$installed
+EOF
+}
+# ── lib/marketplace/scope.sh ──────────────────────────────────────────────────
+#
+# Resolves filesystem paths for a given scope.
+#
+# Public API:
+#   mp_scope_root <scope>             # echoes the root dir (no trailing slash)
+#   mp_scope_resolve <scope> <rel>    # echoes scope_root/rel
+#   mp_scope_is_project_dir [path]    # exit 0 if path (default: cwd) contains .context/
+
+mp_scope_root() {
+  local scope="$1"
+  case "$scope" in
+    local)
+      local d="$PWD"
+      while [ "$d" != "/" ] && [ -n "$d" ]; do
+        if [ -d "$d/.context" ]; then echo "$d"; return 0; fi
+        d="$(dirname "$d")"
+      done
+      echo "$PWD"
+      ;;
+    global)
+      echo "$HOME"
+      ;;
+    machine)
+      echo ""  # no root — handled by package manager
+      ;;
+    *)
+      printf 'mp_scope_root: unknown scope %s\n' "$scope" >&2
+      return 1
+      ;;
+  esac
+}
+
+mp_scope_resolve() {
+  local scope="$1" rel="$2"
+  local root
+  root="$(mp_scope_root "$scope")" || return 1
+  if [ "$scope" = "global" ]; then
+    # `dest` paths in manifest assume project root (e.g., ".claude/commands/..").
+    # For global scope, drop the leading ".claude/" — global scope writes to
+    # ~/.claude/... so we want the leading directory normalized.
+    case "$rel" in
+      .claude/*) echo "$root/$rel" ;;
+      *)         echo "$root/$rel" ;;
+    esac
+  else
+    echo "$root/$rel"
+  fi
+}
+
+mp_scope_is_project_dir() {
+  local p="${1:-$PWD}"
+  [ -d "$p/.context" ]
+}
+# ── lib/marketplace/bundle.sh ─────────────────────────────────────────────────
+#
+# Resolves the transitive set of items + files for a given bundle id.
+#
+# Public API:
+#   mp_bundle_resolve_ids <id>           # echoes ids (item + transitive deps)
+#   mp_bundle_resolve_files <id>         # echoes "src<TAB>dest" pairs (deduped)
+#
+# Implementation: depth-first walk of depends_on, deduping via a sorted list
+# (no associative arrays in Bash 3.2). For typical bundle depth (≤2), this is
+# fast enough.
+
+mp_bundle_resolve_ids() {
+  local root_id="$1"
+  local seen=""
+  local stack="$root_id"
+  local out=""
+
+  while [ -n "$stack" ]; do
+    # Pop first id from stack.
+    local cur="${stack%%$'\n'*}"
+    if [ "$stack" = "$cur" ]; then
+      stack=""
+    else
+      stack="${stack#*$'\n'}"
+    fi
+    [ -z "$cur" ] && continue
+
+    # Skip if already seen.
+    case "$seen" in
+      *"|$cur|"*) continue ;;
+    esac
+    seen="${seen}|$cur|"
+    out="${out}${cur}"$'\n'
+
+    # Push deps.
+    local dep
+    while IFS= read -r dep; do
+      [ -z "$dep" ] && continue
+      stack="${stack}${dep}"$'\n'
+    done <<EOF
+$(mp_manifest_depends_on "$cur")
+EOF
+  done
+
+  printf '%s' "$out"
+}
+
+mp_bundle_resolve_files() {
+  local root_id="$1"
+  local ids
+  ids="$(mp_bundle_resolve_ids "$root_id")"
+  local id
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    mp_manifest_files "$id"
+  done <<EOF
+$ids
+EOF
+}
+# ── lib/marketplace/migrate.sh ────────────────────────────────────────────────
+#
+# Auto-registration of items installed by pre-v0.15 dotcontext.
+#
+# See ADR-018 (Existing User Migration via Auto-Registration). Detection rule
+# in this implementation: a bundle's *all* destination files must exist at the
+# expected paths. Hash-based detection is deferred — the simpler rule covers
+# the common case and accepts the documented false-positive edge case (a user
+# who happens to have all files of a bundle by hand).
+#
+# Public API:
+#   mp_migrate_run                   # runs migration; echoes summary
+#   mp_migrate_should_run            # exit 0 if marker missing (one-time)
+#   mp_migrate_mark_done             # writes the marker file
+
+MP_MIGRATE_MARKER="$HOME/.dotcontext/migration-v015-done"
+
+mp_migrate_should_run() {
+  [ ! -f "$MP_MIGRATE_MARKER" ]
+}
+
+mp_migrate_mark_done() {
+  mkdir -p "$(dirname "$MP_MIGRATE_MARKER")"
+  : > "$MP_MIGRATE_MARKER"
+}
+
+# Returns 0 if all files of bundle <id> exist under <root>.
+_mp_migrate_bundle_present() {
+  local id="$1" root="$2"
+  local files
+  files="$(mp_manifest_files "$id")"
+  [ -z "$files" ] && return 1  # bundle has no files (e.g., MCP) — handled separately
+  local pair dest
+  while IFS=$'\t' read -r _ dest; do
+    [ -z "$dest" ] && continue
+    if [ ! -f "$root/$dest" ]; then
+      return 1
+    fi
+  done <<EOF
+$files
+EOF
+  return 0
+}
+
+# Lists destination paths for a bundle, relative to scope root.
+_mp_migrate_bundle_dest_list() {
+  local id="$1"
+  local pair dest
+  while IFS=$'\t' read -r _ dest; do
+    [ -z "$dest" ] && continue
+    printf '%s\n' "$dest"
+  done <<EOF
+$(mp_manifest_files "$id")
+EOF
+}
+
+# Scans local + global scopes for bundles whose files all exist.
+# Registers each into the appropriate lockfile.
+mp_migrate_run() {
+  mp_manifest_load 2>/dev/null || return 1
+
+  local local_root global_root
+  local_root="$(mp_scope_root local)"
+  global_root="$(mp_scope_root global)"
+
+  local registered_local=0
+  local registered_global=0
+  local id
+
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    local type
+    type="$(mp_manifest_field "$id" type)"
+
+    case "$type" in
+      command-bundle|skill|script)
+        # File-based items: check each scope.
+        if mp_lock_has local "$id" 2>/dev/null; then :; else
+          if [ -d "$local_root/.context" ] && _mp_migrate_bundle_present "$id" "$local_root"; then
+            local files
+            files="$(_mp_migrate_bundle_dest_list "$id")"
+            mp_lock_add local "$id" "auto-registered" "$files"
+            registered_local=$(( registered_local + 1 ))
+          fi
+        fi
+        if mp_lock_has global "$id" 2>/dev/null; then :; else
+          if _mp_migrate_bundle_present "$id" "$global_root"; then
+            local files
+            files="$(_mp_migrate_bundle_dest_list "$id")"
+            mp_lock_add global "$id" "auto-registered" "$files"
+            registered_global=$(( registered_global + 1 ))
+          fi
+        fi
+        ;;
+      mcp|hook)
+        # MCPs/hooks: defer to v2. We can't safely detect without parsing
+        # settings.json deeply (user may have added them by hand).
+        :
+        ;;
+      external-cli)
+        # External CLIs: detect by verify_command success.
+        if ! mp_lock_has machine "$id" 2>/dev/null; then
+          local verify
+          verify="$(mp_manifest_verify_command "$id")"
+          if [ -n "$verify" ] && eval "$verify" >/dev/null 2>&1; then
+            mp_lock_add_cli "$id" "auto-registered" "unknown"
+            # Counted in global summary for the user (not strictly local).
+            registered_global=$(( registered_global + 1 ))
+          fi
+        fi
+        ;;
+    esac
+  done <<EOF
+$(mp_manifest_ids)
+EOF
+
+  local total=$(( registered_local + registered_global ))
+  if [ "$total" -gt 0 ]; then
+    printf '\n  \033[36mDetected %d item(s) from previous installation.\033[0m\n' "$total"
+    printf '  Registered in marketplace state. Run \033[1mdotcontext\033[0m to manage.\n\n'
+  fi
+
+  mp_migrate_mark_done
+}
+
+mp_migrate_if_needed() {
+  if mp_migrate_should_run; then
+    mp_migrate_run
+  fi
+}
+# ── lib/install/command.sh ────────────────────────────────────────────────────
+#
+# Install/remove handler for type=command-bundle (and skill, hook, script —
+# they share the file-copy mechanic; specialised handlers wrap this).
+#
+# Public API:
+#   mp_install_files <id> <scope>     # copies all files in the bundle
+#   mp_remove_files  <id> <scope>     # deletes files recorded in the lockfile
+
+# Internal: download a single file from GitHub raw content, or copy from local
+# repo if running in dev mode (DOTCONTEXT_REPO_ROOT set).
+_mp_fetch_file() {
+  local src="$1" dest="$2"
+  local dir
+  dir="$(dirname "$dest")"
+  mkdir -p "$dir" || return 1
+
+  if [ -n "${DOTCONTEXT_REPO_ROOT:-}" ] && [ -f "$DOTCONTEXT_REPO_ROOT/$src" ]; then
+    cp "$DOTCONTEXT_REPO_ROOT/$src" "$dest" || return 1
+    return 0
+  fi
+
+  local url="https://raw.githubusercontent.com/goca-se/dotcontext/main/$src"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$url" -o "$dest" 2>/dev/null || return 1
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$dest" "$url" 2>/dev/null || return 1
+  else
+    printf 'no curl or wget available\n' >&2
+    return 1
+  fi
+}
+
+mp_install_files() {
+  local id="$1" scope="$2"
+  local installed=""
+  local pair src dest abs_dest
+
+  while IFS=$'\t' read -r src dest; do
+    [ -z "$src" ] && continue
+    abs_dest="$(mp_scope_resolve "$scope" "$dest")" || {
+      _mp_rollback "$installed"
+      return 1
+    }
+    if ! _mp_fetch_file "$src" "$abs_dest"; then
+      printf 'mp_install: fetch failed for %s\n' "$src" >&2
+      _mp_rollback "$installed"
+      return 1
+    fi
+    installed="${installed}${abs_dest}"$'\n'
+  done <<EOF
+$(mp_bundle_resolve_files "$id")
+EOF
+
+  # Record only the *direct* files (relative to scope root) in lockfile so
+  # remove can delete cleanly.
+  local rel_list=""
+  local f
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    local root
+    root="$(mp_scope_root "$scope")"
+    rel_list="${rel_list}${f#${root}/}"$'\n'
+  done <<EOF
+$installed
+EOF
+  rel_list="${rel_list%$'\n'}"
+
+  local version
+  version="$(mp_manifest_field "$id" version)"
+  mp_lock_add "$scope" "$id" "$version" "$rel_list"
+}
+
+_mp_rollback() {
+  local files="$1" f
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    rm -f "$f" 2>/dev/null
+  done <<EOF
+$files
+EOF
+}
+
+mp_remove_files() {
+  local id="$1" scope="$2"
+  local path root
+  path="$(mp_lock_path "$scope")" || return 1
+  [ -f "$path" ] || return 0
+  root="$(mp_scope_root "$scope")"
+
+  local files
+  files="$(jq -r --arg id "$id" \
+    '.items[] | select(.id == $id) | .files // [] | .[]' "$path")"
+
+  local f
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    rm -f "$root/$f" 2>/dev/null || true
+    # Try to clean up empty parent dirs (e.g., .claude/agents/code-review/).
+    local d
+    d="$(dirname "$root/$f")"
+    while [ "$d" != "$root" ] && [ "$d" != "/" ] && [ -d "$d" ]; do
+      rmdir "$d" 2>/dev/null || break
+      d="$(dirname "$d")"
+    done
+  done <<EOF
+$files
+EOF
+
+  mp_lock_remove "$scope" "$id"
+}
+# ── lib/install/skill.sh ──────────────────────────────────────────────────────
+#
+# Skill install/remove. Same mechanic as command-bundle (file copy + lockfile).
+# Kept as its own file so handler dispatch is consistent across types.
+
+mp_install_skill() { mp_install_files "$@"; }
+mp_remove_skill()  { mp_remove_files  "$@"; }
+# ── lib/install/script.sh ─────────────────────────────────────────────────────
+#
+# Standalone script install/remove (statusline.sh, etc). After file copy,
+# chmod +x. Settings keys (e.g., statusLine pointer) are merged in mcp.sh's
+# helpers shared by hook handlers.
+
+mp_install_script() {
+  local id="$1" scope="$2"
+  mp_install_files "$id" "$scope" || return 1
+  # Chmod +x for any installed file under .claude/scripts/.
+  local root path f
+  root="$(mp_scope_root "$scope")"
+  path="$(mp_lock_path "$scope")"
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    case "$f" in
+      *.sh|*.py|*scripts/*) chmod +x "$root/$f" 2>/dev/null || true ;;
+    esac
+  done <<EOF
+$(jq -r --arg id "$id" '.items[] | select(.id == $id) | .files // [] | .[]' "$path")
+EOF
+}
+
+mp_remove_script() { mp_remove_files "$@"; }
+# ── lib/install/mcp.sh ────────────────────────────────────────────────────────
+#
+# MCP install/remove. Merges an entry under mcpServers.<id> in:
+#   local:  <project>/.mcp.json
+#   global: ~/.claude/settings.json
+#
+# Public API:
+#   mp_install_mcp <id> <scope>
+#   mp_remove_mcp  <id> <scope>
+
+_mp_mcp_target_path() {
+  local scope="$1"
+  case "$scope" in
+    local)
+      local root
+      root="$(mp_scope_root local)"
+      echo "$root/.mcp.json"
+      ;;
+    global)
+      mkdir -p "$HOME/.claude"
+      echo "$HOME/.claude/settings.json"
+      ;;
+    *)
+      printf 'mp_install_mcp: unsupported scope %s\n' "$scope" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Atomic merge of mcp entry into target JSON.
+mp_install_mcp() {
+  local id="$1" scope="$2"
+  local target config key
+  target="$(_mp_mcp_target_path "$scope")" || return 1
+  config="$(mp_manifest_mcp_config "$id")"
+  if [ -z "$config" ] || [ "$config" = "null" ] || [ "$config" = "{}" ]; then
+    printf 'mp_install_mcp: no mcp_config for %s\n' "$id" >&2
+    return 1
+  fi
+  key="$(mp_manifest_mcp_key "$id")"
+
+  # Initialise file if missing.
+  if [ ! -f "$target" ]; then
+    printf '{}\n' > "$target"
+  fi
+
+  local merged
+  merged="$(jq --arg key "$key" --argjson cfg "$config" \
+    '.mcpServers = (.mcpServers // {}) | .mcpServers[$key] = $cfg' "$target")" || return 1
+  local tmp="${target}.tmp.$$"
+  printf '%s\n' "$merged" > "$tmp"
+  mv "$tmp" "$target"
+
+  local version
+  version="$(mp_manifest_field "$id" version)"
+  mp_lock_add_with_keys "$scope" "$id" "$version" "mcpServers.$key"
+}
+
+mp_remove_mcp() {
+  local id="$1" scope="$2"
+  local target key
+  target="$(_mp_mcp_target_path "$scope")" || return 1
+  key="$(mp_manifest_mcp_key "$id")"
+  if [ -f "$target" ]; then
+    local content
+    content="$(jq --arg key "$key" 'if .mcpServers then .mcpServers |= del(.[$key]) else . end' "$target")" || return 1
+    local tmp="${target}.tmp.$$"
+    printf '%s\n' "$content" > "$tmp"
+    mv "$tmp" "$target"
+  fi
+  mp_lock_remove "$scope" "$id"
+}
+# ── lib/install/hook.sh ───────────────────────────────────────────────────────
+#
+# Hook install/remove. Hooks are entries in settings.json under .hooks.<event>.
+#
+# Public API:
+#   mp_install_hook <id> <scope>
+#   mp_remove_hook  <id> <scope>
+
+_mp_hook_target_path() {
+  local scope="$1"
+  case "$scope" in
+    local)
+      local root
+      root="$(mp_scope_root local)"
+      mkdir -p "$root/.claude" 2>/dev/null
+      echo "$root/.claude/settings.json"
+      ;;
+    global)
+      mkdir -p "$HOME/.claude"
+      echo "$HOME/.claude/settings.json"
+      ;;
+    *)
+      printf 'mp_install_hook: unsupported scope %s\n' "$scope" >&2
+      return 1
+      ;;
+  esac
+}
+
+mp_install_hook() {
+  local id="$1" scope="$2"
+  local target hook_config event command
+  target="$(_mp_hook_target_path "$scope")" || return 1
+  hook_config="$(printf '%s' "$MP_MANIFEST_JSON" | jq -c --arg id "$id" \
+    '.items[] | select(.id == $id) | .hook_config // {}')"
+  [ "$hook_config" = "{}" ] || [ -z "$hook_config" ] && {
+    printf 'mp_install_hook: no hook_config for %s\n' "$id" >&2
+    return 1
+  }
+  event="$(printf '%s' "$hook_config" | jq -r '.event // ""')"
+  command="$(printf '%s' "$hook_config" | jq -r '.command // ""')"
+  [ -z "$event" ] || [ -z "$command" ] && {
+    printf 'mp_install_hook: missing event/command in hook_config\n' >&2
+    return 1
+  }
+
+  if [ ! -f "$target" ]; then
+    printf '{}\n' > "$target"
+  fi
+
+  local merged
+  merged="$(jq --arg ev "$event" --arg cmd "$command" \
+    '
+      .hooks = (.hooks // {}) |
+      .hooks[$ev] = ((.hooks[$ev] // []) + [{ command: $cmd }])
+    ' "$target")" || return 1
+  local tmp="${target}.tmp.$$"
+  printf '%s\n' "$merged" > "$tmp"
+  mv "$tmp" "$target"
+
+  local version
+  version="$(mp_manifest_field "$id" version)"
+  mp_lock_add_with_keys "$scope" "$id" "$version" "hooks.$event"
+}
+
+mp_remove_hook() {
+  local id="$1" scope="$2"
+  local target hook_config event command
+  target="$(_mp_hook_target_path "$scope")" || return 1
+  if [ -f "$target" ]; then
+    hook_config="$(printf '%s' "$MP_MANIFEST_JSON" | jq -c --arg id "$id" \
+      '.items[] | select(.id == $id) | .hook_config // {}')"
+    event="$(printf '%s' "$hook_config" | jq -r '.event // ""')"
+    command="$(printf '%s' "$hook_config" | jq -r '.command // ""')"
+
+    local content
+    content="$(jq --arg ev "$event" --arg cmd "$command" \
+      '
+        if .hooks and .hooks[$ev] then
+          .hooks[$ev] |= map(select(.command != $cmd))
+        else . end
+      ' "$target")" || return 1
+    local tmp="${target}.tmp.$$"
+    printf '%s\n' "$content" > "$tmp"
+    mv "$tmp" "$target"
+  fi
+  mp_lock_remove "$scope" "$id"
+}
+# ── lib/install/cli.sh ────────────────────────────────────────────────────────
+#
+# External CLI install/remove via OS package manager.
+#
+# Public API:
+#   mp_install_cli <id>      # scope is implicitly machine
+#   mp_remove_cli  <id>
+#   mp_cli_status  <id>      # echoes "ok", "missing", "unauthenticated", "unknown"
+#
+# OS detection key matches manifest package_managers keys:
+#   darwin, linux:debian, linux:redhat, linux:arch, windows
+
+mp_detect_os_key() {
+  case "$(uname -s)" in
+    Darwin) echo "darwin"; return 0 ;;
+    Linux)
+      if [ -f /etc/os-release ]; then
+        # shellcheck source=/dev/null
+        . /etc/os-release
+        case "${ID_LIKE:-${ID:-}}" in
+          *debian*|*ubuntu*) echo "linux:debian"; return 0 ;;
+          *rhel*|*fedora*|*centos*) echo "linux:redhat"; return 0 ;;
+          *arch*) echo "linux:arch"; return 0 ;;
+        esac
+        # Fallback by ID alone.
+        case "${ID:-}" in
+          debian|ubuntu|pop) echo "linux:debian"; return 0 ;;
+          fedora|rhel|centos|rocky|alma) echo "linux:redhat"; return 0 ;;
+          arch|manjaro|endeavouros) echo "linux:arch"; return 0 ;;
+        esac
+      fi
+      echo "linux:debian"; return 0  # best-guess default
+      ;;
+    MINGW*|MSYS*|CYGWIN*) echo "windows"; return 0 ;;
+    *) echo "unknown"; return 1 ;;
+  esac
+}
+
+mp_pick_pm() {
+  local id="$1"
+  local os_key pm_json pm_name pm_pkg
+  os_key="$(mp_detect_os_key)"
+  pm_json="$(mp_manifest_pm_for_os "$id" "$os_key")"
+  if [ "$pm_json" = "{}" ] || [ -z "$pm_json" ]; then
+    printf '' >&2
+    echo ""
+    return 1
+  fi
+  # Pick the first pm we can find on PATH. Order: brew, apt, dnf, pacman, winget.
+  for pm_name in brew apt dnf pacman winget; do
+    pm_pkg="$(printf '%s' "$pm_json" | jq -r --arg n "$pm_name" '.[$n] // ""')"
+    if [ -n "$pm_pkg" ] && command -v "$pm_name" >/dev/null 2>&1; then
+      printf '%s\t%s\n' "$pm_name" "$pm_pkg"
+      return 0
+    fi
+  done
+  return 1
+}
+
+mp_install_cli() {
+  local id="$1"
+  local pick pm pkg verify
+  pick="$(mp_pick_pm "$id")" || {
+    local os_key listed
+    os_key="$(mp_detect_os_key)"
+    listed="$(printf '%s' "$MP_MANIFEST_JSON" | jq -r --arg id "$id" --arg os "$os_key" \
+      '.items[] | select(.id == $id) | .package_managers[$os] // {} | to_entries[] | select(.key != "repo") | "\(.key) \(.value)"')"
+    printf 'No supported package manager found for %s on this OS (%s).\n' "$id" "$os_key" >&2
+    if [ -n "$listed" ]; then
+      printf 'Manifest lists these for your platform — install one of them, then re-run:\n' >&2
+      printf '%s\n' "$listed" | while IFS= read -r line; do printf '  - %s\n' "$line" >&2; done
+    else
+      printf 'No package manager configured for %s on %s in the manifest.\n' "$id" "$os_key" >&2
+    fi
+    return 1
+  }
+  pm="${pick%%	*}"
+  pkg="${pick##*	}"
+
+  printf 'About to install %s via %s install %s\n' "$id" "$pm" "$pkg"
+  if ! ui_confirm "Proceed?" default-yes; then
+    printf 'Skipped.\n'
+    return 1
+  fi
+
+  case "$pm" in
+    brew)   brew install "$pkg" || return 1 ;;
+    apt)    sudo apt-get update && sudo apt-get install -y "$pkg" || return 1 ;;
+    dnf)    sudo dnf install -y "$pkg" || return 1 ;;
+    pacman) sudo pacman -S --noconfirm "$pkg" || return 1 ;;
+    winget) winget install --silent "$pkg" || return 1 ;;
+    *)      printf 'unknown package manager %s\n' "$pm" >&2; return 1 ;;
+  esac
+
+  verify="$(mp_manifest_verify_command "$id")"
+  if [ -n "$verify" ]; then
+    if ! eval "$verify" >/dev/null 2>&1; then
+      printf 'Install completed but %s failed. Check installation manually.\n' "$verify" >&2
+      return 1
+    fi
+  fi
+
+  local version
+  version="$(mp_manifest_field "$id" version)"
+  mp_lock_add_cli "$id" "$version" "$pm"
+}
+
+mp_remove_cli() {
+  local id="$1"
+  local pm
+  pm="$(mp_lock_get_field machine "$id" package_manager_used)"
+  if [ -z "$pm" ]; then
+    printf 'No record of %s in machine lockfile; nothing to remove.\n' "$id" >&2
+    return 0
+  fi
+  printf 'About to remove %s (installed via %s).\n' "$id" "$pm"
+  printf 'This is a system-wide change. Are you sure?\n'
+  if ! ui_confirm "Confirm uninstall?"; then
+    return 1
+  fi
+  if ! ui_confirm "Really sure?"; then
+    return 1
+  fi
+
+  # Pick the package name from manifest for this PM.
+  local os_key pm_json pkg
+  os_key="$(mp_detect_os_key)"
+  pm_json="$(mp_manifest_pm_for_os "$id" "$os_key")"
+  pkg="$(printf '%s' "$pm_json" | jq -r --arg n "$pm" '.[$n] // ""')"
+  [ -z "$pkg" ] && pkg="$id"  # best-effort fallback
+
+  case "$pm" in
+    brew)   brew uninstall "$pkg" || true ;;
+    apt)    sudo apt-get remove -y "$pkg" || true ;;
+    dnf)    sudo dnf remove -y "$pkg" || true ;;
+    pacman) sudo pacman -R --noconfirm "$pkg" || true ;;
+    winget) winget uninstall --silent "$pkg" || true ;;
+  esac
+  mp_lock_remove machine "$id"
+}
+
+# Status check for the Status tab.
+mp_cli_status() {
+  local id="$1" verify auth
+  verify="$(mp_manifest_verify_command "$id")"
+  auth="$(mp_manifest_auth_command "$id")"
+  if [ -n "$verify" ] && ! eval "$verify" >/dev/null 2>&1; then
+    echo "missing"; return 0
+  fi
+  if [ -n "$auth" ] && ! eval "$auth" >/dev/null 2>&1; then
+    echo "unauthenticated"; return 0
+  fi
+  echo "ok"
+}
+# ── lib/install/dispatch.sh ───────────────────────────────────────────────────
+#
+# Routes install/remove to the right handler based on item type.
+#
+# Public API:
+#   mp_install <id> <scope>
+#   mp_remove  <id> <scope>
+
+mp_install() {
+  local id="$1" scope="$2"
+  local type
+  type="$(mp_manifest_field "$id" type)"
+  case "$type" in
+    command-bundle) mp_install_files  "$id" "$scope" ;;
+    skill)          mp_install_skill  "$id" "$scope" ;;
+    script)         mp_install_script "$id" "$scope" ;;
+    mcp)            mp_install_mcp    "$id" "$scope" ;;
+    hook)           mp_install_hook   "$id" "$scope" ;;
+    external-cli)   mp_install_cli    "$id" ;;
+    *) printf 'mp_install: unknown type "%s" for %s\n' "$type" "$id" >&2; return 1 ;;
+  esac
+}
+
+mp_remove() {
+  local id="$1" scope="$2"
+  local type
+  type="$(mp_manifest_field "$id" type)"
+  case "$type" in
+    command-bundle) mp_remove_files  "$id" "$scope" ;;
+    skill)          mp_remove_skill  "$id" "$scope" ;;
+    script)         mp_remove_script "$id" "$scope" ;;
+    mcp)            mp_remove_mcp    "$id" "$scope" ;;
+    hook)           mp_remove_hook   "$id" "$scope" ;;
+    external-cli)   mp_remove_cli    "$id" ;;
+    *) printf 'mp_remove: unknown type "%s" for %s\n' "$type" "$id" >&2; return 1 ;;
+  esac
+}
+
+# Bulk install (used by starter pack flow). Stops on first failure.
+mp_install_many() {
+  local scope="$1"; shift
+  local id rc=0
+  for id in "$@"; do
+    if ! mp_install "$id" "$scope"; then
+      printf 'install failed for %s\n' "$id" >&2
+      rc=1
+    fi
+  done
+  return $rc
+}
 # ── Hook Setup ────────────────────────────────────────────────────────────────
 
 # Setup Claude Code hooks (project-local)
@@ -344,6 +1819,16 @@ EOF
   fi
 }
 # ── Command: init ─────────────────────────────────────────────────────────────
+#
+# Creates Layer 1 only: the absolute minimum to bootstrap the methodology —
+# `.context/` skeleton, CLAUDE.md, .claudeignore, and `/setup-context`.
+#
+# Everything else (including /add-decision, /add-skill, /add-command, /commit,
+# /deep-context, /code-review, /fix-bug, /create-pr, /pr-comment, /generate-prp,
+# /execute-prp, MCPs, CLIs, statusline, notification hook) is Layer 2 —
+# installed on-demand via the marketplace TUI (run `dotcontext` no-args).
+#
+# See ADR-015 v3.0 (Two-Layer Distribution Model — strict rule).
 
 cmd_init() {
   local project_name=""
@@ -378,28 +1863,20 @@ cmd_init() {
     fi
   fi
 
-  print_gray "Creating structure..."
+  print_gray "Creating Layer 1 structure..."
 
-  # Create directories (mkdir -p is always safe)
+  # Create directories (mkdir -p is always safe).
   mkdir -p ".context/decisions"
-  mkdir -p ".claude/skills"
-  mkdir -p ".claude/skills/bug-reproduction"
-  mkdir -p ".claude/skills/batch-operations"
-  mkdir -p ".claude/skills/git-platform"
   mkdir -p ".context/prp/templates"
   mkdir -p ".context/prp/generated"
   mkdir -p ".context/discoveries"
   mkdir -p ".context/bugs"
   mkdir -p ".claude/commands"
-  mkdir -p ".claude/scripts"
-  mkdir -p ".claude/agents/code-review"
-  mkdir -p ".claude/agents/deep-context"
-  mkdir -p ".claude/agents/fix-bug"
 
-  # Download templates
-  start_spinner "Downloading templates..."
+  # Download templates.
+  start_spinner "Downloading Layer 1..."
 
-  # Helper: download only if file doesn't exist (for seed/user-customizable files)
+  # Helper: download only if file doesn't exist (for seed/user-customizable).
   local skipped_files=""
   download_if_missing() {
     local url="$1"
@@ -413,63 +1890,18 @@ cmd_init() {
     download "$url" "$target"
   }
 
-  # Seed files: user-customizable content — only created if missing
+  # Seed files: user-customizable content — only created if missing.
   download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
   download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/README.md" ".claude/skills/README.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
 
-  # Managed files: dotcontext commands — always downloaded (safe to overwrite)
+  # The single Layer 1 command (managed — always downloaded, safe to overwrite).
   download "${BASE_URL}/templates/.claude/commands/setup-context.md" ".claude/commands/setup-context.md"
-  download "${BASE_URL}/templates/.claude/commands/code-review.md" ".claude/commands/code-review.md"
-  download "${BASE_URL}/templates/.claude/commands/generate-prp.md" ".claude/commands/generate-prp.md"
-  download "${BASE_URL}/templates/.claude/commands/execute-prp.md" ".claude/commands/execute-prp.md"
-  download "${BASE_URL}/templates/.claude/commands/add-decision.md" ".claude/commands/add-decision.md"
-  download "${BASE_URL}/templates/.claude/commands/add-skill.md" ".claude/commands/add-skill.md"
-  download "${BASE_URL}/templates/.claude/commands/add-command.md" ".claude/commands/add-command.md"
-  download "${BASE_URL}/templates/.claude/commands/create-pr.md" ".claude/commands/create-pr.md"
-  download "${BASE_URL}/templates/.claude/commands/pr-comment.md" ".claude/commands/pr-comment.md"
-  download "${BASE_URL}/templates/.claude/commands/deep-context.md" ".claude/commands/deep-context.md"
-  download "${BASE_URL}/templates/.claude/commands/fix-bug.md" ".claude/commands/fix-bug.md"
-  download "${BASE_URL}/templates/.claude/commands/commit.md" ".claude/commands/commit.md"
-
-  # StatusLine script
-  download "${BASE_URL}/templates/.claude/scripts/statusline.sh" ".claude/scripts/statusline.sh"
-  chmod +x ".claude/scripts/statusline.sh"
-
-  # Agent definition files (always downloaded — managed by dotcontext)
-  download "${BASE_URL}/templates/.claude/agents/code-review/compliance-checker.md" ".claude/agents/code-review/compliance-checker.md"
-  download "${BASE_URL}/templates/.claude/agents/code-review/bug-detector.md" ".claude/agents/code-review/bug-detector.md"
-  download "${BASE_URL}/templates/.claude/agents/code-review/security-analyst.md" ".claude/agents/code-review/security-analyst.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/step1-overview.md" ".claude/agents/deep-context/step1-overview.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/step2-subsystems.md" ".claude/agents/deep-context/step2-subsystems.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/step3-drill.md" ".claude/agents/deep-context/step3-drill.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/step4-dataflow.md" ".claude/agents/deep-context/step4-dataflow.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/investigator.md" ".claude/agents/fix-bug/investigator.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-conservative.md" ".claude/agents/fix-bug/fix-conservative.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-minimal.md" ".claude/agents/fix-bug/fix-minimal.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-refactor.md" ".claude/agents/fix-bug/fix-refactor.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/reviewer.md" ".claude/agents/fix-bug/reviewer.md"
-
-  # Declarative cleanup: remove stale files from managed-only directories
-  # NOTE: .claude/commands/ is excluded — users create custom commands there via /add-command
-  cleanup_managed_dir ".claude/agents/code-review" \
-    compliance-checker.md bug-detector.md security-analyst.md
-  cleanup_managed_dir ".claude/agents/deep-context" \
-    step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
-  cleanup_managed_dir ".claude/agents/fix-bug" \
-    investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
-  cleanup_managed_dir ".claude/scripts" \
-    statusline.sh notify.sh tool-failure-guard.sh
 
   stop_spinner
 
-  # Show skipped files after spinner (so output doesn't collide)
   if [ -n "$skipped_files" ]; then
     printf "$skipped_files" | while read -r f; do
       [ -n "$f" ] && print_gray "  skipped (exists): $f"
@@ -480,39 +1912,7 @@ cmd_init() {
   touch ".context/discoveries/.keep"
   touch ".context/bugs/.keep"
 
-  # Setup notifications (optional, don't fail if it doesn't work)
-  setup_notifications 2>/dev/null || true
-
-  # MCP server configuration (only if .mcp.json doesn't exist)
-  if [ ! -f ".mcp.json" ]; then
-    local add_context7=false
-    local add_atlassian=false
-
-    if [ "$skip_prompts" = false ]; then
-      echo ""
-      print_blue "MCP Servers"
-      print_gray "Configure Model Context Protocol servers for Claude Code"
-      echo ""
-
-      if confirm_yes "  Add Context7? (up-to-date library docs for LLMs)"; then
-        add_context7=true
-      fi
-
-      if confirm_yes "  Add Atlassian? (Jira + Confluence via OAuth)"; then
-        add_atlassian=true
-      fi
-    else
-      # --yes flag: include both by default
-      add_context7=true
-      add_atlassian=true
-    fi
-
-    setup_mcp "$add_context7" "$add_atlassian"
-  else
-    print_gray "  skipped (exists): .mcp.json"
-  fi
-
-  # Substitute project name (only on fresh CLAUDE.md with placeholder)
+  # Substitute project name (only on fresh CLAUDE.md with placeholder).
   if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
       sed -i '' "s/{{projectName}}/$project_name/g" "CLAUDE.md"
@@ -523,15 +1923,21 @@ cmd_init() {
 
   echo ""
   if [ "$is_reinit" = true ]; then
-    printf "  ${GREEN}${ICON_SUCCESS}${NC} Context structure updated\n"
+    printf "  ${GREEN}${ICON_SUCCESS}${NC} Methodology updated\n"
   else
-    printf "  ${GREEN}${ICON_SUCCESS}${NC} Context structure created\n"
+    printf "  ${GREEN}${ICON_SUCCESS}${NC} Methodology installed\n"
   fi
-  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (12)  .claude/agents/ (12)${NC}\n"
+  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/setup-context.md${NC}\n"
+  echo ""
+  printf "  ${BOLD}Next:${NC}\n"
+  printf "  ${GRAY}•${NC} ${CYAN}/setup-context${NC} populates context (auto-running now)\n"
+  printf "  ${GRAY}•${NC} Then run ${CYAN}dotcontext${NC} in a regular terminal to browse the marketplace\n"
+  printf "    ${GRAY}(interactive TUIs don't render inside Claude Code's ${CYAN}!${GRAY} bash block)${NC}\n"
+  printf "  ${GRAY}•${NC} Press ${BOLD}P${NC} in the TUI to install the starter pack (16 items)\n"
   echo ""
 
   if [ "$skip_setup" = true ]; then
-    printf "  ${CYAN}Next:${NC}  run ${CYAN}/setup-context${NC} in Claude Code\n"
+    printf "  ${CYAN}Skipped:${NC}  run ${CYAN}/setup-context${NC} manually in Claude Code when ready\n"
   else
     if command -v claude &> /dev/null; then
       printf "  ${CYAN}Running /setup-context...${NC}\n\n"
@@ -695,33 +2101,11 @@ cmd_update_templates() {
 
   start_spinner "Checking templates..."
 
-  # MANAGED templates: dotcontext-owned code (commands). Always offered for update.
+  # MANAGED Layer 1 templates: only /setup-context (the bootstrap). All other
+  # commands, agents, skills, MCPs, and scripts are Layer 2 (lockfile-tracked
+  # via the marketplace TUI) — see ADR-015 v3.0.
   declare -a managed_templates=(
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
-    "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
-    "templates/.claude/commands/generate-prp.md:.claude/commands/generate-prp.md"
-    "templates/.claude/commands/execute-prp.md:.claude/commands/execute-prp.md"
-    "templates/.claude/commands/add-decision.md:.claude/commands/add-decision.md"
-    "templates/.claude/commands/add-skill.md:.claude/commands/add-skill.md"
-    "templates/.claude/commands/add-command.md:.claude/commands/add-command.md"
-    "templates/.claude/commands/create-pr.md:.claude/commands/create-pr.md"
-    "templates/.claude/commands/pr-comment.md:.claude/commands/pr-comment.md"
-    "templates/.claude/commands/deep-context.md:.claude/commands/deep-context.md"
-    "templates/.claude/commands/fix-bug.md:.claude/commands/fix-bug.md"
-    "templates/.claude/commands/commit.md:.claude/commands/commit.md"
-    "templates/.claude/scripts/statusline.sh:.claude/scripts/statusline.sh"
-    "templates/.claude/agents/code-review/compliance-checker.md:.claude/agents/code-review/compliance-checker.md"
-    "templates/.claude/agents/code-review/bug-detector.md:.claude/agents/code-review/bug-detector.md"
-    "templates/.claude/agents/code-review/security-analyst.md:.claude/agents/code-review/security-analyst.md"
-    "templates/.claude/agents/deep-context/step1-overview.md:.claude/agents/deep-context/step1-overview.md"
-    "templates/.claude/agents/deep-context/step2-subsystems.md:.claude/agents/deep-context/step2-subsystems.md"
-    "templates/.claude/agents/deep-context/step3-drill.md:.claude/agents/deep-context/step3-drill.md"
-    "templates/.claude/agents/deep-context/step4-dataflow.md:.claude/agents/deep-context/step4-dataflow.md"
-    "templates/.claude/agents/fix-bug/investigator.md:.claude/agents/fix-bug/investigator.md"
-    "templates/.claude/agents/fix-bug/fix-conservative.md:.claude/agents/fix-bug/fix-conservative.md"
-    "templates/.claude/agents/fix-bug/fix-minimal.md:.claude/agents/fix-bug/fix-minimal.md"
-    "templates/.claude/agents/fix-bug/fix-refactor.md:.claude/agents/fix-bug/fix-refactor.md"
-    "templates/.claude/agents/fix-bug/reviewer.md:.claude/agents/fix-bug/reviewer.md"
   )
 
   # SEED templates: created once during init, customized by user or /setup-context.
@@ -729,8 +2113,6 @@ cmd_update_templates() {
   declare -a seed_templates=(
     "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
-    "templates/.claude/skills/README.md:.claude/skills/README.md"
-    "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
 
   # Create temp directory for downloads
@@ -916,16 +2298,8 @@ cmd_update_templates() {
     done
   fi
 
-  # Declarative cleanup: remove stale files from managed-only directories
-  # NOTE: .claude/commands/ is excluded — users create custom commands there via /add-command
-  cleanup_managed_dir ".claude/agents/code-review" \
-    compliance-checker.md bug-detector.md security-analyst.md
-  cleanup_managed_dir ".claude/agents/deep-context" \
-    step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
-  cleanup_managed_dir ".claude/agents/fix-bug" \
-    investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
-  cleanup_managed_dir ".claude/scripts" \
-    statusline.sh
+  # No declarative cleanup needed: Layer 1 has no managed agent/script
+  # directories. Layer 2 directories are managed by their marketplace bundles.
 
   echo ""
   if [ $added -gt 0 ] || [ $updated -gt 0 ]; then
@@ -939,191 +2313,9 @@ cmd_update_templates() {
     print_gray "No changes made"
   fi
 
-  # Offer MCP configuration if .mcp.json doesn't exist
-  if [ ! -f ".mcp.json" ]; then
-    local add_context7=false
-    local add_atlassian=false
-
-    if [ "$auto_yes" = "true" ]; then
-      add_context7=true
-      add_atlassian=true
-    else
-      echo ""
-      print_blue "MCP Servers"
-      print_gray "Configure Model Context Protocol servers for Claude Code"
-      echo ""
-
-      if confirm_yes "  Add Context7? (up-to-date library docs for LLMs)"; then
-        add_context7=true
-      fi
-
-      if confirm_yes "  Add Atlassian? (Jira + Confluence via OAuth)"; then
-        add_atlassian=true
-      fi
-    fi
-
-    setup_mcp "$add_context7" "$add_atlassian"
-  fi
-}
-# ── Command: doctor ───────────────────────────────────────────────────────────
-
-cmd_doctor() {
-  print_block_header "dotcontext doctor"
-  echo ""
-
-  local pass=0
-  local fail=0
-  local warn=0
-
-  check_pass() {
-    printf "  ${GREEN}${ICON_SUCCESS}${NC} %s\n" "$1"
-    pass=$((pass + 1))
-  }
-
-  check_fail() {
-    printf "  ${RED}${ICON_ERROR}${NC} %s\n" "$1"
-    fail=$((fail + 1))
-  }
-
-  check_warn() {
-    printf "  ${YELLOW}${ICON_WARNING}${NC} %s\n" "$1"
-    warn=$((warn + 1))
-  }
-
-  # Check: Git repository
-  if git rev-parse --is-inside-work-tree &>/dev/null; then
-    check_pass "Git repository"
-  else
-    check_fail "Git repository — not a git repo"
-  fi
-
-  # Check: Claude CLI installed
-  if command -v claude &>/dev/null; then
-    local claude_ver
-    claude_ver=$(claude --version 2>/dev/null || echo "unknown")
-    check_pass "Claude CLI installed ($claude_ver)"
-  else
-    check_fail "Claude CLI — not installed"
-  fi
-
-  # Check: .context/ directory
-  if [ -d ".context" ]; then
-    check_pass ".context/ directory exists"
-  else
-    check_fail ".context/ directory — missing (run dotcontext init)"
-  fi
-
-  # Check: CLAUDE.md exists and non-empty
-  if [ -s "CLAUDE.md" ]; then
-    if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
-      check_warn "CLAUDE.md — exists but has unfilled placeholders"
-    else
-      check_pass "CLAUDE.md populated"
-    fi
-  elif [ -f "CLAUDE.md" ]; then
-    check_warn "CLAUDE.md — exists but empty"
-  else
-    check_fail "CLAUDE.md — missing"
-  fi
-
-  # Check: CONTEXT.md exists and non-empty
-  if [ -s ".context/CONTEXT.md" ]; then
-    check_pass ".context/CONTEXT.md populated"
-  elif [ -f ".context/CONTEXT.md" ]; then
-    check_warn ".context/CONTEXT.md — exists but empty"
-  else
-    check_fail ".context/CONTEXT.md — missing"
-  fi
-
-  # Check: decisions directory has ADRs
-  local adr_count=0
-  if [ -d ".context/decisions" ]; then
-    adr_count=$(find .context/decisions -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
-  fi
-  if [ "$adr_count" -gt 0 ]; then
-    check_pass ".context/decisions/ — $adr_count ADR(s)"
-  else
-    check_warn ".context/decisions/ — no ADRs found"
-  fi
-
-  # Check: .claude/commands/ present
-  local cmd_count=0
-  if [ -d ".claude/commands" ]; then
-    cmd_count=$(find .claude/commands -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-  fi
-  if [ "$cmd_count" -gt 0 ]; then
-    check_pass ".claude/commands/ — $cmd_count command(s)"
-  else
-    check_fail ".claude/commands/ — no commands found"
-  fi
-
-  # Check: .claude/agents/ present
-  local agent_count=0
-  if [ -d ".claude/agents" ]; then
-    agent_count=$(find .claude/agents -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-  fi
-  if [ "$agent_count" -gt 0 ]; then
-    check_pass ".claude/agents/ — $agent_count agent(s)"
-  else
-    check_warn ".claude/agents/ — no agents found (run dotcontext update)"
-  fi
-
-  # Check: .claude/skills/ present
-  if [ -d ".claude/skills" ]; then
-    local skill_count
-    skill_count=$(find .claude/skills -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$skill_count" -gt 0 ]; then
-      check_pass ".claude/skills/ — $skill_count skill(s)"
-    else
-      check_warn ".claude/skills/ — directory exists but no skills"
-    fi
-  else
-    check_warn ".claude/skills/ — missing"
-  fi
-
-  # Check: .mcp.json
-  if [ -f ".mcp.json" ]; then
-    if command -v jq &>/dev/null; then
-      local server_count
-      server_count=$(jq '.mcpServers | length' .mcp.json 2>/dev/null || echo "0")
-      check_pass ".mcp.json — $server_count MCP server(s)"
-    else
-      check_pass ".mcp.json exists"
-    fi
-  else
-    check_warn ".mcp.json — missing (no MCP servers configured)"
-  fi
-
-  # Check: hooks (project-local)
-  if [ -f ".claude/settings.json" ]; then
-    if grep -q "notify.sh" ".claude/settings.json" 2>/dev/null; then
-      check_pass "Notification hooks configured (project-local)"
-    else
-      check_warn "Notification hooks — not configured in .claude/settings.json"
-    fi
-    if grep -q "tool-failure-guard" ".claude/settings.json" 2>/dev/null; then
-      check_pass "Tool failure guard hook configured"
-    else
-      check_warn "Tool failure guard — not configured (run dotcontext init to add)"
-    fi
-  else
-    check_warn ".claude/settings.json — missing (no hooks configured)"
-  fi
-
-  # Warn about legacy global hooks
-  if [ -f "$HOME/.claude/settings.json" ] && grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
-    check_warn "Legacy global hooks detected in ~/.claude/settings.json — remove manually to avoid duplicates"
-  fi
-
-  # Summary
-  print_block_footer
-  printf "  ${GREEN}%d passed${NC}  ${RED}%d failed${NC}  ${YELLOW}%d warnings${NC}\n" "$pass" "$fail" "$warn"
-
-  if [ "$fail" -gt 0 ]; then
-    echo ""
-    print_gray "  Fix failures with: dotcontext init"
-    return 1
-  fi
+  # Auto-registration of Layer 2 items installed by pre-v0.15 dotcontext.
+  # Runs once per user (~/.dotcontext/migration-v015-done marker).
+  mp_migrate_if_needed 2>/dev/null || true
 }
 # ── Command: help ─────────────────────────────────────────────────────────────
 
@@ -1131,7 +2323,6 @@ cmd_help() {
   local width
   width=$(get_term_width)
 
-  # Determine column widths based on terminal
   local cmd_col=20
   local opt_col=22
   if [ "$width" -ge 100 ]; then
@@ -1143,27 +2334,23 @@ cmd_help() {
   printf "  ${BOLD}dotcontext${NC} ${GRAY}— AI context toolkit for Claude Code${NC}\n"
   echo ""
 
-  # Usage
   printf "  ${BLUE}${BOLD}Usage${NC}\n"
-  printf "    dotcontext <command> [options]\n"
+  printf "    dotcontext [command] [options]\n"
+  printf "    dotcontext                       ${GRAY}# opens marketplace TUI${NC}\n"
   echo ""
 
-  # Commands
   printf "  ${BLUE}${BOLD}Commands${NC}\n"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "init"       "Initialize .context structure + open Claude Code"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "update"     "Update CLI and/or templates"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "doctor"     "Check project setup health"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "completion" "Generate shell tab completions"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" ""           "Open marketplace TUI (no-args)"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "init"       "Create Layer 1 + open Claude Code with /setup-context"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "update"     "Update CLI / Layer 1 templates / lockfile-tracked items"
   echo ""
 
-  # Init Options
   printf "  ${BLUE}${BOLD}Init Options${NC}\n"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--name, -n <name>" "Project name"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--yes, -y"         "Skip prompts, use defaults"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--no-setup"        "Skip automatic /setup-context"
   echo ""
 
-  # Update Options
   printf "  ${BLUE}${BOLD}Update Options${NC}\n"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--cli"       "Only update CLI"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--templates" "Only update templates"
@@ -1171,152 +2358,561 @@ cmd_help() {
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--dry-run"   "Show what would change"
   echo ""
 
-  # Global Options
   printf "  ${BLUE}${BOLD}Global Options${NC}\n"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--help, -h"    "Show this help"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--version, -v" "Show version"
   echo ""
 
-  # Claude Code Commands
-  printf "  ${BLUE}${BOLD}Claude Code Commands${NC} ${GRAY}(after init)${NC}\n"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/setup-context"  "Analyze codebase and populate context"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/generate-prp"   "Plan a new feature"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/execute-prp"    "Implement a planned feature"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/code-review"    "Multi-agent code review"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/commit"         "Smart commit messages"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/create-pr"      "Create PR with description"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/deep-context"   "Structured codebase exploration"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/fix-bug"        "Test-driven bug fixing"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-decision"   "Add architectural decision"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-skill"      "Add skill guide"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-command"    "Create custom command"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/release"        "Version bump and release"
+  printf "  ${BLUE}${BOLD}Marketplace TUI${NC} ${GRAY}(when running with no args)${NC}\n"
+  printf "    ${GRAY}Three tabs: Browse · Installed · Status${NC}\n"
+  printf "    ${GRAY}↑↓ navigate · space toggle · g/l scope · p starter pack · i install${NC}\n"
+  printf "    ${GRAY}tab cycles tabs · q quits${NC}\n"
   echo ""
 
-  # Examples
+  printf "  ${BLUE}${BOLD}Claude Code Commands${NC} ${GRAY}(after init)${NC}\n"
+  printf "    ${GRAY}Layer 1 — installed by 'init':${NC}\n"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/setup-context"  "Analyze codebase, populate context"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/commit"         "Smart commit messages"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/deep-context"   "Structured codebase exploration"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-decision"   "Add architectural decision (ADR)"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-skill"      "Add skill guide"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/add-command"    "Create custom command"
+  printf "    ${GRAY}Layer 2 — install via marketplace TUI:${NC}\n"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/generate-prp"   "Plan a feature with a PRP"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/execute-prp"    "Implement a planned PRP"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/code-review"    "Multi-agent review"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/fix-bug"        "Test-driven bug fixing"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/create-pr"      "Create PR / MR"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/pr-comment"     "Comment on PR / MR"
+  echo ""
+
   printf "  ${BLUE}${BOLD}Examples${NC}\n"
   printf "    ${GRAY}\$${NC} dotcontext init\n"
   printf "    ${GRAY}\$${NC} dotcontext init --name \"My Project\"\n"
+  printf "    ${GRAY}\$${NC} dotcontext                       ${GRAY}# open TUI${NC}\n"
   printf "    ${GRAY}\$${NC} dotcontext update --dry-run\n"
-  printf "    ${GRAY}\$${NC} dotcontext doctor\n"
-  printf "    ${GRAY}\$${NC} eval \"\$(dotcontext completion bash)\"\n"
   echo ""
 }
-# ── Command: completion ───────────────────────────────────────────────────────
+# ── Command: browse (internal — invoked when dotcontext gets no args) ─────────
+#
+# Marketplace TUI with 3 tabs: Browse · Installed · Status.
+# Bash 3.2 compatible. Uses src/lib/ui/* primitives.
 
-cmd_completion() {
-  local shell="${1:-}"
-  if [ -z "$shell" ]; then
-    if [ -n "$ZSH_VERSION" ]; then
-      shell="zsh"
-    else
-      shell="bash"
-    fi
+# Keep entry point exported so main.sh can call it.
+cmd_browse() {
+  # TUIs are full of conditional logic that returns non-zero benignly
+  # (lockfile entry not found, scope not yet set, arithmetic landing on 0,
+  # etc.). The rest of dotcontext runs under `set -e` from header.sh, but
+  # for the marketplace TUI we want soft errors. Optional trace via
+  # DOTCONTEXT_DEBUG=1 to a file.
+  set +e
+  if [ "${DOTCONTEXT_DEBUG:-0}" = "1" ]; then
+    exec 4>>/tmp/dotcontext-tui.log
+    BASH_XTRACEFD=4
+    PS4='+ ${BASH_SOURCE##*/}:${LINENO}: '
+    set -x
   fi
 
-  case "$shell" in
-    bash)
-      cat << 'BASH_COMP'
-_dotcontext() {
-  local cur prev commands
-  COMPREPLY=()
-  cur="${COMP_WORDS[COMP_CWORD]}"
-  prev="${COMP_WORDS[COMP_CWORD-1]}"
-  commands="init update doctor completion"
+  if ! mp_manifest_load 2>/dev/null; then
+    print_red "dotcontext: marketplace TUI requires jq."
+    print_yellow "Install: brew install jq | sudo apt-get install jq | sudo dnf install jq"
+    exit 1
+  fi
 
-  case "$prev" in
-    dotcontext)
-      COMPREPLY=( $(compgen -W "$commands --help --version" -- "$cur") )
-      return 0
-      ;;
-    init)
-      COMPREPLY=( $(compgen -W "--name -n --yes -y --no-setup" -- "$cur") )
-      return 0
-      ;;
-    update)
-      COMPREPLY=( $(compgen -W "--cli --templates --yes -y --dry-run" -- "$cur") )
-      return 0
-      ;;
-    completion)
-      COMPREPLY=( $(compgen -W "bash zsh" -- "$cur") )
-      return 0
-      ;;
-  esac
+  # Per-item parallel arrays (indexed same as BROWSE_IDS).
+  BROWSE_IDS=()
+  BROWSE_NAMES=()
+  BROWSE_DESCS=()
+  BROWSE_CATS=()
+  BROWSE_SCOPES=()      # current scope choice for *action* per item
+  BROWSE_INSTALLED=()   # actual installed scope: "" | "local" | "global" | "machine" | "local+global"
 
-  COMPREPLY=( $(compgen -W "$commands --help --version" -- "$cur") )
-}
-complete -F _dotcontext dotcontext
-BASH_COMP
-      ;;
-    zsh)
-      cat << 'ZSH_COMP'
-#compdef dotcontext
+  _browse_load_items
+  _browse_load_installed_state
+  ui_select_init "${#BROWSE_IDS[@]}"
 
-_dotcontext() {
-  local -a commands
-  commands=(
-    'init:Initialize .context structure + open Claude Code'
-    'update:Update CLI and/or templates'
-    'doctor:Check project setup health'
-    'completion:Generate shell tab completions'
-  )
+  active_tab=0
+  selected=0
+  TABS=("Browse" "Installed" "Status")
 
-  _arguments -C \
-    '1:command:->command' \
-    '*::arg:->args'
+  ui_menu_init
+  trap '_browse_quit' EXIT INT TERM
+  _browse_render
 
-  case "$state" in
-    command)
-      _describe 'command' commands
-      _arguments \
-        '--help[Show help]' \
-        '-h[Show help]' \
-        '--version[Show version]' \
-        '-v[Show version]'
-      ;;
-    args)
-      case "${words[1]}" in
-        init)
-          _arguments \
-            '--name[Project name]:name:' \
-            '-n[Project name]:name:' \
-            '--yes[Skip prompts]' \
-            '-y[Skip prompts]' \
-            '--no-setup[Skip automatic /setup-context]'
-          ;;
-        update)
-          _arguments \
-            '--cli[Only update CLI]' \
-            '--templates[Only update templates]' \
-            '--yes[Update without asking]' \
-            '-y[Update without asking]' \
-            '--dry-run[Show what would change]'
-          ;;
-        completion)
-          _arguments '1:shell:(bash zsh)'
-          ;;
-      esac
-      ;;
-  esac
+  while :; do
+    key="$(ui_menu_read_key)" || break
+    case "$active_tab" in
+      0) _browse_handle_browse "$key" || break ;;
+      1) _browse_handle_installed "$key" || break ;;
+      2) _browse_handle_status "$key" || break ;;
+    esac
+    _browse_render
+  done
+
+  _browse_quit
 }
 
-compdef _dotcontext dotcontext
-ZSH_COMP
-      ;;
-    *)
-      print_red "Unknown shell: $shell (supported: bash, zsh)"
-      return 1
-      ;;
+_browse_quit() {
+  ui_menu_cleanup
+  exit 0
+}
+
+_browse_load_items() {
+  local id name desc cat default_scope
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    name="$(mp_manifest_field "$id" name)"
+    desc="$(mp_manifest_field "$id" description)"
+    cat="$(mp_manifest_field "$id" category)"
+    default_scope="$(mp_manifest_default_scope "$id")"
+    BROWSE_IDS+=("$id")
+    BROWSE_NAMES+=("$name")
+    BROWSE_DESCS+=("$desc")
+    BROWSE_CATS+=("$cat")
+    BROWSE_SCOPES+=("$default_scope")
+    BROWSE_INSTALLED+=("")
+  done <<EOF
+$(mp_manifest_ids)
+EOF
+}
+
+# Re-scan the lockfiles and update BROWSE_INSTALLED. Called once at startup
+# and again after install/uninstall so the UI stays in sync without a restart.
+_browse_load_installed_state() {
+  local i id state
+  for (( i = 0; i < ${#BROWSE_IDS[@]}; i++ )); do
+    id="${BROWSE_IDS[$i]}"
+    state=""
+    if mp_lock_has local "$id" 2>/dev/null; then state="local"; fi
+    if mp_lock_has global "$id" 2>/dev/null; then
+      if [ -n "$state" ]; then state="local+global"; else state="global"; fi
+    fi
+    if mp_lock_has machine "$id" 2>/dev/null; then state="machine"; fi
+    BROWSE_INSTALLED[$i]="$state"
+    # If installed in a single scope, snap the action scope to match — so the
+    # user sees "this is what would be reinstalled" rather than the default.
+    case "$state" in
+      local|global|machine) BROWSE_SCOPES[$i]="$state" ;;
+    esac
+  done
+}
+
+# ── Render ──────────────────────────────────────────────────────────────────
+
+# Flicker-free render via atomic frame: every escape + content for the new
+# frame is captured into a single string in a subshell, then flushed in one
+# write. Terminals commit display per write, so a single big write looks
+# atomic to the eye — no visible cascade or full-screen flash.
+#
+# Bash 3.2 caveat: a `case` statement inside `$( ... )` confuses the parser
+# (it treats the `)` of a case pattern as closing the command substitution).
+# Workaround: keep the case in a regular function and only call it from $().
+_browse_render_frame() {
+  printf '\033[H'
+  ui_tabs_render 1 1 "$active_tab" "${TABS[@]}"
+  case "$active_tab" in
+    0) _browse_render_browse ;;
+    1) _browse_render_installed ;;
+    2) _browse_render_status ;;
   esac
+  _browse_render_footer
+}
+
+_browse_render() {
+  local frame
+  frame="$(_browse_render_frame)"
+  printf '%s' "$frame"
+}
+
+# Wipes rows from <start_row> up to (but not including) the footer row.
+# Used by tab renderers to clear leftover content from a previous render
+# that wrote more rows than the current one.
+_browse_clear_rows_below() {
+  local start_row="$1"
+  local th r footer
+  th="$(ui_menu_term_height)"
+  footer=$(( th - 2 ))
+  r="$start_row"
+  while [ "$r" -le "$footer" ]; do
+    printf '\033[%s;1H\033[2K' "$r"
+    r=$(( r + 1 ))
+  done
+}
+
+_browse_render_footer() {
+  local th
+  th="$(ui_menu_term_height)"
+  local fr=$(( th - 1 ))
+  ui_menu_move_cursor "$fr" 1
+  printf '\033[2K'
+  case "$active_tab" in
+    0) printf '↑↓ nav · space toggle · g/l scope · p starter pack · i install · tab next · q quit' ;;
+    1) printf '↑↓ nav · u uninstall focused · tab next · q quit' ;;
+    2) printf 'tab next · q quit' ;;
+  esac
+}
+
+# ── Browse tab ──────────────────────────────────────────────────────────────
+
+_browse_render_browse() {
+  local row=3
+  ui_menu_move_cursor "$row" 1
+  printf '\033[2K\033[1m★ Install starter pack (11 items)\033[0m   \033[2m[press p]\033[0m'
+  row=$(( row + 1 ))
+  ui_menu_move_cursor "$row" 1; printf '\033[2K'
+  row=$(( row + 1 ))
+
+  local th page first total
+  total=${#BROWSE_IDS[@]}
+  th="$(ui_menu_term_height)"
+  page=$(( th - 8 ))
+  [ "$page" -lt 5 ] && page=5
+  first="$(ui_menu_first_visible "$selected" "$page" "$total")"
+
+  local i last_cat=""
+  for (( i = first; i < first + page && i < total; i++ )); do
+    if [ "${BROWSE_CATS[$i]}" != "$last_cat" ]; then
+      ui_menu_move_cursor "$row" 1
+      printf '\033[2K\033[34m%s\033[0m' "${BROWSE_CATS[$i]}"
+      last_cat="${BROWSE_CATS[$i]}"
+      row=$(( row + 1 ))
+      [ "$row" -ge $(( th - 2 )) ] && break
+    fi
+    ui_menu_move_cursor "$row" 1
+    printf '\033[2K'
+    local marker installed_marker scope_tag
+    if [ "$i" -eq "$selected" ]; then marker="❯"; else marker=" "; fi
+    case "${BROWSE_INSTALLED[$i]}" in
+      "")            installed_marker=" " ;;
+      *)             installed_marker=$'\033[32m✓\033[0m' ;;
+    esac
+    case "${BROWSE_INSTALLED[$i]:-${BROWSE_SCOPES[$i]}}" in
+      local)         scope_tag=$'\033[36m[L]\033[0m' ;;
+      global)        scope_tag=$'\033[35m[G]\033[0m' ;;
+      machine)       scope_tag=$'\033[33m[M]\033[0m' ;;
+      "local+global") scope_tag=$'\033[35m[L+G]\033[0m' ;;
+      *)             scope_tag="[?]" ;;
+    esac
+    printf ' %s %s %s %s %-22s %s' "$marker" "$installed_marker" \
+      "$(ui_select_box "$i")" "$scope_tag" \
+      "${BROWSE_IDS[$i]}" "${BROWSE_DESCS[$i]}"
+    row=$(( row + 1 ))
+  done
+
+  _browse_clear_rows_below "$row"
+}
+
+_browse_handle_browse() {
+  local key="$1"
+  local total=${#BROWSE_IDS[@]}
+  case "$key" in
+    UP)    [ "$selected" -gt 0 ] && selected=$(( selected - 1 )) ;;
+    DOWN)  [ "$selected" -lt $(( total - 1 )) ] && selected=$(( selected + 1 )) ;;
+    SPACE) ui_select_toggle "$selected" ;;
+    g|G)   _browse_set_scope "$selected" global ;;
+    l|L)   _browse_set_scope "$selected" local ;;
+    p|P)   _browse_select_starter_pack ;;
+    i|I)   _browse_install_selected ;;
+    TAB)   active_tab=$(( (active_tab + 1) % 3 )) ;;
+    STAB)  active_tab=$(( (active_tab + 2) % 3 )) ;;
+    q|Q|ESC) return 1 ;;
+  esac
+  return 0
+}
+
+_browse_set_scope() {
+  local idx="$1" wanted="$2"
+  local id="${BROWSE_IDS[$idx]}"
+  local supported
+  supported="$(mp_manifest_scopes "$id" | tr '\n' ' ')"
+  case " $supported " in
+    *" $wanted "*) BROWSE_SCOPES[$idx]="$wanted" ;;
+  esac
+}
+
+_browse_select_starter_pack() {
+  local sp_ids="$(mp_manifest_starter_pack_ids)"
+  local id i
+  for (( i = 0; i < ${#BROWSE_IDS[@]}; i++ )); do
+    id="${BROWSE_IDS[$i]}"
+    if echo "$sp_ids" | grep -qx "$id"; then
+      ui_select_set "$i" 1
+    fi
+  done
+}
+
+_browse_install_selected() {
+  ui_menu_cleanup
+  echo
+  print_blue "Installing selected items..."
+  echo
+
+  local i id scope rc=0 installed_count=0
+  for (( i = 0; i < ${#BROWSE_IDS[@]}; i++ )); do
+    if [ "$(ui_select_get "$i")" = "1" ]; then
+      id="${BROWSE_IDS[$i]}"
+      scope="${BROWSE_SCOPES[$i]}"
+      printf '  • %s (%s)... ' "$id" "$scope"
+      if mp_install "$id" "$scope" >/dev/null 2>&1; then
+        print_green "OK"
+        ui_select_set "$i" 0   # clear selection on success — checkbox empties
+        installed_count=$(( installed_count + 1 ))
+      else
+        print_red "FAIL"
+        rc=1
+      fi
+    fi
+  done
+
+  echo
+  if [ "$rc" -eq 0 ]; then
+    print_green "Installed $installed_count item(s)."
+  else
+    print_yellow "Some installs failed. Re-run dotcontext to retry."
+  fi
+  echo
+  printf 'Press enter to return to TUI...'
+  IFS= read -r _ || true
+  ui_menu_init
+  _browse_load_installed_state   # refresh ✓ markers
+}
+
+# ── Installed tab ───────────────────────────────────────────────────────────
+
+INSTALLED_IDS=()
+INSTALLED_SCOPES=()
+INSTALLED_FOCUS=0
+
+_browse_load_installed() {
+  INSTALLED_IDS=()
+  INSTALLED_SCOPES=()
+  local id
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    INSTALLED_IDS+=("$id")
+    INSTALLED_SCOPES+=("local")
+  done <<EOF
+$(mp_lock_list_ids local)
+EOF
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    INSTALLED_IDS+=("$id")
+    INSTALLED_SCOPES+=("global")
+  done <<EOF
+$(mp_lock_list_ids global)
+EOF
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    INSTALLED_IDS+=("$id")
+    INSTALLED_SCOPES+=("machine")
+  done <<EOF
+$(mp_lock_list_ids machine)
+EOF
+}
+
+_browse_render_installed() {
+  _browse_load_installed
+  local row=3
+  ui_menu_move_cursor "$row" 1
+  printf '\033[2K\033[1mInstalled items\033[0m'
+  row=$(( row + 1 ))
+  ui_menu_move_cursor "$row" 1; printf '\033[2K'
+  row=$(( row + 1 ))
+
+  local total=${#INSTALLED_IDS[@]}
+  if [ "$total" -eq 0 ]; then
+    ui_menu_move_cursor "$row" 1
+    printf '\033[2K\033[2m  (nothing tracked yet — install items from Browse)\033[0m'
+    row=$(( row + 1 ))
+    _browse_clear_rows_below "$row"
+    return
+  fi
+
+  [ "$INSTALLED_FOCUS" -ge "$total" ] && INSTALLED_FOCUS=0
+
+  local th page first
+  th="$(ui_menu_term_height)"
+  page=$(( th - 7 ))
+  [ "$page" -lt 5 ] && page=5
+  first="$(ui_menu_first_visible "$INSTALLED_FOCUS" "$page" "$total")"
+
+  local i marker
+  for (( i = first; i < first + page && i < total; i++ )); do
+    ui_menu_move_cursor "$row" 1
+    printf '\033[2K'
+    if [ "$i" -eq "$INSTALLED_FOCUS" ]; then marker="❯"; else marker=" "; fi
+    printf ' %s [%-7s] %s' "$marker" "${INSTALLED_SCOPES[$i]}" "${INSTALLED_IDS[$i]}"
+    row=$(( row + 1 ))
+  done
+
+  _browse_clear_rows_below "$row"
+}
+
+_browse_handle_installed() {
+  local key="$1"
+  local total=${#INSTALLED_IDS[@]}
+  case "$key" in
+    UP)    [ "$INSTALLED_FOCUS" -gt 0 ] && INSTALLED_FOCUS=$(( INSTALLED_FOCUS - 1 )) ;;
+    DOWN)  [ "$INSTALLED_FOCUS" -lt $(( total - 1 )) ] && INSTALLED_FOCUS=$(( INSTALLED_FOCUS + 1 )) ;;
+    u|U)   _browse_uninstall_focused ;;
+    TAB)   active_tab=$(( (active_tab + 1) % 3 )) ;;
+    STAB)  active_tab=$(( (active_tab + 2) % 3 )) ;;
+    q|Q|ESC) return 1 ;;
+  esac
+  return 0
+}
+
+_browse_uninstall_focused() {
+  [ "${#INSTALLED_IDS[@]}" -eq 0 ] && return 0
+  local id="${INSTALLED_IDS[$INSTALLED_FOCUS]}"
+  local scope="${INSTALLED_SCOPES[$INSTALLED_FOCUS]}"
+  ui_menu_cleanup
+  echo
+  if ui_confirm "Uninstall $id ($scope)?"; then
+    if mp_remove "$id" "$scope"; then
+      print_green "Removed $id."
+    else
+      print_red "Failed to remove $id."
+    fi
+  fi
+  echo
+  printf 'Press enter...'
+  IFS= read -r _ || true
+  ui_menu_init
+  _browse_load_installed_state   # refresh ✓ markers in Browse tab
+}
+
+# ── Status tab ──────────────────────────────────────────────────────────────
+
+_browse_render_status() {
+  local row=3
+  ui_menu_move_cursor "$row" 1
+  printf '\033[2K\033[1mProject health\033[0m'
+  row=$(( row + 1 ))
+  ui_menu_move_cursor "$row" 1; printf '\033[2K'
+  row=$(( row + 1 ))
+
+  ui_menu_move_cursor "$row" 1
+  printf '\033[2K'
+  if mp_scope_is_project_dir; then
+    printf '  \033[32m✓\033[0m This directory is a dotcontext project (.context/ found)'
+  else
+    printf '  \033[33m⚠\033[0m Not a dotcontext project — only global installs available here'
+  fi
+  row=$(( row + 1 ))
+
+  ui_menu_move_cursor "$row" 1
+  printf '\033[2K'
+  local layer1
+  layer1="$(_browse_layer1_status)"
+  printf '  Layer 1: %s' "$layer1"
+  row=$(( row + 1 ))
+  ui_menu_move_cursor "$row" 1; printf '\033[2K'
+  row=$(( row + 1 ))
+
+  ui_menu_move_cursor "$row" 1
+  printf '\033[2K\033[1mInstalled MCPs\033[0m'
+  row=$(( row + 1 ))
+  local id mcp_count=0
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    if [ "$(mp_manifest_field "$id" type)" = "mcp" ]; then
+      ui_menu_move_cursor "$row" 1
+      printf '\033[2K'
+      local auth_req
+      auth_req="$(mp_manifest_auth_required "$id")"
+      if [ "$auth_req" = "true" ]; then
+        printf '  \033[33m?\033[0m %-20s auth via /mcp inside Claude Code' "$id"
+      else
+        printf '  \033[32m✓\033[0m %-20s no auth required' "$id"
+      fi
+      row=$(( row + 1 ))
+      mcp_count=$(( mcp_count + 1 ))
+    fi
+  done <<EOF
+$(mp_lock_list_ids global)
+$(mp_lock_list_ids local)
+EOF
+  if [ "$mcp_count" -eq 0 ]; then
+    ui_menu_move_cursor "$row" 1
+    printf '\033[2K\033[2m  (none installed)\033[0m'
+    row=$(( row + 1 ))
+  fi
+
+  ui_menu_move_cursor "$row" 1; printf '\033[2K'
+  row=$(( row + 1 ))
+  ui_menu_move_cursor "$row" 1
+  printf '\033[2K\033[1mInstalled CLIs\033[0m'
+  row=$(( row + 1 ))
+  local cli_count=0
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    ui_menu_move_cursor "$row" 1
+    printf '\033[2K'
+    local st
+    st="$(mp_cli_status "$id")"
+    case "$st" in
+      ok)              printf '  \033[32m✓\033[0m %-20s installed + authenticated' "$id" ;;
+      unauthenticated) printf '  \033[33m⚠\033[0m %-20s installed but not authenticated' "$id" ;;
+      missing)         printf '  \033[31m✗\033[0m %-20s not found on PATH' "$id" ;;
+      *)               printf '  \033[2m?\033[0m %-20s %s' "$id" "$st" ;;
+    esac
+    row=$(( row + 1 ))
+    cli_count=$(( cli_count + 1 ))
+  done <<EOF
+$(mp_lock_list_ids machine)
+EOF
+  if [ "$cli_count" -eq 0 ]; then
+    ui_menu_move_cursor "$row" 1
+    printf '\033[2K\033[2m  (none installed)\033[0m'
+    row=$(( row + 1 ))
+  fi
+
+  _browse_clear_rows_below "$row"
+}
+
+_browse_layer1_status() {
+  local root
+  root="$(mp_scope_root local)"
+  local missing=0
+  local f
+  for f in CLAUDE.md .context/CONTEXT.md .claude/commands/setup-context.md \
+           .claude/commands/commit.md .claude/commands/deep-context.md; do
+    [ -f "$root/$f" ] || missing=$(( missing + 1 ))
+  done
+  if [ "$missing" -eq 0 ]; then
+    printf '\033[32m✓\033[0m all expected files present'
+  else
+    printf '\033[33m⚠\033[0m %d expected file(s) missing — run dotcontext init or update' "$missing"
+  fi
+}
+
+_browse_handle_status() {
+  local key="$1"
+  case "$key" in
+    TAB)  active_tab=$(( (active_tab + 1) % 3 )) ;;
+    STAB) active_tab=$(( (active_tab + 2) % 3 )) ;;
+    q|Q|ESC) return 1 ;;
+  esac
+  return 0
 }
 # ── Main Routing ──────────────────────────────────────────────────────────────
 
 case "${1:-}" in
   init) shift; cmd_init "$@" ;;
   update) shift; cmd_update "$@" ;;
-  doctor) cmd_doctor ;;
-  completion) shift; cmd_completion "$@" ;;
+  doctor)
+    print_yellow "dotcontext doctor is deprecated and was removed in this release."
+    print_gray  "Run 'dotcontext' (no args) and switch to the Status tab."
+    exit 0
+    ;;
+  completion)
+    print_yellow "dotcontext completion was removed in this release."
+    print_gray  "See README for shell-completion guidance."
+    exit 0
+    ;;
   --version|-v) echo "dotcontext $VERSION" ;;
-  --help|-h|"") cmd_help ;;
+  --help|-h) cmd_help ;;
+  "") cmd_browse ;;
   *) print_red "Unknown command: $1. Run 'dotcontext --help' for usage."; exit 1 ;;
 esac

@@ -151,33 +151,11 @@ cmd_update_templates() {
 
   start_spinner "Checking templates..."
 
-  # MANAGED templates: dotcontext-owned code (commands). Always offered for update.
+  # MANAGED Layer 1 templates: only /setup-context (the bootstrap). All other
+  # commands, agents, skills, MCPs, and scripts are Layer 2 (lockfile-tracked
+  # via the marketplace TUI) — see ADR-015 v3.0.
   declare -a managed_templates=(
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
-    "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
-    "templates/.claude/commands/generate-prp.md:.claude/commands/generate-prp.md"
-    "templates/.claude/commands/execute-prp.md:.claude/commands/execute-prp.md"
-    "templates/.claude/commands/add-decision.md:.claude/commands/add-decision.md"
-    "templates/.claude/commands/add-skill.md:.claude/commands/add-skill.md"
-    "templates/.claude/commands/add-command.md:.claude/commands/add-command.md"
-    "templates/.claude/commands/create-pr.md:.claude/commands/create-pr.md"
-    "templates/.claude/commands/pr-comment.md:.claude/commands/pr-comment.md"
-    "templates/.claude/commands/deep-context.md:.claude/commands/deep-context.md"
-    "templates/.claude/commands/fix-bug.md:.claude/commands/fix-bug.md"
-    "templates/.claude/commands/commit.md:.claude/commands/commit.md"
-    "templates/.claude/scripts/statusline.sh:.claude/scripts/statusline.sh"
-    "templates/.claude/agents/code-review/compliance-checker.md:.claude/agents/code-review/compliance-checker.md"
-    "templates/.claude/agents/code-review/bug-detector.md:.claude/agents/code-review/bug-detector.md"
-    "templates/.claude/agents/code-review/security-analyst.md:.claude/agents/code-review/security-analyst.md"
-    "templates/.claude/agents/deep-context/step1-overview.md:.claude/agents/deep-context/step1-overview.md"
-    "templates/.claude/agents/deep-context/step2-subsystems.md:.claude/agents/deep-context/step2-subsystems.md"
-    "templates/.claude/agents/deep-context/step3-drill.md:.claude/agents/deep-context/step3-drill.md"
-    "templates/.claude/agents/deep-context/step4-dataflow.md:.claude/agents/deep-context/step4-dataflow.md"
-    "templates/.claude/agents/fix-bug/investigator.md:.claude/agents/fix-bug/investigator.md"
-    "templates/.claude/agents/fix-bug/fix-conservative.md:.claude/agents/fix-bug/fix-conservative.md"
-    "templates/.claude/agents/fix-bug/fix-minimal.md:.claude/agents/fix-bug/fix-minimal.md"
-    "templates/.claude/agents/fix-bug/fix-refactor.md:.claude/agents/fix-bug/fix-refactor.md"
-    "templates/.claude/agents/fix-bug/reviewer.md:.claude/agents/fix-bug/reviewer.md"
   )
 
   # SEED templates: created once during init, customized by user or /setup-context.
@@ -185,8 +163,6 @@ cmd_update_templates() {
   declare -a seed_templates=(
     "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
-    "templates/.claude/skills/README.md:.claude/skills/README.md"
-    "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
 
   # Create temp directory for downloads
@@ -372,16 +348,8 @@ cmd_update_templates() {
     done
   fi
 
-  # Declarative cleanup: remove stale files from managed-only directories
-  # NOTE: .claude/commands/ is excluded — users create custom commands there via /add-command
-  cleanup_managed_dir ".claude/agents/code-review" \
-    compliance-checker.md bug-detector.md security-analyst.md
-  cleanup_managed_dir ".claude/agents/deep-context" \
-    step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
-  cleanup_managed_dir ".claude/agents/fix-bug" \
-    investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
-  cleanup_managed_dir ".claude/scripts" \
-    statusline.sh
+  # No declarative cleanup needed: Layer 1 has no managed agent/script
+  # directories. Layer 2 directories are managed by their marketplace bundles.
 
   echo ""
   if [ $added -gt 0 ] || [ $updated -gt 0 ]; then
@@ -395,29 +363,7 @@ cmd_update_templates() {
     print_gray "No changes made"
   fi
 
-  # Offer MCP configuration if .mcp.json doesn't exist
-  if [ ! -f ".mcp.json" ]; then
-    local add_context7=false
-    local add_atlassian=false
-
-    if [ "$auto_yes" = "true" ]; then
-      add_context7=true
-      add_atlassian=true
-    else
-      echo ""
-      print_blue "MCP Servers"
-      print_gray "Configure Model Context Protocol servers for Claude Code"
-      echo ""
-
-      if confirm_yes "  Add Context7? (up-to-date library docs for LLMs)"; then
-        add_context7=true
-      fi
-
-      if confirm_yes "  Add Atlassian? (Jira + Confluence via OAuth)"; then
-        add_atlassian=true
-      fi
-    fi
-
-    setup_mcp "$add_context7" "$add_atlassian"
-  fi
+  # Auto-registration of Layer 2 items installed by pre-v0.15 dotcontext.
+  # Runs once per user (~/.dotcontext/migration-v015-done marker).
+  mp_migrate_if_needed 2>/dev/null || true
 }
