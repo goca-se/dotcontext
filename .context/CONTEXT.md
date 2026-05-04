@@ -16,37 +16,31 @@
 |--------|----------------|
 | `CLAUDE.md` | Root-level project context: stack, commands, critical rules, architecture overview |
 | `.context/CONTEXT.md` | Domain knowledge: entities, flows, integrations, glossary |
-| `ADR (Architectural Decision Record)` | Documents a significant architectural decision with context, alternatives, and consequences |
+| `ADR (Architectural Decision Record)` | Documents a significant architectural decision (schema 1.0 legacy or 2.0 going forward) |
 | `Skill` | Step-by-step guide for a recurring pattern or task in the codebase |
 | `PRP (Product Requirements Prompt)` | Structured feature specification with implementation plan and phases |
 | `Command` | Custom Claude Code slash command (markdown file in `.claude/commands/`) |
 | `Discovery` | Output document from deep context analysis with business rules and cross-repo validation |
 | `Bug Report` | Structured report from `/fix-bug` with root cause, reproduction test, and fix details |
+| `Manifest item` | A marketplace catalog entry (`command-bundle`, `skill`, `mcp`, `external-cli`, `hook`, `script`) — see `marketplace/manifest.json` |
+| `Bundle` | An atomic install unit: a manifest item plus its transitive `depends_on` graph (ADR-017) |
+| `Lockfile entry` | Record of what's installed, where, and at what version — `.context/.dotcontext-state.json` (local) or `~/.dotcontext/state.json` (global) (ADR-016) |
 
 ### Modules/Packages
 
-```
-dotcontext/
-├── dotcontext           # Main CLI executable (all commands)
-├── install.sh           # Installation script
-├── scripts/
-│   ├── notify.sh        # Cross-platform notification system
-│   └── setup-hooks.sh   # Claude Code hook configuration
-├── templates/           # Template files downloaded during init
-│   ├── CLAUDE.md
-│   ├── .context/
-│   │   ├── CONTEXT.md
-│   │   ├── decisions/
-│   │   ├── discoveries/
-│   │   ├── bugs/
-│   │   └── prp/
-│   └── .claude/
-│       ├── commands/    # 13 slash command templates
-│       ├── agents/      # 12 agent prompt files (code-review, fix-bug, deep-context)
-│       ├── scripts/     # StatusLine script
-│       └── skills/      # Seed skills (bug-reproduction)
-└── .claude/commands/    # This repo's slash commands (mirrors templates)
-```
+High-level map (canonical tree lives in [Architecture > Directory Structure](#directory-structure) below):
+
+| Path | Role |
+|------|------|
+| `dotcontext` | Built CLI executable (~95 KB, bundled from `src/` via `make build`) |
+| `src/` | Modular source: `core/`, `lib/{ui,marketplace,install}/`, `commands/`, `setup/`, `header.sh`, `main.sh` |
+| `marketplace/` | Layer 2 catalog: `manifest.json` (16 items, 11 starter pack) + `manifest.schema.json` |
+| `templates/` | Files served to user projects: `CLAUDE.md`, `.context/`, `.claude/commands/` (12), `.claude/agents/` (12 across code-review/fix-bug/deep-context), `.claude/scripts/statusline.sh`, `.claude/skills/` (3 seed: bug-reproduction, batch-operations, git-platform) |
+| `tests/` | `marketplace/{smoke,migrate_smoke}.sh`, `ui/{syntax_check,demo}.sh`, `sandbox.sh` |
+| `scripts/` | Repo tooling: `notify.sh`, `validate-manifest.sh` |
+| `docs/` | `MIGRATION.md` (v0.14 → v0.15 upgrade guide) |
+| `install.sh` | curl-based installer |
+| `.claude/commands/` | This repo's own slash commands (Layer 1 + maintainer-only `release.md`) |
 
 ## Architecture
 
@@ -58,38 +52,37 @@ dotcontext is a single-executable CLI tool (Bash 3.2+) distributed as one script
 
 ```
 dotcontext/
-├── dotcontext           # Built CLI executable (~1266 lines, bundled from src/)
-├── src/                 # Modular source code (bundled via make build)
-│   ├── header.sh        # Shebang, set -e, version, repo constants
-│   ├── main.sh          # Command router (case statement)
-│   ├── core/            # Shared utilities
-│   │   ├── colors.sh    # ANSI color constants
-│   │   ├── icons.sh     # Unicode icon constants
-│   │   ├── ui.sh        # Print helpers (print_red, print_green, etc.)
-│   │   ├── spinner.sh   # Braille animation spinner
-│   │   └── utils.sh     # URL encoding, temp dir, download helpers
-│   ├── commands/        # CLI command implementations
-│   │   ├── init.sh      # dotcontext init (cmd_init)
-│   │   ├── update.sh    # dotcontext update (cmd_update, ~423 lines)
-│   │   ├── doctor.sh    # dotcontext doctor (cmd_doctor)
-│   │   ├── help.sh      # dotcontext --help (cmd_help)
-│   │   └── completion.sh # Shell tab completion (cmd_completion)
-│   └── setup/           # Post-init setup helpers
-│       ├── notifications.sh # Claude Code hook config for notifications
-│       └── mcp.sh       # MCP server config (.mcp.json)
-├── install.sh           # Installation script (curl-based)
+├── dotcontext              # Built CLI executable (bundled from src/, ~90 KB)
+├── src/                    # Modular source code (bundled via make build)
+│   ├── header.sh           # Shebang, set -e, VERSION, repo constants
+│   ├── main.sh             # Command router (no-args → cmd_browse)
+│   ├── core/               # Shared utilities (colors, icons, ui, spinner, utils)
+│   ├── lib/                # Marketplace + TUI primitives (ADR-014, ADR-015)
+│   │   ├── ui/             # menu_paginated, multi_select, detail_pane, confirm, spinner_alt, tabs
+│   │   ├── marketplace/    # manifest, lockfile, scope, bundle, migrate
+│   │   └── install/        # command, skill, script, mcp, hook, cli, dispatch
+│   ├── commands/           # CLI command implementations
+│   │   ├── init.sh         # dotcontext init — Layer 1 only
+│   │   ├── update.sh       # dotcontext update — Layer 1 + auto-registration
+│   │   ├── help.sh         # dotcontext --help
+│   │   └── browse.sh       # marketplace TUI (no-args, internal entry)
+│   └── setup/              # Post-init helpers (notifications, mcp)
+├── marketplace/
+│   ├── manifest.json       # Catalog of Layer 2 items (16 items, 11 in starter pack)
+│   └── manifest.schema.json
+├── install.sh              # curl-based installer
 ├── scripts/
-│   ├── notify.sh        # Cross-platform notification (macOS/Linux/Windows)
-│   └── setup-hooks.sh   # Claude Code hook configuration
-├── templates/           # Template files downloaded during init
-│   ├── CLAUDE.md        # Root context template
-│   ├── .context/        # Context structure templates
-│   └── .claude/         # Commands, agents, skills, scripts
-└── .claude/
-    ├── commands/        # 13 slash command definitions
-    ├── agents/          # 12 agent prompt files (3 subdirs)
-    ├── scripts/         # StatusLine script
-    └── skills/          # Seed skills (bug-reproduction, add-cli-subcommand, add-new-command)
+│   ├── validate-manifest.sh   # make validate-manifest
+│   ├── notify.sh           # Cross-platform notification
+│   └── setup-hooks.sh
+├── templates/              # Files downloaded during init / installed by marketplace
+│   ├── CLAUDE.md
+│   ├── .context/           # Context skeleton (CONTEXT.md, decisions/, prp/, etc.)
+│   └── .claude/            # commands/, agents/, skills/, scripts/
+├── tests/
+│   ├── ui/                 # syntax_check + composed demo for lib/ui
+│   └── marketplace/        # smoke tests for marketplace + migration
+└── docs/MIGRATION.md       # v0.14 → v0.15 upgrade guide
 ```
 
 ### Key Dependencies
@@ -125,7 +118,7 @@ Bash `set -e` with explicit error messages via `echo "Error: ..."` to stderr. Fu
 
 ### Testing Style
 
-No automated test suite. Validation is manual/functional — run commands on sample projects and verify output. The `dotcontext doctor` command provides health-check validation.
+Bash smoke tests under `tests/`, no unit-test framework. `make check` runs `validate-manifest.sh` (manifest schema) and `tests/ui/syntax_check.sh` (UI module syntax). `tests/marketplace/{smoke,migrate_smoke}.sh` exercise install + auto-registration end-to-end against a sandbox project. Health-check validation (formerly `dotcontext doctor`, removed in v0.15) now lives in the marketplace TUI's **Status** tab.
 
 ### Import Organization
 
@@ -197,13 +190,18 @@ User runs: dotcontext update
     │   ├── Validate download (check for shebang)
     │   └── Replace /usr/local/bin/dotcontext
     │
-    └─→ Phase 2: Template Update (if .context/ exists)
-        ├── Download managed templates (commands)
-        ├── Download seed templates (skills, READMEs)
-        ├── Categorize: new (+), modified (~), unchanged (=), user-managed (•)
-        ├── Managed: offer to update modified files
-        ├── Seed: only add if missing, never overwrite
-        └── Show Terraform-style preview
+    ├─→ Phase 2: Template Update (if .context/ exists)
+    │   ├── Download managed templates (commands)
+    │   ├── Download seed templates (skills, READMEs)
+    │   ├── Categorize: new (+), modified (~), unchanged (=), user-managed (•)
+    │   ├── Managed: offer to update modified files
+    │   ├── Seed: only add if missing, never overwrite
+    │   └── Show Terraform-style preview
+    │
+    └─→ Phase 3: Auto-migration (ADR-018, runs once per install)
+        ├── Detect pre-marketplace installs by scanning .claude/commands/
+        ├── Register existing items in the lockfile (.context/.dotcontext-state.json)
+        └── Mark migration complete; skipped on subsequent updates
 ```
 
 ### Deep Context Discovery Flow
@@ -258,6 +256,37 @@ User runs: /fix-bug "login fails with empty password" --issue 42
     │   └── Run full test suite
     │
     └─→ Save report to .context/bugs/YYYYMMDD-[slug].md
+```
+
+### Marketplace Install Flow
+
+```
+User runs: dotcontext   (no args → cmd_browse)
+    │
+    ├─→ Load manifest.json (validates schema)
+    │
+    ├─→ Open TUI tabs: Browse · Installed · Status
+    │
+    ├─→ Browse tab: pick item(s) or `p` to mark the 11-item starter pack
+    │   ├── space toggles selection
+    │   ├── g/l switches scope (global ~/.claude/ vs local .context/)
+    │   └── i triggers install
+    │
+    ├─→ Bundle resolver (ADR-017): expand item + transitive depends_on
+    │
+    ├─→ Per-file dispatch by type (ADR-014):
+    │   ├── command  → templates/.claude/commands/*.md       → .claude/commands/
+    │   ├── skill    → templates/.claude/skills/*/SKILL.md   → .claude/skills/
+    │   ├── script   → templates/.claude/scripts/*.sh        → .claude/scripts/
+    │   ├── hook     → merge into .claude/settings.json
+    │   ├── mcp      → merge into .mcp.json (or ~/.claude.json for global)
+    │   └── cli      → external installer (gh, glab) + auth check
+    │
+    ├─→ Record entry in lockfile (ADR-016)
+    │   ├── local:  .context/.dotcontext-state.json
+    │   └── global: ~/.dotcontext/state.json
+    │
+    └─→ Status tab: re-runs health checks (Layer 1 sanity, MCP auth, CLI install state)
 ```
 
 ## External Integrations

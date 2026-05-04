@@ -29,41 +29,50 @@ If a requested change conflicts with an existing decision:
 ### CLI
 
 ```bash
-# Initialize context structure in a project (auto-runs /setup-context)
+# Open marketplace TUI (Browse / Installed / Status)
+dotcontext
+
+# Initialize Layer 1 in a project (auto-runs /setup-context)
 dotcontext init [--name "Project Name"] [--yes] [--no-setup]
 
-# Update CLI + templates
-dotcontext update                     # Update CLI + templates (if in project)
-dotcontext update --cli               # Only update CLI
-dotcontext update --templates         # Only update templates
+# Update CLI + Layer 1 templates + run auto-migration once
+dotcontext update                     # full update flow
+dotcontext update --cli               # only update CLI
+dotcontext update --templates         # only update Layer 1 templates
 
-# Validate project setup
-dotcontext doctor
-
-# Shell tab completion
-dotcontext completion [bash|zsh]
-
-# Help
+# Help / version
 dotcontext --help
 dotcontext --version
 ```
 
-### Claude Code (interactive with questions)
+> Removed in v0.15: `dotcontext doctor` (use Status tab in TUI), `dotcontext completion` (regenerate locally).
+
+### Claude Code
+
+**Layer 1 (always present after `init`)** — the absolute minimum:
 
 ```bash
-/setup-context             # Analyze codebase and populate context
-/generate-prp [feature]    # Plan a new feature
-/execute-prp [name]        # Implement a planned feature
-/code-review               # Review code changes
-/commit [--amend]          # Smart commit with style-aware messages
-/deep-context [query]      # Structured 4-step codebase exploration
-/fix-bug [description]     # Test-driven bug fixing with parallel agents
-/create-pr                 # Create PR with auto-generated description
-/pr-comment                # Add comment to existing PR
-/release [patch|minor|major] # Create release with version bump
-/add-decision              # Add ADR interactively
-/add-skill                 # Add skill guide interactively
-/add-command               # Create custom command interactively
+/setup-context              # Guided codebase analysis interview (the only Layer 1 command)
+```
+
+**Layer 2 (install via marketplace TUI — `dotcontext`):**
+
+The 16-item starter pack covers the common case (press `p` then `i` in the TUI):
+
+```bash
+/add-decision               # Add ADR (schema 2.0)
+/add-skill                  # Add skill guide
+/add-command                # Create custom command
+/commit [--amend]           # Smart commit
+/deep-context [query]       # Structured 4-step exploration
+/generate-prp [feature]     # Plan a feature with a PRP
+/execute-prp [name]         # Execute a planned PRP
+/code-review                # Multi-agent review (3 agents)
+/fix-bug [description]      # TDD bug fix (5 agents + skill)
+/create-pr                  # Open PR / MR
+/pr-comment                 # Comment on PR / MR
+# + Atlassian, Grafana, Context7 MCPs
+# + gh, glab CLIs
 ```
 
 ## Critical Rules
@@ -78,13 +87,20 @@ dotcontext --version
 
 ### Single Executable Pattern
 
-The CLI is distributed as a single `dotcontext` bash script. Source code lives in `src/` modules (`core/`, `commands/`, `setup/`) and is bundled into the single executable via `make build`. All commands are implemented as functions, routed via a case statement. This keeps development modular while simplifying distribution.
+The CLI is distributed as a single `dotcontext` bash script. Source code lives in `src/` modules (`core/`, `lib/ui/`, `lib/marketplace/`, `lib/install/`, `commands/`, `setup/`) and is bundled into the single executable via `make build`. All commands are implemented as functions, routed via a case statement.
+
+### Two-Layer Distribution (ADR-015 v3.0)
+
+- **Layer 1** is installed by `dotcontext init` — only the absolute bootstrap: `.context/` skeleton, `CLAUDE.md`, `.claudeignore`, and `/setup-context`. Nothing else.
+- **Layer 2** is installed on-demand via the marketplace TUI — every other command (including `/commit`, `/deep-context`, `/add-*`, etc.), all agents, all skills, MCPs, external CLIs, hooks, scripts. The strict rule: anything that creates, populates, or consumes `.context/` beyond the initial bootstrap is Layer 2.
+
+### Marketplace TUI (ADR-014)
+
+Bash-native TUI in `src/lib/ui/` with three tabs: Browse · Installed · Status. The catalog lives in `marketplace/manifest.json` (16 items, 11 in the starter pack). Per-scope lockfiles (`.context/.dotcontext-state.json` local; `~/.dotcontext/state.json` global) record what's installed. See ADRs 014, 015, 016, 017.
 
 ### Template-Based Init
 
-Templates live in `templates/` directory on GitHub and are downloaded during `dotcontext init`. The structure mirrors what gets created in user projects:
-- `templates/CLAUDE.md` → project root `CLAUDE.md`
-- `templates/.context/` → project `.context/` directory
+Layer 1 templates live in `templates/` on GitHub and are downloaded during `dotcontext init`. Layer 2 source files also live in `templates/` but are pulled per-item by the marketplace's bundle resolver.
 
 ### Claude Code Integration
 
@@ -96,5 +112,5 @@ Slash commands in `.claude/commands/` provide interactive workflows that integra
 
 - Domain and architecture → `.context/CONTEXT.md`
 - Architectural decisions → `.context/decisions/`
-- Task-specific skills → `.claude/skills/`
-- Bug reproduction guide → `.claude/skills/bug-reproduction/SKILL.md`
+- Marketplace manifest → `marketplace/manifest.json`
+- Migration guide → `docs/MIGRATION.md`

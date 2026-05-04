@@ -15,6 +15,8 @@
 
 `dotcontext` is an AI context toolkit for Claude Code. It provides commands, decisions, skills, and feature planning workflows that help AI assistants understand and work with your codebase.
 
+> **v0.15 introduces breaking changes.** `dotcontext init` now installs the absolute minimum — `.context/` skeleton, `CLAUDE.md`, and `/setup-context`. Everything else (including `/commit`, `/deep-context`, `/add-decision`, `/code-review`, `/fix-bug`, MCPs, CLIs) is opt-in via the new **marketplace TUI** — run `dotcontext` (no args). The starter pack covers the common case in one keystroke (`p` then `i`). `dotcontext doctor` and `dotcontext completion` are removed. Existing installs auto-migrate silently on first `dotcontext update`. See [`docs/MIGRATION.md`](docs/MIGRATION.md).
+
 <details>
 <summary>See it in action</summary>
 
@@ -46,7 +48,7 @@ cd your-project
 dotcontext init
 ```
 
-This creates the context structure, downloads templates, and **automatically opens Claude Code running `/setup-context`** to analyze and populate your project's context files.
+Creates the methodology surface — `.context/` skeleton, `CLAUDE.md`, `.claudeignore`, and the single bootstrap command `/setup-context` — then auto-opens Claude Code running `/setup-context` to analyze and populate your project's context. **All other commands, agents, MCPs, CLIs, and skills** are opt-in via the marketplace TUI (run `dotcontext` with no args).
 
 **Options:**
 
@@ -90,6 +92,20 @@ Update 1 existing file(s)? [y/N/d] (y=yes, N=no, d=show diffs)
 - **User-managed files** (skills, READMEs, PRP templates) are never overwritten — they're created once during init and then owned by you
 - Never touches user content (`CONTEXT.md`, `CLAUDE.md`, your ADRs, bug reports, discoveries)
 
+### Open the marketplace TUI
+
+```bash
+dotcontext
+```
+
+Three tabs: **Browse · Installed · Status**.
+
+- **Browse** — pick Layer 2 items individually (space to toggle, `g`/`l` to switch scope, `i` to install) or hit `p` to mark the 11-item starter pack and `i` to install everything.
+- **Installed** — see the lockfile state, uninstall focused items with `u`.
+- **Status** — health check that replaces the old `dotcontext doctor` (Layer 1 sanity, MCP auth status, CLI install + auth state).
+
+Quit with `q`. Cycle tabs with `tab` / `shift-tab`. Requires `jq`.
+
 ### Run the setup command
 
 The setup command runs automatically after `dotcontext init`. To run it manually (e.g., after code changes):
@@ -123,56 +139,39 @@ This ensures your architectural decisions stay synchronized with your code.
 
 ## What It Creates
 
+### Layer 1 (`init` installs this — the absolute minimum)
+
 ```
 your-project/
+├── .claudeignore
 ├── CLAUDE.md                    # Quick reference + decision compliance rules
 ├── .context/
-│   ├── CONTEXT.md               # Domain knowledge
-│   ├── decisions/               # ADRs (versioned)
-│   ├── discoveries/             # Deep context analysis outputs
-│   ├── bugs/                    # Bug fix reports
-│   └── prp/                     # Feature planning docs
-│       ├── templates/
-│       └── generated/
-├── .mcp.json                    # MCP server config (Context7, Atlassian)
+│   ├── CONTEXT.md               # Domain knowledge (filled by /setup-context)
+│   ├── decisions/               # ADRs (schema 2.0; README has the template)
+│   ├── discoveries/             # /deep-context outputs (Layer 2 cmd)
+│   ├── bugs/                    # /fix-bug reports (Layer 2 cmd)
+│   └── prp/                     # PRP planning docs (Layer 2 cmds)
 └── .claude/
-    ├── commands/
-    │   ├── setup-context.md          # Auto-setup command
-    │   ├── code-review.md            # Code review command
-    │   ├── commit.md                 # Smart commit command
-    │   ├── generate-prp.md           # Generate feature PRPs
-    │   ├── execute-prp.md            # Execute PRPs step-by-step
-    │   ├── create-pr.md              # Create PRs with diagrams
-    │   ├── pr-comment.md             # Comment on PRs
-    │   ├── add-decision.md           # Add ADR interactively
-    │   ├── add-skill.md              # Add skill interactively
-    │   ├── add-command.md            # Add custom command
-    │   ├── deep-context.md           # Structured codebase exploration
-    │   └── fix-bug.md               # Test-driven bug fixing
-    ├── agents/                       # Extracted agent prompts
-    │   ├── code-review/              # 3 review agents
-    │   ├── deep-context/             # 4 exploration agents
-    │   └── fix-bug/                  # 5 bug-fix agents
-    ├── skills/                       # Step-by-step guides
-    │   └── bug-reproduction/         # Bug reproduction patterns
-    └── scripts/
-        └── statusline.sh            # StatusLine: model, dir, git, ctx-usage bar, cost/time/lines
+    └── commands/
+        └── setup-context.md     # Guided context interview
 ```
 
-Additionally, `dotcontext init` configures:
+That's it. No agents, no other commands, no skills, no scripts.
 
-- **MCP servers** in `.mcp.json` (optional, prompted during init):
-  - [Context7](https://github.com/upstash/context7-mcp) — up-to-date library docs for LLMs
-  - [Atlassian](https://mcp.atlassian.com) — Jira + Confluence via OAuth
+### Layer 2 (marketplace TUI installs this on demand)
 
-- **Native OS notifications** in `.claude/` (project-local):
+Run `dotcontext` (no args) in a regular terminal — interactive TUIs don't render inside Claude Code's `!` bash block. Press **P** to mark the starter pack (16 items), then **I** to install:
 
-```
-.claude/
-├── scripts/
-│   └── notify.sh          # Cross-platform notification script
-└── settings.json          # Hooks for Notification and Stop events
-```
+| Category | Starter pack items |
+|----------|-------|
+| Commands (methodology helpers) | `/add-decision`, `/add-skill`, `/add-command` |
+| Commands (productivity) | `/commit`, `/deep-context` (+4 agents), `/generate-prp`, `/execute-prp`, `/code-review` (+3 agents), `/fix-bug` (+5 agents +skill), `/create-pr` (+skill), `/pr-comment` (+skill) |
+| MCPs | Atlassian (Jira+Confluence), Grafana, Context7 |
+| External CLIs | `gh`, `glab` |
+
+Plus 5 non-starter items also available in the marketplace: StatusLine, notification hook, batch-operations skill, and the standalone bug-reproduction / git-platform skills (which are bundled with their parent commands by default — direct install is for advanced cases).
+
+Each item picks **scope** in the TUI — `local` (project), `global` (`~/.claude/`), or `machine` (system-wide for CLIs). Installs are recorded in `.context/.dotcontext-state.json` (local) or `~/.dotcontext/state.json` (global) and are removable cleanly. See [ADR-015](.context/decisions/015-two-layer-distribution-model.md), [ADR-016](.context/decisions/016-lockfile-format-and-scope-resolution.md).
 
 ## Commands Reference
 
@@ -180,17 +179,18 @@ Additionally, `dotcontext init` configures:
 
 | Command                                | Description                                    |
 | -------------------------------------- | ---------------------------------------------- |
-| `dotcontext init`                      | Initialize + auto-run /setup-context           |
+| `dotcontext`                           | Open marketplace TUI (Browse / Installed / Status) |
+| `dotcontext init`                      | Initialize Layer 1 + auto-run /setup-context   |
 | `dotcontext init --no-setup`           | Initialize without running setup               |
-| `dotcontext update`                    | Update CLI + templates (if in a project)       |
+| `dotcontext update`                    | Update CLI + Layer 1 templates + run auto-migration once |
 | `dotcontext update --cli`              | Only update CLI                                |
-| `dotcontext update --templates`        | Only update templates                          |
-| `dotcontext update --yes`              | Update templates without prompting             |
+| `dotcontext update --templates`        | Only update Layer 1 templates                  |
+| `dotcontext update --yes`              | Update without prompting                       |
 | `dotcontext update --dry-run`          | Preview template changes only                  |
-| `dotcontext doctor`                    | Check project setup health                     |
-| `dotcontext completion [bash\|zsh]`    | Generate shell tab completions                 |
 | `dotcontext --help`                    | Show help                                      |
 | `dotcontext --version`                 | Show version                                   |
+
+> Removed in v0.15: `dotcontext doctor` (use the Status tab in the TUI), `dotcontext completion` (regenerate locally — see below). Both print a deprecation message and exit 0 for one release.
 
 ### Claude Code Commands
 
@@ -469,22 +469,22 @@ No additional dependencies required.
 
 ## Shell Completion
 
-Enable tab completion for dotcontext commands and options:
+Shell completion was bundled into the CLI in pre-v0.15 versions. The CLI surface is now small enough (`init`, `update`, plus `--help` / `--version`) that hand-rolled completions are simpler to maintain locally:
 
 ```bash
 # Bash (add to ~/.bashrc)
-eval "$(dotcontext completion bash)"
+complete -W "init update --help --version" dotcontext
 
-# Zsh (add to ~/.zshrc)
-eval "$(dotcontext completion zsh)"
+# Zsh (add to ~/.zshrc, after compinit)
+compdef _dotcontext dotcontext
+_dotcontext() { _values 'commands' 'init' 'update' '--help' '--version' }
 ```
-
-Completes subcommands (`init`, `update`, `doctor`, `completion`) and per-command options.
 
 ## Requirements
 
 - Bash 3.2+
 - `curl` or `wget`
+- `jq` (required at runtime for the marketplace TUI; init/update work without it)
 
 ## Uninstall
 

@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.15.0](https://github.com/goca-se/dotcontext/compare/v0.14.1...v0.15.0) (2026-05-01)
+
+### ⚠ BREAKING CHANGES
+
+* **`dotcontext init` now installs the absolute minimum.** The 12-command, 12-agent, 3-skill all-in-one init is gone. Init creates the `.context/` skeleton, `CLAUDE.md`, `.claudeignore`, and `/setup-context` — and **nothing else**. Per ADR-015 v3.0, anything that creates, populates, or consumes `.context/` beyond the initial bootstrap is Layer 2 (opt-in via the marketplace TUI). The starter pack (16 items: `/add-decision`, `/add-skill`, `/add-command`, `/commit`, `/deep-context` + 4 agents, `/code-review`, `/fix-bug`, `/create-pr`, `/pr-comment`, `/generate-prp`, `/execute-prp`, plus 3 MCPs and 2 CLIs) installs in one keystroke (`p` then `i`).
+* **`dotcontext doctor` and `dotcontext completion` are removed.** Both print a deprecation notice and `exit 0` for one release; will be deleted entirely in the next release. `doctor`'s functionality lives in the **Status** tab of the TUI. See ADR-007 v2.0.
+* **`dotcontext` (no args) now opens the marketplace TUI** instead of printing help. Use `dotcontext --help` for help.
+
+### Features
+
+* **Marketplace TUI** — bash-native TUI with three tabs (Browse · Installed · Status). Install Layer 2 items individually, toggle scope per item (`local`/`global`/`machine`), or install the 11-item starter pack with one keystroke. Bundled into the existing single-binary distribution. See ADR-014.
+* **Two-Layer distribution model** — Layer 1 (`init`) is the methodology surface. Layer 2 is everything else: `code-review`, `fix-bug`, `create-pr`, `pr-comment`, `generate-prp`, `execute-prp`, MCPs (Atlassian, Grafana, Context7), CLIs (`gh`, `glab`), statusline, notification hook, batch-operations skill. See ADR-015.
+* **Lockfile-tracked installs** — every Layer 2 install is recorded in `.context/.dotcontext-state.json` (local) or `~/.dotcontext/state.json` (global). Records `{id, version, scope, installed_at, files}` so removes are clean. See ADR-016.
+* **Atomic bundles** — items with dependencies (e.g., `fix-bug` needs the `bug-reproduction` skill) install/remove as one unit. Reverse-reference checks prevent removing a dependency another installed bundle still uses. See ADR-017.
+* **Auto-registration migration** — first `dotcontext update` after upgrading detects pre-existing Layer 2 files and registers them in the lockfile (silent, idempotent, never modifies files). Marker at `~/.dotcontext/migration-v015-done`. See ADR-018.
+* **External CLI installer** — auto-detects OS (macOS, Debian/Ubuntu, Fedora/RHEL, Arch, Windows) and the matching package manager (brew, apt, dnf, pacman, winget). Verify post-install via `verify_command`; auth status surfaced in TUI Status tab.
+* **MCP key override** — manifest items have an optional `mcp_key` so users see `mcpServers.atlassian` instead of `mcpServers.atlassian-mcp` in `settings.json`.
+* **ADR template v2.0** — adds `Stakeholders`, `Trade-offs Accepted`, `Validation Criteria` sections plus a `Schema: 2.0` marker. Coexists with v1; `/add-decision` detects schema and warns once. See ADR-019.
+* **`/setup-context` rewrite** — guided 8-phase interview with confidence scoring, per-phase skip option, and a final review-before-save step. Asks `AskUserQuestion` at low-confidence points instead of fabricating answers.
+* **`make validate-manifest`** — pure-bash validator (jq optional) that checks every `src` path in `marketplace/manifest.json` exists, ids are unique, and `depends_on` resolves.
+
+### Architecture
+
+* New directory: `src/lib/ui/` — TUI primitives (`menu_paginated`, `multi_select`, `detail_pane`, `confirm`, `spinner_alt`, `tabs`).
+* New directory: `src/lib/marketplace/` — `manifest.sh`, `lockfile.sh`, `scope.sh`, `bundle.sh`, `migrate.sh`.
+* New directory: `src/lib/install/` — per-type install handlers (`command`, `skill`, `script`, `mcp`, `hook`, `cli`) plus `dispatch.sh`.
+* New: `marketplace/manifest.json` (16 items) + `marketplace/manifest.schema.json`.
+* New: 6 ADRs (014-019); 4 ADRs updated to v2.0 (002, 003, 007, 012).
+
+### Migration
+
+See [`docs/MIGRATION.md`](docs/MIGRATION.md). TL;DR: run `dotcontext update`. Auto-registration registers your existing Layer 2 files into the lockfile silently. Nothing on disk changes; everything keeps working.
+
 ## [0.14.1](https://github.com/goca-se/dotcontext/compare/v0.14.0...v0.14.1) (2026-04-23)
 
 ### Features
