@@ -88,7 +88,4 @@ Remove:
 
 - Domain and architecture → `.context/CONTEXT.md`
 - Architectural decisions → `.context/decisions/`
-- Task-specific skills → `.claude/skills/`
-- Bug reproduction guide → `.claude/skills/bug-reproduction/SKILL.md`
-- Batch operations guide → `.claude/skills/batch-operations/SKILL.md`
-- Git platform detection → `.claude/skills/git-platform/SKILL.md`
+- Task-specific skills → `.claude/skills/` (install via the dotcontext marketplace TUI)
