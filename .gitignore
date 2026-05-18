@@ -17,3 +17,35 @@ tmp/
 .context/prp/
 .context/discoveries/
 .context/bugs/
+
+# Layer 2 dogfood: the dotcontext repo can install Layer 2 items locally for
+# in-repo dev convenience, but the canonical source lives in
+# goca-se/dotcontext-marketplace (ADR-020). Untrack so the local install
+# doesn't drift from the marketplace.
+# Kept tracked: .claude/commands/release.md (maintainer command — not in
+# marketplace), .claude/skills/add-cli-subcommand/, .claude/skills/add-new-command/
+# (harness contribution skills — not in marketplace).
+.claude/agents/code-review/
+.claude/agents/fix-bug/
+.claude/agents/deep-context/
+.claude/commands/setup-context.md
+.claude/commands/add-decision.md
+.claude/commands/add-skill.md
+.claude/commands/add-command.md
+.claude/commands/commit.md
+.claude/commands/deep-context.md
+.claude/commands/code-review.md
+.claude/commands/fix-bug.md
+.claude/commands/create-pr.md
+.claude/commands/pr-comment.md
+.claude/commands/generate-prp.md
+.claude/commands/execute-prp.md
+.claude/scripts/notify.sh
+.claude/scripts/statusline.sh
+.claude/scripts/tool-failure-guard.sh
+.claude/settings.json
+.claude/settings.local.json
+.claude/skills/README.md
+.claude/skills/bug-reproduction/
+.claude/skills/batch-operations/
+.claude/skills/git-platform/
