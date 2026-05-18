@@ -70,7 +70,12 @@ mp_lock_has() {
   local path
   path="$(mp_lock_path "$scope")" || return 1
   [ -f "$path" ] || return 1
-  jq -e --arg id "$id" '.items[] | select(.id == $id)' "$path" >/dev/null 2>&1
+  # Filter by both id AND scope. Global + machine share the same lockfile
+  # file (~/.dotcontext/state.json), so we must distinguish by the scope
+  # field on each entry; otherwise a global-only item appears as also
+  # machine-installed (and vice versa).
+  jq -e --arg id "$id" --arg s "$scope" \
+    '.items[] | select(.id == $id and .scope == $s)' "$path" >/dev/null 2>&1
 }
 
 mp_lock_get_field() {
@@ -78,8 +83,8 @@ mp_lock_get_field() {
   local path
   path="$(mp_lock_path "$scope")" || return 1
   [ -f "$path" ] || return 1
-  jq -r --arg id "$id" --arg f "$field" \
-    '.items[] | select(.id == $id) | .[$f] // empty' "$path"
+  jq -r --arg id "$id" --arg s "$scope" --arg f "$field" \
+    '.items[] | select(.id == $id and .scope == $s) | .[$f] // empty' "$path"
 }
 
 mp_lock_list_ids() {
@@ -87,7 +92,7 @@ mp_lock_list_ids() {
   local path
   path="$(mp_lock_path "$scope")" || return 1
   [ -f "$path" ] || return 0
-  jq -r '.items[].id' "$path"
+  jq -r --arg s "$scope" '.items[] | select(.scope == $s) | .id' "$path"
 }
 
 # mp_lock_add: idempotent — if id already present, replace entry.

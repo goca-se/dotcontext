@@ -265,7 +265,7 @@ _browse_install_selected() {
         # *need* visible output: the handler prints a confirm prompt + runs
         # the package manager (which itself prints progress). Don't redirect.
         echo
-        printf '  ${BOLD}• %s (%s)${NC} — installs system-wide via package manager\n' "$id" "$scope"
+        printf "  ${BOLD}• %s (%s)${NC} — installs system-wide via package manager\n" "$id" "$scope"
         if mp_install "$id" "$scope"; then
           ui_select_set "$i" 0
           installed_count=$(( installed_count + 1 ))
