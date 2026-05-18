@@ -15,12 +15,14 @@ _mp_fetch_file() {
   dir="$(dirname "$dest")"
   mkdir -p "$dir" || return 1
 
-  if [ -n "${DOTCONTEXT_REPO_ROOT:-}" ] && [ -f "$DOTCONTEXT_REPO_ROOT/$src" ]; then
-    cp "$DOTCONTEXT_REPO_ROOT/$src" "$dest" || return 1
+  # 1. Local marketplace clone (dev) — use checked-out files instead of fetching.
+  if [ -n "${DOTCONTEXT_MARKETPLACE_ROOT:-}" ] && [ -f "$DOTCONTEXT_MARKETPLACE_ROOT/$src" ]; then
+    cp "$DOTCONTEXT_MARKETPLACE_ROOT/$src" "$dest" || return 1
     return 0
   fi
 
-  local url="https://raw.githubusercontent.com/goca-se/dotcontext/main/$src"
+  # 2. Network fetch from marketplace repo.
+  local url="${MARKETPLACE_URL}/$src"
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$url" -o "$dest" 2>/dev/null || return 1
   elif command -v wget >/dev/null 2>&1; then

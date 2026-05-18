@@ -32,30 +32,63 @@ mp_manifest_require_jq() {
   fi
 }
 
-# Returns the path to the embedded manifest. When dotcontext is bundled the
-# manifest lives under the install prefix (~/.local/share/dotcontext or beside
-# the binary). For development, it's marketplace/manifest.json relative to repo.
+# Resolves the manifest path, fetching from the marketplace repo if needed.
+# Resolution order (first hit wins):
+#   1. $DOTCONTEXT_MANIFEST (explicit override — for tests or pinning a copy)
+#   2. $DOTCONTEXT_MARKETPLACE_ROOT/manifest.json (local dev — pointing at a
+#      clone of goca-se/dotcontext-marketplace)
+#   3. $HOME/.dotcontext/cache/manifest.json (fetched copy, refreshable)
+#   4. Network fetch from $MARKETPLACE_URL/manifest.json to (3), then use it
 mp_manifest_path() {
   if [ -n "$MP_MANIFEST_PATH" ]; then
     echo "$MP_MANIFEST_PATH"; return 0
   fi
-  local candidates=(
-    "${DOTCONTEXT_MANIFEST:-}"
-    "$(dirname "$0")/marketplace/manifest.json"
-    "$(dirname "$0")/../marketplace/manifest.json"
-    "$HOME/.local/share/dotcontext/manifest.json"
-    "/usr/local/share/dotcontext/manifest.json"
-  )
-  local p
-  for p in "${candidates[@]}"; do
-    [ -z "$p" ] && continue
-    if [ -f "$p" ]; then
-      MP_MANIFEST_PATH="$p"
-      echo "$p"; return 0
-    fi
-  done
-  printf 'dotcontext: manifest.json not found. Set DOTCONTEXT_MANIFEST or reinstall.\n' >&2
+
+  # 1. Explicit override
+  if [ -n "${DOTCONTEXT_MANIFEST:-}" ] && [ -f "${DOTCONTEXT_MANIFEST}" ]; then
+    MP_MANIFEST_PATH="$DOTCONTEXT_MANIFEST"
+    echo "$MP_MANIFEST_PATH"; return 0
+  fi
+
+  # 2. Local marketplace clone (dev)
+  if [ -n "${DOTCONTEXT_MARKETPLACE_ROOT:-}" ] && [ -f "${DOTCONTEXT_MARKETPLACE_ROOT}/manifest.json" ]; then
+    MP_MANIFEST_PATH="${DOTCONTEXT_MARKETPLACE_ROOT}/manifest.json"
+    echo "$MP_MANIFEST_PATH"; return 0
+  fi
+
+  # 3. Cache
+  local cache_dir="$HOME/.dotcontext/cache"
+  local cache_path="$cache_dir/manifest.json"
+  if [ -f "$cache_path" ] && [ "${DOTCONTEXT_MARKETPLACE_NO_CACHE:-0}" != "1" ]; then
+    MP_MANIFEST_PATH="$cache_path"
+    echo "$MP_MANIFEST_PATH"; return 0
+  fi
+
+  # 4. Fetch and cache
+  mkdir -p "$cache_dir" 2>/dev/null
+  local url="${MARKETPLACE_URL}/manifest.json"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$url" -o "$cache_path" 2>/dev/null || true
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$cache_path" "$url" 2>/dev/null || true
+  fi
+
+  if [ -f "$cache_path" ] && [ -s "$cache_path" ]; then
+    MP_MANIFEST_PATH="$cache_path"
+    echo "$MP_MANIFEST_PATH"; return 0
+  fi
+
+  printf 'dotcontext: could not load manifest from %s\n' "$url" >&2
+  printf 'Try: DOTCONTEXT_MARKETPLACE_ROOT=/path/to/dotcontext-marketplace dotcontext\n' >&2
   return 1
+}
+
+# Force a fresh fetch on next mp_manifest_path call. Useful for "refresh" key
+# in the TUI or for diagnostics.
+mp_manifest_refresh_cache() {
+  rm -f "$HOME/.dotcontext/cache/manifest.json"
+  MP_MANIFEST_PATH=""
+  MP_MANIFEST_JSON=""
 }
 
 mp_manifest_load() {

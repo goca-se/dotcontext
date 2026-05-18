@@ -11,8 +11,20 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SANDBOX="$(mktemp -d -t dotcontext-migrate.XXXXXX)"
 trap 'rm -rf "$SANDBOX"' EXIT
 
+# Find adjacent marketplace clone, or error with instructions.
+MARKETPLACE_ROOT="${DOTCONTEXT_MARKETPLACE_ROOT:-$REPO_ROOT/../dotcontext-marketplace}"
+if [ ! -f "$MARKETPLACE_ROOT/manifest.json" ]; then
+  echo "ERROR: marketplace clone not found at $MARKETPLACE_ROOT"
+  echo "Either clone goca-se/dotcontext-marketplace adjacent to this repo, or"
+  echo "set DOTCONTEXT_MARKETPLACE_ROOT to the clone path."
+  exit 1
+fi
+
+. "$REPO_ROOT/src/header.sh"
+
 export DOTCONTEXT_REPO_ROOT="$REPO_ROOT"
-export DOTCONTEXT_MANIFEST="$REPO_ROOT/marketplace/manifest.json"
+export DOTCONTEXT_MARKETPLACE_ROOT="$MARKETPLACE_ROOT"
+export DOTCONTEXT_MANIFEST="$MARKETPLACE_ROOT/manifest.json"
 export HOME="$SANDBOX/home"
 mkdir -p "$HOME"
 
@@ -20,11 +32,12 @@ mkdir -p "$SANDBOX/proj/.context"
 cd "$SANDBOX/proj"
 
 # Pre-seed the project with code-review files (as if installed by old dotcontext).
+# Templates now live in the marketplace repo.
 mkdir -p .claude/commands .claude/agents/code-review
-cp "$REPO_ROOT/templates/.claude/commands/code-review.md" .claude/commands/code-review.md
-cp "$REPO_ROOT/templates/.claude/agents/code-review/compliance-checker.md" .claude/agents/code-review/
-cp "$REPO_ROOT/templates/.claude/agents/code-review/bug-detector.md" .claude/agents/code-review/
-cp "$REPO_ROOT/templates/.claude/agents/code-review/security-analyst.md" .claude/agents/code-review/
+cp "$MARKETPLACE_ROOT/templates/.claude/commands/code-review.md" .claude/commands/code-review.md
+cp "$MARKETPLACE_ROOT/templates/.claude/agents/code-review/compliance-checker.md" .claude/agents/code-review/
+cp "$MARKETPLACE_ROOT/templates/.claude/agents/code-review/bug-detector.md" .claude/agents/code-review/
+cp "$MARKETPLACE_ROOT/templates/.claude/agents/code-review/security-analyst.md" .claude/agents/code-review/
 
 # Source libs
 . "$REPO_ROOT/src/lib/ui/confirm.sh"

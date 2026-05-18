@@ -10,8 +10,21 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SANDBOX="$(mktemp -d -t dotcontext-smoke.XXXXXX)"
 trap 'rm -rf "$SANDBOX"' EXIT
 
+# Find adjacent marketplace clone, or error with instructions.
+MARKETPLACE_ROOT="${DOTCONTEXT_MARKETPLACE_ROOT:-$REPO_ROOT/../dotcontext-marketplace}"
+if [ ! -f "$MARKETPLACE_ROOT/manifest.json" ]; then
+  echo "ERROR: marketplace clone not found at $MARKETPLACE_ROOT"
+  echo "Either clone goca-se/dotcontext-marketplace adjacent to this repo, or"
+  echo "set DOTCONTEXT_MARKETPLACE_ROOT to the clone path."
+  exit 1
+fi
+
+# Need to load header constants for MARKETPLACE_URL etc.
+. "$REPO_ROOT/src/header.sh"
+
 export DOTCONTEXT_REPO_ROOT="$REPO_ROOT"
-export DOTCONTEXT_MANIFEST="$REPO_ROOT/marketplace/manifest.json"
+export DOTCONTEXT_MARKETPLACE_ROOT="$MARKETPLACE_ROOT"
+export DOTCONTEXT_MANIFEST="$MARKETPLACE_ROOT/manifest.json"
 export HOME="$SANDBOX/home"
 mkdir -p "$HOME"
 
