@@ -25,6 +25,7 @@ Record of significant technical decisions in this project.
 | [017](017-bundle-granularity.md) | Bundle Granularity (Atomic Items) | Accepted | 2.0 |
 | [018](018-existing-user-migration-via-auto-registration.md) | Existing User Migration via Auto-Registration | Accepted | 2.0 |
 | [019](019-adr-template-v2-coexistence.md) | ADR Template v2 (Coexistence) | Accepted | 2.0 |
+| [020](020-marketplace-source-topology.md) | Marketplace Source Topology | Accepted | 2.0 |
 
 ## Template
 
