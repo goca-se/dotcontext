@@ -160,9 +160,10 @@ _browse_render_footer() {
 # ── Browse tab ──────────────────────────────────────────────────────────────
 
 _browse_render_browse() {
-  local row=3
+  local row=3 sp_count
+  sp_count="$(mp_manifest_starter_pack_ids | wc -l | tr -d ' ')"
   ui_menu_move_cursor "$row" 1
-  printf '\033[2K\033[1m★ Install starter pack (11 items)\033[0m   \033[2m[press p]\033[0m'
+  printf '\033[2K\033[1m★ Install starter pack (%s items)\033[0m   \033[2m[press p]\033[0m' "$sp_count"
   row=$(( row + 1 ))
   ui_menu_move_cursor "$row" 1; printf '\033[2K'
   row=$(( row + 1 ))
