@@ -36,9 +36,7 @@ SOURCES = \
 
 OUTPUT = dotcontext
 
-MANIFEST = marketplace/manifest.json
-
-.PHONY: build clean validate-manifest check-ui check
+.PHONY: build clean check-ui check
 
 build: $(OUTPUT)
 
@@ -48,13 +46,12 @@ $(OUTPUT): $(SOURCES)
 	@chmod +x $(OUTPUT)
 	@echo "Done: $(OUTPUT) ($$(wc -l < $(OUTPUT)) lines)"
 
-validate-manifest:
-	@bash scripts/validate-manifest.sh
-
 check-ui:
 	@bash tests/ui/syntax_check.sh
 
-check: validate-manifest check-ui
+# Manifest validation lives in the marketplace repo:
+# https://github.com/goca-se/dotcontext-marketplace (run `make validate-manifest` there).
+check: check-ui
 
 clean:
 	@rm -f $(OUTPUT)
