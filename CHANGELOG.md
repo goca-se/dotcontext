@@ -26,8 +26,8 @@
 * New directory: `src/lib/ui/` — TUI primitives (`menu_paginated`, `multi_select`, `detail_pane`, `confirm`, `spinner_alt`, `tabs`).
 * New directory: `src/lib/marketplace/` — `manifest.sh`, `lockfile.sh`, `scope.sh`, `bundle.sh`, `migrate.sh`.
 * New directory: `src/lib/install/` — per-type install handlers (`command`, `skill`, `script`, `mcp`, `hook`, `cli`) plus `dispatch.sh`.
-* New: `marketplace/manifest.json` (16 items) + `marketplace/manifest.schema.json`.
-* New: 6 ADRs (014-019); 4 ADRs updated to v2.0 (002, 003, 007, 012).
+* **Marketplace lives in [goca-se/dotcontext-marketplace](https://github.com/goca-se/dotcontext-marketplace)** — catalog and Layer 2 templates moved to a dedicated repo to lower the bar for community contributions and keep the harness focused. The CLI fetches `manifest.json` and Layer 2 files from there at runtime (cached at `~/.dotcontext/cache/`). See [ADR-020](.context/decisions/020-marketplace-source-topology.md).
+* New: 7 ADRs (014-020); 4 ADRs updated to v2.0 (002, 003, 007, 012).
 
 ### Migration
 

@@ -15,7 +15,7 @@
 
 `dotcontext` is an AI context toolkit for Claude Code. It provides commands, decisions, skills, and feature planning workflows that help AI assistants understand and work with your codebase.
 
-> **v0.15 introduces breaking changes.** `dotcontext init` now installs the absolute minimum — `.context/` skeleton, `CLAUDE.md`, and `/setup-context`. Everything else (including `/commit`, `/deep-context`, `/add-decision`, `/code-review`, `/fix-bug`, MCPs, CLIs) is opt-in via the new **marketplace TUI** — run `dotcontext` (no args). The starter pack covers the common case in one keystroke (`p` then `i`). `dotcontext doctor` and `dotcontext completion` are removed. Existing installs auto-migrate silently on first `dotcontext update`. See [`docs/MIGRATION.md`](docs/MIGRATION.md).
+> **v0.15 introduces breaking changes.** `dotcontext init` now installs the absolute minimum — `.context/` skeleton, `CLAUDE.md`, and `/setup-context`. Everything else (including `/commit`, `/deep-context`, `/add-decision`, `/code-review`, `/fix-bug`, MCPs, CLIs) is opt-in via the new **marketplace TUI** — run `dotcontext` (no args). The starter pack covers the common case in one keystroke (`p` then `i`). The marketplace catalog lives in [goca-se/dotcontext-marketplace](https://github.com/goca-se/dotcontext-marketplace) — see [ADR-020](.context/decisions/020-marketplace-source-topology.md). `dotcontext doctor` and `dotcontext completion` are removed. Existing installs auto-migrate silently on first `dotcontext update`. See [`docs/MIGRATION.md`](docs/MIGRATION.md).
 
 <details>
 <summary>See it in action</summary>
@@ -159,6 +159,8 @@ your-project/
 That's it. No agents, no other commands, no skills, no scripts.
 
 ### Layer 2 (marketplace TUI installs this on demand)
+
+The catalog lives in a separate repo: **[goca-se/dotcontext-marketplace](https://github.com/goca-se/dotcontext-marketplace)**. The CLI fetches the manifest from there at runtime (cached at `~/.dotcontext/cache/manifest.json`). See [ADR-020](.context/decisions/020-marketplace-source-topology.md) for the topology rationale.
 
 Run `dotcontext` (no args) in a regular terminal — interactive TUIs don't render inside Claude Code's `!` bash block. Press **P** to mark the starter pack (16 items), then **I** to install:
 

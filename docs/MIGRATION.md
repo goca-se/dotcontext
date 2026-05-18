@@ -32,6 +32,16 @@ You don't need to reinstall anything. Auto-registration (silent) tells the new T
 
 All 16 of these are in the **starter pack** — pressing `p` then `i` in the marketplace TUI installs all of them in one keystroke pair. Auto-registration on `dotcontext update` already preserves your existing files in the lockfile so they show up in the TUI's Installed tab.
 
+### The marketplace lives in a separate repo
+
+The catalog (`manifest.json` + Layer 2 templates) moved out of `goca-se/dotcontext` and into [`goca-se/dotcontext-marketplace`](https://github.com/goca-se/dotcontext-marketplace). For users, this is transparent — the CLI fetches the manifest from the new URL automatically. For contributors:
+
+- **Want to add a marketplace item?** PR to `goca-se/dotcontext-marketplace` (see its CONTRIBUTING.md).
+- **Want to change CLI/TUI behavior?** PR to `goca-se/dotcontext` (this repo).
+- **Want to override the marketplace source** (e.g., point at your fork): `DOTCONTEXT_MARKETPLACE_REPO=you/your-fork dotcontext`.
+
+See [ADR-020](../.context/decisions/020-marketplace-source-topology.md) for the topology rationale.
+
 See [ADR-015: Two-Layer Distribution Model](../.context/decisions/015-two-layer-distribution-model.md).
 
 ### `dotcontext doctor` and `dotcontext completion` are gone

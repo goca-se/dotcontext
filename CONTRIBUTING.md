@@ -17,13 +17,16 @@ If anything below is unclear, open an issue and we'll improve the guide.
 git clone https://github.com/goca-se/dotcontext.git
 cd dotcontext
 make build              # bundles src/ into the single ./dotcontext binary
-make check              # validate-manifest + bash -n on src/lib/
+make check              # bash -n on src/lib/
 
-# Try the TUI in an isolated sandbox (uses local code, not GitHub):
+# Optional: clone the marketplace adjacent for end-to-end testing
+git clone https://github.com/goca-se/dotcontext-marketplace.git ../dotcontext-marketplace
+
+# Try the TUI in an isolated sandbox (auto-detects adjacent marketplace clone):
 bash tests/sandbox.sh
 ```
 
-The build produces `./dotcontext` (~90 KB). To test changes end-to-end without a GitHub release, use `tests/sandbox.sh` — it sets `DOTCONTEXT_REPO_ROOT` so install handlers read template files from your local checkout instead of `main`.
+The build produces `./dotcontext` (~94 KB). `tests/sandbox.sh` sets `DOTCONTEXT_REPO_ROOT` (this repo) and, when an adjacent `../dotcontext-marketplace` exists, `DOTCONTEXT_MARKETPLACE_ROOT` (the marketplace clone) so install handlers read from local checkouts instead of GitHub.
 
 ## Where to start
 
@@ -31,17 +34,11 @@ dotcontext has four contribution surfaces. Pick the one that fits.
 
 ### Add a marketplace item
 
-The highest-leverage path. The marketplace catalog lives in [`marketplace/manifest.json`](marketplace/manifest.json) and ships 16 items today (commands, MCPs, external CLIs, hooks, scripts, skills). Adding a new one means:
+**Wrong repo.** The marketplace catalog (manifest + Layer 2 templates) lives in [**goca-se/dotcontext-marketplace**](https://github.com/goca-se/dotcontext-marketplace). PRs adding commands, skills, MCPs, CLIs, hooks, or scripts go there.
 
-1. **Decide the type:** `command-bundle`, `skill`, `mcp`, `external-cli`, `hook`, or `script` (see [`marketplace/manifest.schema.json`](marketplace/manifest.schema.json)).
-2. **Add source files** under `templates/` if your item ships markdown/scripts (e.g., a new command at `templates/.claude/commands/my-thing.md`).
-3. **Add the manifest entry** to `marketplace/manifest.json` with id, name, description, version, scopes_supported, default_scope, and any type-specific fields (`files`, `mcp_config`, `package_managers`, `hook_config`, etc.).
-4. **Run `make validate-manifest`** — it catches missing source paths, duplicate ids, and broken `depends_on` references.
-5. **Test it locally:** `bash tests/sandbox.sh`, install your item from the TUI, verify behavior, uninstall, verify clean removal.
+Why the split: keeps the harness focused on the CLI / TUI / install handlers, lets the catalog grow without bloating this repo, and lowers the bar for community catalog additions (no need to read bash 3.2 constraints to suggest a new MCP). See [ADR-020](.context/decisions/020-marketplace-source-topology.md).
 
-If your item depends on others (e.g., a command that needs a skill), use the `depends_on` array — bundles install/remove transitively per [ADR-017](.context/decisions/017-bundle-granularity.md).
-
-If your item is in the **starter pack** (the 11 default items), set `"starter_pack": true`. Be conservative — the starter pack is for items the median user wants on day one.
+If your change affects the manifest **schema** (adding a new item type, new required fields), that's a CLI change too — it touches `src/lib/marketplace/manifest.sh` and item handlers in `src/lib/install/`. Open a PR here in tandem with the marketplace PR.
 
 ### Change harness internals
 

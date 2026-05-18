@@ -96,11 +96,11 @@ The CLI is distributed as a single `dotcontext` bash script. Source code lives i
 
 ### Marketplace TUI (ADR-014)
 
-Bash-native TUI in `src/lib/ui/` with three tabs: Browse · Installed · Status. The catalog lives in `marketplace/manifest.json` (16 items, 11 in the starter pack). Per-scope lockfiles (`.context/.dotcontext-state.json` local; `~/.dotcontext/state.json` global) record what's installed. See ADRs 014, 015, 016, 017.
+Bash-native TUI in `src/lib/ui/` with three tabs: Browse · Installed · Status. The catalog and Layer 2 templates live in a separate repo — [goca-se/dotcontext-marketplace](https://github.com/goca-se/dotcontext-marketplace) — fetched by the CLI at runtime (cached at `~/.dotcontext/cache/manifest.json`). Per-scope lockfiles (`.context/.dotcontext-state.json` local; `~/.dotcontext/state.json` global) record what's installed. See ADRs 014, 015, 016, 017, 020.
 
 ### Template-Based Init
 
-Layer 1 templates live in `templates/` on GitHub and are downloaded during `dotcontext init`. Layer 2 source files also live in `templates/` but are pulled per-item by the marketplace's bundle resolver.
+Layer 1 templates live in `templates/` (this repo) and are downloaded during `dotcontext init`. Layer 2 templates live in `templates/` in the marketplace repo and are fetched per-item by the bundle resolver.
 
 ### Claude Code Integration
 
@@ -112,5 +112,5 @@ Slash commands in `.claude/commands/` provide interactive workflows that integra
 
 - Domain and architecture → `.context/CONTEXT.md`
 - Architectural decisions → `.context/decisions/`
-- Marketplace manifest → `marketplace/manifest.json`
+- Marketplace catalog → [goca-se/dotcontext-marketplace](https://github.com/goca-se/dotcontext-marketplace)
 - Migration guide → `docs/MIGRATION.md`
