@@ -2693,19 +2693,38 @@ _browse_install_selected() {
   print_blue "Installing selected items..."
   echo
 
-  local i id scope rc=0 installed_count=0
+  local i id scope type rc=0 installed_count=0
   for (( i = 0; i < ${#BROWSE_IDS[@]}; i++ )); do
     if [ "$(ui_select_get "$i")" = "1" ]; then
       id="${BROWSE_IDS[$i]}"
       scope="${BROWSE_SCOPES[$i]}"
-      printf '  • %s (%s)... ' "$id" "$scope"
-      if mp_install "$id" "$scope" >/dev/null 2>&1; then
-        print_green "OK"
-        ui_select_set "$i" 0   # clear selection on success — checkbox empties
-        installed_count=$(( installed_count + 1 ))
+      type="$(mp_manifest_field "$id" type)"
+
+      if [ "$type" = "external-cli" ]; then
+        # External CLIs install via OS package manager (brew/apt/dnf/...) and
+        # *need* visible output: the handler prints a confirm prompt + runs
+        # the package manager (which itself prints progress). Don't redirect.
+        echo
+        printf '  ${BOLD}• %s (%s)${NC} — installs system-wide via package manager\n' "$id" "$scope"
+        if mp_install "$id" "$scope"; then
+          ui_select_set "$i" 0
+          installed_count=$(( installed_count + 1 ))
+          print_green "    ✓ $id installed"
+        else
+          print_yellow "    ⚠ $id skipped or failed (continuing)"
+        fi
       else
-        print_red "FAIL"
-        rc=1
+        # File-based items (command-bundle / skill / mcp / hook / script) are
+        # quiet; we just need OK/FAIL feedback.
+        printf '  • %s (%s)... ' "$id" "$scope"
+        if mp_install "$id" "$scope" >/dev/null 2>&1; then
+          print_green "OK"
+          ui_select_set "$i" 0
+          installed_count=$(( installed_count + 1 ))
+        else
+          print_red "FAIL"
+          rc=1
+        fi
       fi
     fi
   done
