@@ -258,13 +258,12 @@ Multi-agent code review inspired by [Claude Code's official plugin](https://gith
 
 Generates a Product Requirements Prompt for a new feature:
 
-- **Asks 10 clarifying questions** before generating (mandatory)
+- **Runs a clarity assessment** and asks N targeted questions (0..N) — only the ones that genuinely unblock ambiguity
 - Analyzes codebase patterns and existing architecture
 - Consults skills and decisions for consistency
-- Creates structured implementation plan with phases
+- Pauses at a **Validation Gate** with a parallel Haiku auto-validation subagent before locking the implementation plan
+- Creates structured implementation plan with phases, a final e2e verification phase, and a Parallelism Map for `/execute-prp`
 - Saves to `.context/prp/generated/`
-
-The clarifying questions ensure the PRP captures the right scope, constraints, and edge cases before any code is written.
 
 Example:
 

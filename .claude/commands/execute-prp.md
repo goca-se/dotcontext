@@ -6,18 +6,30 @@ Execute the PRP specified in $ARGUMENTS.
 
 1. **Read the PRP** completely from `.context/prp/generated/`
 2. **Check prerequisites** (pending migrations, dependencies, etc)
-3. **Implement in the order defined** in the PRP
-4. **Validate each step:**
+3. **Read the Parallelism Map** in the PRP — plan parallel dispatch (see below)
+4. **Implement in the order defined** in the PRP, parallelizing where the map allows
+5. **Validate each step:**
    - Code compiles
    - Linting passes
    - Tests pass
-5. **Fix issues** before proceeding to next step
+6. **Fix issues** before proceeding to next step
 
 ## During Implementation
 
 - Follow patterns in `.claude/skills/`
 - Respect decisions in `.context/decisions/`
 - Check `CLAUDE.md` for critical rules
+
+## Parallel Phase Dispatch
+
+The PRP contains a **Parallelism Map** section listing which phases can run concurrently. Use it as follows:
+
+- **Sequential phases** — implement directly in this session.
+- **Parallel blocks** — dispatch each independent phase as a separate subagent via the Task tool. Each subagent gets the relevant phase content + the Affected files rows it owns. They write to disjoint paths by construction (that's the parallelism guarantee in the map).
+- **After a parallel block completes** — read the subagent reports, run the phase Validation step in the main session, then move on.
+- **The final e2e verification phase is always sequential** — run it in the main session after every prior phase is marked complete.
+
+If the Parallelism Map says "all phases sequential", skip the dispatch step entirely.
 
 ## Decision Compliance Check
 
