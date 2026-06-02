@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.2](https://github.com/goca-se/dotcontext/compare/v0.14.1...v0.14.2) (2026-06-02)
+
+### Features
+
+* **PRP clarity, rigor & parallelism** — selectively absorbs spec-driven-build ideas into the existing PRP workflow:
+  * **`/generate-prp`** — replaces the mandatory 10-question quota with a clarity-assessment policy (0..N questions, only when genuinely needed); adds a Validation Gate that dispatches a parallel Haiku subagent to verify referenced files exist, snippets are compilable, criteria are objectively verifiable, and change sets are mutually exclusive; adds Snippet Quality Rules (`file:line` refs, real type names, no placeholders)
+  * **`feature.md` template** — Scope split into "What changes" / "What doesn't change"; strict path-level Affected files table; optional ASCII flow; mandatory end-to-end verification phase; new Parallelism Map for concurrent dispatch
+  * **`/execute-prp`** — reads the Parallelism Map to dispatch independent phases concurrently via Task subagents
+  * **ADR-005 → v2.0** — decision updated from "asks 10 custom clarifying questions" to "asks N (0..N) based on a clarity assessment"; spirit ("always ask before assuming") preserved
+  * **propagation** — `feature.md` promoted from seed to managed in `src/commands/update.sh` so existing projects receive the new schema via `dotcontext update --templates`
+
 ## [0.14.1](https://github.com/goca-se/dotcontext/compare/v0.14.0...v0.14.1) (2026-04-23)
 
 ### Features

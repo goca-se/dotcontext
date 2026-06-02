@@ -1,0 +1,26 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash .claude/scripts/statusline.sh"
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh 'Claude Code' 'Needs your attention' question"}]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [{"type": "command", "command": ".claude/scripts/notify.sh 'Claude Code' 'Task completed' success"}]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [{"type": "command", "command": ".claude/scripts/tool-failure-guard.sh"}]
+      }
+    ]
+  }
+}
