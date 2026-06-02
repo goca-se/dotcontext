@@ -100,7 +100,6 @@ if prompt_yes_no "Continue?"; then
 fi
 
 # File operations
-slugify "Some Title"  # Returns "some-title"
 download_file "$url" "$dest"
 ```
 

@@ -73,7 +73,6 @@ cmd_init() {
   download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/README.md" ".claude/skills/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"
@@ -165,6 +164,11 @@ cmd_init() {
     setup_mcp "$add_context7" "$add_atlassian"
   else
     print_gray "  skipped (exists): .mcp.json"
+  fi
+
+  # Offer to install shell tab-completion (interactive runs only)
+  if [ "$skip_prompts" = false ] && [ -t 0 ]; then
+    offer_completion_install
   fi
 
   # Substitute project name (only on fresh CLAUDE.md with placeholder)

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.14.2"
+VERSION="0.15.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -127,10 +127,6 @@ stop_spinner() {
 }
 # ── Utilities ─────────────────────────────────────────────────────────────────
 
-slugify() {
-  echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//'
-}
-
 prompt() {
   local message="$1"
   local default="$2"
@@ -199,6 +195,52 @@ cleanup_managed_dir() {
       rm -f "$file"
     fi
   done
+}
+
+# Compare two semver strings (X.Y.Z). Returns 0 if $1 > $2, else 1.
+version_gt() {
+  [ "$1" = "$2" ] && return 1
+  local IFS=.
+  local a=($1) b=($2)
+  local i ai bi
+  for i in 0 1 2; do
+    ai=${a[i]:-0}; bi=${b[i]:-0}
+    # strip any pre-release suffix so "1.2.3-dev" compares as 3
+    ai=${ai%%[^0-9]*}; bi=${bi%%[^0-9]*}
+    if [ "${ai:-0}" -gt "${bi:-0}" ] 2>/dev/null; then return 0; fi
+    if [ "${ai:-0}" -lt "${bi:-0}" ] 2>/dev/null; then return 1; fi
+  done
+  return 1
+}
+
+# Fetch the latest released version from GitHub, cached for 1 day.
+# Echoes the bare version (no leading "v"); returns 1 on failure/offline.
+fetch_latest_version() {
+  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dotcontext"
+  local cache_file="$cache_dir/latest_version"
+
+  # Serve from cache if fresh (modified within the last day)
+  if [ -f "$cache_file" ] && [ -n "$(find "$cache_file" -mtime -1 2>/dev/null)" ]; then
+    cat "$cache_file"
+    return 0
+  fi
+
+  local resp tag ver
+  if command -v curl &> /dev/null; then
+    resp=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null)
+  elif command -v wget &> /dev/null; then
+    resp=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null)
+  else
+    return 1
+  fi
+
+  tag=$(echo "$resp" | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+  ver=$(echo "$tag" | sed 's/^v//')
+  [ -z "$ver" ] && return 1
+
+  mkdir -p "$cache_dir" 2>/dev/null
+  echo "$ver" > "$cache_file" 2>/dev/null
+  echo "$ver"
 }
 # ── Hook Setup ────────────────────────────────────────────────────────────────
 
@@ -418,7 +460,6 @@ cmd_init() {
   download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/README.md" ".claude/skills/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"
@@ -512,6 +553,11 @@ cmd_init() {
     print_gray "  skipped (exists): .mcp.json"
   fi
 
+  # Offer to install shell tab-completion (interactive runs only)
+  if [ "$skip_prompts" = false ] && [ -t 0 ]; then
+    offer_completion_install
+  fi
+
   # Substitute project name (only on fresh CLAUDE.md with placeholder)
   if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -556,7 +602,6 @@ cmd_update() {
       --cli) cli_only=true; shift ;;
       --yes|-y) auto_yes=true; shift ;;
       --dry-run) dry_run=true; shift ;;
-      --force) auto_yes=true; shift ;;  # backwards compat
       *) shift ;;
     esac
   done
@@ -695,7 +740,8 @@ cmd_update_templates() {
 
   start_spinner "Checking templates..."
 
-  # MANAGED templates: dotcontext-owned code (commands). Always offered for update.
+  # MANAGED templates: dotcontext-owned code (commands, templates that drive commands).
+  # Always offered for update — diff is shown, user can accept or skip.
   declare -a managed_templates=(
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
     "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
@@ -709,6 +755,7 @@ cmd_update_templates() {
     "templates/.claude/commands/deep-context.md:.claude/commands/deep-context.md"
     "templates/.claude/commands/fix-bug.md:.claude/commands/fix-bug.md"
     "templates/.claude/commands/commit.md:.claude/commands/commit.md"
+    "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.claude/scripts/statusline.sh:.claude/scripts/statusline.sh"
     "templates/.claude/agents/code-review/compliance-checker.md:.claude/agents/code-review/compliance-checker.md"
     "templates/.claude/agents/code-review/bug-detector.md:.claude/agents/code-review/bug-detector.md"
@@ -727,9 +774,7 @@ cmd_update_templates() {
   # SEED templates: created once during init, customized by user or /setup-context.
   # Only added if missing — never offered for overwrite to protect user content.
   declare -a seed_templates=(
-    "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
-    "templates/.claude/skills/README.md:.claude/skills/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
 
@@ -1115,6 +1160,17 @@ cmd_doctor() {
     check_warn "Legacy global hooks detected in ~/.claude/settings.json — remove manually to avoid duplicates"
   fi
 
+  # Check: CLI update available (cached, best-effort — silent when offline)
+  local latest_version
+  latest_version=$(fetch_latest_version 2>/dev/null || echo "")
+  if [ -n "$latest_version" ]; then
+    if version_gt "$latest_version" "$VERSION"; then
+      check_warn "dotcontext update available: $VERSION → $latest_version (run: dotcontext update --cli)"
+    else
+      check_pass "dotcontext up to date ($VERSION)"
+    fi
+  fi
+
   # Summary
   print_block_footer
   printf "  ${GREEN}%d passed${NC}  ${RED}%d failed${NC}  ${YELLOW}%d warnings${NC}\n" "$pass" "$fail" "$warn"
@@ -1173,8 +1229,8 @@ cmd_help() {
 
   # Global Options
   printf "  ${BLUE}${BOLD}Global Options${NC}\n"
-  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--help, -h"    "Show this help"
-  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--version, -v" "Show version"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--help, -h"        "Show this help"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--version, -v"     "Show version (add --features or --json)"
   echo ""
 
   # Claude Code Commands
@@ -1201,6 +1257,59 @@ cmd_help() {
   printf "    ${GRAY}\$${NC} dotcontext doctor\n"
   printf "    ${GRAY}\$${NC} eval \"\$(dotcontext completion bash)\"\n"
   echo ""
+}
+
+# ── Command: version ──────────────────────────────────────────────────────────
+# Plain `--version` prints the version. `--features` adds a human-readable
+# capability list; `--json` emits a machine-readable capability handshake so an
+# agent/harness can discover what this dotcontext supports before invoking it.
+
+cmd_version() {
+  local features=false
+  local json=false
+  for arg in "$@"; do
+    case "$arg" in
+      --features) features=true ;;
+      --json) json=true ;;
+      *)
+        printf "${RED}Unknown option for --version: %s${NC}\n" "$arg" >&2
+        printf "Usage: dotcontext --version [--features] [--json]\n" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  if [ "$json" = true ]; then
+    cat <<JSON
+{
+  "name": "dotcontext",
+  "version": "$VERSION",
+  "repo": "$REPO",
+  "commands": ["init", "update", "doctor", "completion"],
+  "capabilities": {
+    "update_check": true,
+    "askuserquestion": true,
+    "statusline": true,
+    "hooks": true,
+    "multiagent": false,
+    "agents": ["claude"]
+  }
+}
+JSON
+    return 0
+  fi
+
+  echo "dotcontext $VERSION"
+  if [ "$features" = true ]; then
+    echo ""
+    echo "Capabilities:"
+    printf "  %-16s %s\n" "update_check"    "yes"
+    printf "  %-16s %s\n" "askuserquestion" "yes"
+    printf "  %-16s %s\n" "statusline"      "yes"
+    printf "  %-16s %s\n" "hooks"           "yes"
+    printf "  %-16s %s\n" "multiagent"      "no"
+    printf "  %-16s %s\n" "agents"          "claude"
+  fi
 }
 # ── Command: completion ───────────────────────────────────────────────────────
 
@@ -1309,6 +1418,50 @@ ZSH_COMP
       ;;
   esac
 }
+
+# Offer to wire shell completion into the user's profile (called from init).
+# No-ops for unknown shells, when dotcontext isn't on PATH, when already
+# installed, or when declined.
+offer_completion_install() {
+  local shell profile line
+
+  case "$(basename "${SHELL:-bash}")" in
+    zsh)
+      shell="zsh"
+      profile="${ZDOTDIR:-$HOME}/.zshrc"
+      ;;
+    bash)
+      shell="bash"
+      # macOS interactive bash reads ~/.bash_profile; Linux reads ~/.bashrc.
+      if [ -f "$HOME/.bashrc" ]; then
+        profile="$HOME/.bashrc"
+      elif [ "$(uname)" = "Darwin" ]; then
+        profile="$HOME/.bash_profile"
+      else
+        profile="$HOME/.bashrc"
+      fi
+      ;;
+    *) return 0 ;;
+  esac
+
+  # Only offer when dotcontext is actually on PATH — otherwise the line would
+  # just print "command not found" in every new shell.
+  command -v dotcontext >/dev/null 2>&1 || return 0
+
+  # Self-guard the persisted line so it stays harmless if dotcontext later
+  # leaves PATH (uninstalled, moved, etc.).
+  line="command -v dotcontext >/dev/null 2>&1 && eval \"\$(dotcontext completion $shell)\""
+
+  if [ -f "$profile" ] && grep -qF "dotcontext completion" "$profile" 2>/dev/null; then
+    return 0
+  fi
+
+  echo ""
+  if confirm "  Install $shell tab-completion to ${profile/#$HOME/~}?"; then
+    printf '\n# dotcontext completion\n%s\n' "$line" >> "$profile"
+    print_gray "  added — restart your shell or run: source ${profile/#$HOME/~}"
+  fi
+}
 # ── Main Routing ──────────────────────────────────────────────────────────────
 
 case "${1:-}" in
@@ -1316,7 +1469,7 @@ case "${1:-}" in
   update) shift; cmd_update "$@" ;;
   doctor) cmd_doctor ;;
   completion) shift; cmd_completion "$@" ;;
-  --version|-v) echo "dotcontext $VERSION" ;;
+  --version|-v) shift; cmd_version "$@" ;;
   --help|-h|"") cmd_help ;;
   *) print_red "Unknown command: $1. Run 'dotcontext --help' for usage."; exit 1 ;;
 esac

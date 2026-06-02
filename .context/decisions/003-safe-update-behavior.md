@@ -2,24 +2,36 @@
 
 **Status:** Accepted
 **Date:** 2025-01-15
-**Version:** 1.0
+**Version:** 2.0
 **Deciders:** Gocase Team
 
 ## Context
 
 When users run `dotcontext update --templates`, we need to decide how to handle existing files. Users may have customized their CLAUDE.md, added content to CONTEXT.md, or modified templates. Blindly overwriting would lose their work.
 
+The original v1.0 model was "only add new files; pass `--force` to overwrite everything." In practice the toolkit evolved to a finer-grained split between dotcontext-owned files and user-owned files, making a single blunt `--force` overwrite both unsafe and unnecessary.
+
 ## Decision
 
-By default, template updates only add new files that don't exist. Existing files are never overwritten unless the user explicitly passes `--force`.
+Files fall into two classes, handled differently on update:
+
+- **Seed files** (user-owned: `CLAUDE.md`, `CONTEXT.md`, `decisions/README.md`, `bug-reproduction/SKILL.md`, `feature.md`, …) — created once if missing and **never overwritten**, protecting user customizations.
+- **Managed files** (dotcontext-owned: commands, agents, statusline, hooks) — always offered for update. The update shows a per-file diff and prompts before applying; stale managed files are pruned declaratively.
+
+Flags:
 
 ```bash
-# Safe: only adds new files
+# Safe default: add new seeds, show diffs and prompt for managed changes
 dotcontext update --templates
 
-# Destructive: overwrites everything
-dotcontext update --templates --force
+# Non-interactive: auto-accept managed updates (seeds still never overwritten)
+dotcontext update --templates --yes
+
+# Preview only: show what would change
+dotcontext update --templates --dry-run
 ```
+
+There is **no `--force` flag** — it was removed (it had degenerated into a plain alias for `--yes`). User-owned seeds are never force-overwritten by design; to reset one, delete it and re-run update.
 
 ## Alternatives Considered
 
@@ -50,6 +62,8 @@ dotcontext update --templates --force
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-01-15 | Initial decision |
+| 2.0 | 2026-06-02 | Replace the blunt `--force` overwrite with the seed/managed split (diff + prompt for managed, create-only for seeds); document removal of `--force` in favor of `--yes`/`--dry-run` |
 
 ## Related
 - ADR-002: Template download strategy
+- ADR-014: Automated release pipeline & single-source versioning

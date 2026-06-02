@@ -148,6 +148,17 @@ cmd_doctor() {
     check_warn "Legacy global hooks detected in ~/.claude/settings.json — remove manually to avoid duplicates"
   fi
 
+  # Check: CLI update available (cached, best-effort — silent when offline)
+  local latest_version
+  latest_version=$(fetch_latest_version 2>/dev/null || echo "")
+  if [ -n "$latest_version" ]; then
+    if version_gt "$latest_version" "$VERSION"; then
+      check_warn "dotcontext update available: $VERSION → $latest_version (run: dotcontext update --cli)"
+    else
+      check_pass "dotcontext up to date ($VERSION)"
+    fi
+  fi
+
   # Summary
   print_block_footer
   printf "  ${GREEN}%d passed${NC}  ${RED}%d failed${NC}  ${YELLOW}%d warnings${NC}\n" "$pass" "$fail" "$warn"

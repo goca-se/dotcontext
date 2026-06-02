@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0](https://github.com/goca-se/dotcontext/compare/v0.14.2...v0.15.0) (2026-06-02)
+
+### Features
+
+* **update awareness in `doctor`** — `dotcontext doctor` now ends with a best-effort, day-cached check against the latest GitHub release and reports `update available: X → Y` or `up to date`. Silent when offline; never fails the health check. New shared helpers `fetch_latest_version()` / `version_gt()` in `src/core/utils.sh` (ADR-015)
+* **capability handshake** — `dotcontext --version` gains `--features` (human-readable capability list) and `--json` (machine-readable handshake with `commands` + `capabilities`, no jq dependency) so an agent/harness can discover support before invoking. `multiagent: false` / `agents: ["claude"]` today — flips when multi-agent lands (ADR-015)
+* **automated release pipeline** — `.github/workflows/release.yml` publishes a GitHub release on `v*` tag push, generating notes from `git log`; verifies the built binary is in sync with `src/` and that the tag matches `VERSION`. New `.github/workflows/ci.yml` runs `bash -n` + the build-in-sync check on PRs (ADR-014)
+* **shell completion offered at `init`** — interactive `dotcontext init` now offers to wire tab-completion into `~/.zshrc`/`~/.bashrc`
+
+### Changes
+
+* **version single-source-of-truth** — `VERSION` now lives only in `src/header.sh`; the `/release` flow bumps it and runs `make build` instead of editing the built binary with `sed`, eliminating the source↔binary drift that affected v0.14.2 (ADR-014)
+* removed the `--force` alias from `dotcontext update` (use `--yes`/`--dry-run`); removed the unused `slugify()` helper; dropped the low-value `skills/README.md` seed template. ADR-003 updated to v2.0 to document the seed/managed split. (`decisions/README.md` and the `bug-reproduction` skill are kept — both are load-bearing for `/add-decision`/`/setup-context` and `/fix-bug` respectively)
+
 ## [0.14.2](https://github.com/goca-se/dotcontext/compare/v0.14.1...v0.14.2) (2026-06-02)
 
 ### Features

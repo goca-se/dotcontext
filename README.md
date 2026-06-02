@@ -187,10 +187,10 @@ Additionally, `dotcontext init` configures:
 | `dotcontext update --templates`        | Only update templates                          |
 | `dotcontext update --yes`              | Update templates without prompting             |
 | `dotcontext update --dry-run`          | Preview template changes only                  |
-| `dotcontext doctor`                    | Check project setup health                     |
+| `dotcontext doctor`                    | Check project setup health (+ flags available updates) |
 | `dotcontext completion [bash\|zsh]`    | Generate shell tab completions                 |
 | `dotcontext --help`                    | Show help                                      |
-| `dotcontext --version`                 | Show version                                   |
+| `dotcontext --version [--features\|--json]` | Show version; `--features`/`--json` expose the capability handshake |
 
 ### Claude Code Commands
 
@@ -468,7 +468,7 @@ No additional dependencies required.
 
 ## Shell Completion
 
-Enable tab completion for dotcontext commands and options:
+`dotcontext init` offers to wire this into your shell profile automatically. To set it up manually instead:
 
 ```bash
 # Bash (add to ~/.bashrc)

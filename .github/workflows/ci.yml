@@ -1,0 +1,30 @@
+name: CI
+
+# Guards against syntax errors and the build-drift class of bug: the committed
+# `dotcontext` binary must always match `make build` output from src/.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Bash syntax check
+        run: |
+          find src -name '*.sh' -print0 | xargs -0 -n1 bash -n
+          bash -n dotcontext
+
+      - name: Built binary is in sync with src/
+        run: |
+          make build
+          if ! git diff --quiet dotcontext; then
+            echo "::error::dotcontext is out of sync with src/. Run 'make build' and commit."
+            git diff --stat dotcontext
+            exit 1
+          fi

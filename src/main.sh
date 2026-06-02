@@ -5,7 +5,7 @@ case "${1:-}" in
   update) shift; cmd_update "$@" ;;
   doctor) cmd_doctor ;;
   completion) shift; cmd_completion "$@" ;;
-  --version|-v) echo "dotcontext $VERSION" ;;
+  --version|-v) shift; cmd_version "$@" ;;
   --help|-h|"") cmd_help ;;
   *) print_red "Unknown command: $1. Run 'dotcontext --help' for usage."; exit 1 ;;
 esac
