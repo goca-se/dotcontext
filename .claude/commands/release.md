@@ -90,14 +90,15 @@ Show the generated changelog to the user and ask for confirmation.
 
 Once confirmed:
 
-1. **Update version in `dotcontext` script:**
+1. **Update version in `src/header.sh`** (the single source of truth) and rebuild — **never** sed the built `dotcontext` directly, or the binary will drift from source:
 ```bash
-sed -i '' "s/VERSION=\".*\"/VERSION=\"X.Y.Z\"/" dotcontext
+sed -i '' "s/VERSION=\".*\"/VERSION=\"X.Y.Z\"/" src/header.sh
+make build
 ```
 
 2. **Update CHANGELOG.md** - prepend the new entry after `# Changelog`
 
-3. **Commit changes:**
+3. **Commit changes** (must include both `src/header.sh` and the rebuilt `dotcontext`):
 ```bash
 git add -A
 git commit -m "chore(release): vX.Y.Z"
@@ -108,16 +109,23 @@ git commit -m "chore(release): vX.Y.Z"
 git tag vX.Y.Z
 ```
 
-### 7. Push and Create Release
+### 7. Push (the release is created automatically)
 
 **Use AskUserQuestion tool:**
-- "Push and create GitHub release?"
-- Options: "Yes, push and release" / "No, keep local only"
+- "Push and trigger the release workflow?"
+- Options: "Yes, push" / "No, keep local only"
 
 If yes:
 ```bash
 git push && git push --tags
-gh release create vX.Y.Z --title "vX.Y.Z" --notes "<changelog content>"
+```
+
+Pushing the `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which verifies the
+binary is in sync, checks the tag matches `VERSION`, generates notes from the git log,
+and runs `gh release create`. **Do not** call `gh release create` by hand — the workflow
+owns that. After pushing, confirm the run succeeded:
+```bash
+gh run watch --exit-status || gh run list --workflow=release.yml --limit 1
 ```
 
 ### 8. Output

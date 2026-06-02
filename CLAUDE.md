@@ -70,7 +70,7 @@ dotcontext --version
 
 1. **Always ask before assuming** - When there is ambiguity, multiple valid approaches, or decisions to be made, use the AskUserQuestion tool to clarify before proceeding. Never assume user intent.
 2. **POSIX compatibility** - Use Bash 3.2+ compatible syntax (macOS ships with 3.2). Avoid bashisms that require newer versions.
-3. **Safe defaults** - Never overwrite existing files without `--force` flag. Always prompt before destructive operations.
+3. **Safe defaults** - Never overwrite existing user content: seed files are create-only, and managed files show a diff and prompt (`--yes` to skip) before updating. Always prompt before destructive operations.
 4. **Template downloads** - Templates are fetched from GitHub `main` branch. Validate downloads before using.
 5. **Cross-platform support** - Test on macOS, Linux, and Windows/WSL. Platform-specific code must have proper detection and fallbacks.
 

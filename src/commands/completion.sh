@@ -105,3 +105,26 @@ ZSH_COMP
       ;;
   esac
 }
+
+# Offer to wire shell completion into the user's profile (called from init).
+# No-ops for unknown shells, when already installed, or when declined.
+offer_completion_install() {
+  local shell profile line
+  case "$(basename "${SHELL:-bash}")" in
+    zsh)  shell="zsh";  profile="$HOME/.zshrc" ;;
+    bash) shell="bash"; profile="$HOME/.bashrc" ;;
+    *) return 0 ;;
+  esac
+
+  line="eval \"\$(dotcontext completion $shell)\""
+
+  if [ -f "$profile" ] && grep -qF "dotcontext completion" "$profile" 2>/dev/null; then
+    return 0
+  fi
+
+  echo ""
+  if confirm "  Install $shell tab-completion to ${profile/#$HOME/~}?"; then
+    printf '\n# dotcontext completion\n%s\n' "$line" >> "$profile"
+    print_gray "  added — restart your shell or run: source ${profile/#$HOME/~}"
+  fi
+}

@@ -46,8 +46,8 @@ cmd_help() {
 
   # Global Options
   printf "  ${BLUE}${BOLD}Global Options${NC}\n"
-  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--help, -h"    "Show this help"
-  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--version, -v" "Show version"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--help, -h"        "Show this help"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--version, -v"     "Show version (add --features or --json)"
   echo ""
 
   # Claude Code Commands
@@ -74,4 +74,52 @@ cmd_help() {
   printf "    ${GRAY}\$${NC} dotcontext doctor\n"
   printf "    ${GRAY}\$${NC} eval \"\$(dotcontext completion bash)\"\n"
   echo ""
+}
+
+# ── Command: version ──────────────────────────────────────────────────────────
+# Plain `--version` prints the version. `--features` adds a human-readable
+# capability list; `--json` emits a machine-readable capability handshake so an
+# agent/harness can discover what this dotcontext supports before invoking it.
+
+cmd_version() {
+  local features=false
+  local json=false
+  for arg in "$@"; do
+    case "$arg" in
+      --features) features=true ;;
+      --json) json=true ;;
+    esac
+  done
+
+  if [ "$json" = true ]; then
+    cat <<JSON
+{
+  "name": "dotcontext",
+  "version": "$VERSION",
+  "repo": "$REPO",
+  "commands": ["init", "update", "doctor", "completion"],
+  "capabilities": {
+    "update_check": true,
+    "askuserquestion": true,
+    "statusline": true,
+    "hooks": true,
+    "multiagent": false,
+    "agents": ["claude"]
+  }
+}
+JSON
+    return 0
+  fi
+
+  echo "dotcontext $VERSION"
+  if [ "$features" = true ]; then
+    echo ""
+    echo "Capabilities:"
+    printf "  %-16s %s\n" "update_check"    "yes"
+    printf "  %-16s %s\n" "askuserquestion" "yes"
+    printf "  %-16s %s\n" "statusline"      "yes"
+    printf "  %-16s %s\n" "hooks"           "yes"
+    printf "  %-16s %s\n" "multiagent"      "no"
+    printf "  %-16s %s\n" "agents"          "claude"
+  fi
 }

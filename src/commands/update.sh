@@ -12,7 +12,6 @@ cmd_update() {
       --cli) cli_only=true; shift ;;
       --yes|-y) auto_yes=true; shift ;;
       --dry-run) dry_run=true; shift ;;
-      --force) auto_yes=true; shift ;;  # backwards compat
       *) shift ;;
     esac
   done
@@ -185,8 +184,6 @@ cmd_update_templates() {
   # SEED templates: created once during init, customized by user or /setup-context.
   # Only added if missing — never offered for overwrite to protect user content.
   declare -a seed_templates=(
-    "templates/.context/decisions/README.md:.context/decisions/README.md"
-    "templates/.claude/skills/README.md:.claude/skills/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
 
