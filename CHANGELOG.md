@@ -11,8 +11,8 @@
 
 ### Changes
 
-* **version single-source-of-truth** — `VERSION` now lives only in `src/header.sh`; the `/release` flow bumps it and runs `make build` instead of seding the built binary, eliminating the source↔binary drift that affected v0.14.2 (ADR-014)
-* removed the `--force` alias from `dotcontext update` (use `--yes`); removed the unused `slugify()` helper; dropped the low-value `decisions/README.md` and `skills/README.md` seed templates (the `bug-reproduction` skill is kept — it is load-bearing for `/fix-bug`, ADR-011)
+* **version single-source-of-truth** — `VERSION` now lives only in `src/header.sh`; the `/release` flow bumps it and runs `make build` instead of editing the built binary with `sed`, eliminating the source↔binary drift that affected v0.14.2 (ADR-014)
+* removed the `--force` alias from `dotcontext update` (use `--yes`/`--dry-run`); removed the unused `slugify()` helper; dropped the low-value `skills/README.md` seed template. ADR-003 updated to v2.0 to document the seed/managed split. (`decisions/README.md` and the `bug-reproduction` skill are kept — both are load-bearing for `/add-decision`/`/setup-context` and `/fix-bug` respectively)
 
 ## [0.14.2](https://github.com/goca-se/dotcontext/compare/v0.14.1...v0.14.2) (2026-06-02)
 

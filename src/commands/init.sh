@@ -72,6 +72,7 @@ cmd_init() {
   download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
   download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
+  download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"

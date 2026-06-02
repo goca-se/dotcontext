@@ -184,6 +184,7 @@ cmd_update_templates() {
   # SEED templates: created once during init, customized by user or /setup-context.
   # Only added if missing — never offered for overwrite to protect user content.
   declare -a seed_templates=(
+    "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
 

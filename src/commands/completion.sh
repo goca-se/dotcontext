@@ -107,16 +107,37 @@ ZSH_COMP
 }
 
 # Offer to wire shell completion into the user's profile (called from init).
-# No-ops for unknown shells, when already installed, or when declined.
+# No-ops for unknown shells, when dotcontext isn't on PATH, when already
+# installed, or when declined.
 offer_completion_install() {
   local shell profile line
+
   case "$(basename "${SHELL:-bash}")" in
-    zsh)  shell="zsh";  profile="$HOME/.zshrc" ;;
-    bash) shell="bash"; profile="$HOME/.bashrc" ;;
+    zsh)
+      shell="zsh"
+      profile="${ZDOTDIR:-$HOME}/.zshrc"
+      ;;
+    bash)
+      shell="bash"
+      # macOS interactive bash reads ~/.bash_profile; Linux reads ~/.bashrc.
+      if [ -f "$HOME/.bashrc" ]; then
+        profile="$HOME/.bashrc"
+      elif [ "$(uname)" = "Darwin" ]; then
+        profile="$HOME/.bash_profile"
+      else
+        profile="$HOME/.bashrc"
+      fi
+      ;;
     *) return 0 ;;
   esac
 
-  line="eval \"\$(dotcontext completion $shell)\""
+  # Only offer when dotcontext is actually on PATH — otherwise the line would
+  # just print "command not found" in every new shell.
+  command -v dotcontext >/dev/null 2>&1 || return 0
+
+  # Self-guard the persisted line so it stays harmless if dotcontext later
+  # leaves PATH (uninstalled, moved, etc.).
+  line="command -v dotcontext >/dev/null 2>&1 && eval \"\$(dotcontext completion $shell)\""
 
   if [ -f "$profile" ] && grep -qF "dotcontext completion" "$profile" 2>/dev/null; then
     return 0

@@ -9,8 +9,8 @@ Create a new release with automatic version bumping, changelog update, and GitHu
 First, gather context about what's being released:
 
 ```bash
-# Get current version
-grep -E "^VERSION=" dotcontext | cut -d'"' -f2
+# Get current version (read from the single source of truth, not the built binary)
+grep -E "^VERSION=" src/header.sh | cut -d'"' -f2
 
 # Get latest tag
 git tag --sort=-v:refname | head -1

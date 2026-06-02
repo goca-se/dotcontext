@@ -459,6 +459,7 @@ cmd_init() {
   download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
   download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
+  download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"
@@ -773,6 +774,7 @@ cmd_update_templates() {
   # SEED templates: created once during init, customized by user or /setup-context.
   # Only added if missing — never offered for overwrite to protect user content.
   declare -a seed_templates=(
+    "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
 
@@ -1269,6 +1271,11 @@ cmd_version() {
     case "$arg" in
       --features) features=true ;;
       --json) json=true ;;
+      *)
+        printf "${RED}Unknown option for --version: %s${NC}\n" "$arg" >&2
+        printf "Usage: dotcontext --version [--features] [--json]\n" >&2
+        return 1
+        ;;
     esac
   done
 
@@ -1413,16 +1420,37 @@ ZSH_COMP
 }
 
 # Offer to wire shell completion into the user's profile (called from init).
-# No-ops for unknown shells, when already installed, or when declined.
+# No-ops for unknown shells, when dotcontext isn't on PATH, when already
+# installed, or when declined.
 offer_completion_install() {
   local shell profile line
+
   case "$(basename "${SHELL:-bash}")" in
-    zsh)  shell="zsh";  profile="$HOME/.zshrc" ;;
-    bash) shell="bash"; profile="$HOME/.bashrc" ;;
+    zsh)
+      shell="zsh"
+      profile="${ZDOTDIR:-$HOME}/.zshrc"
+      ;;
+    bash)
+      shell="bash"
+      # macOS interactive bash reads ~/.bash_profile; Linux reads ~/.bashrc.
+      if [ -f "$HOME/.bashrc" ]; then
+        profile="$HOME/.bashrc"
+      elif [ "$(uname)" = "Darwin" ]; then
+        profile="$HOME/.bash_profile"
+      else
+        profile="$HOME/.bashrc"
+      fi
+      ;;
     *) return 0 ;;
   esac
 
-  line="eval \"\$(dotcontext completion $shell)\""
+  # Only offer when dotcontext is actually on PATH — otherwise the line would
+  # just print "command not found" in every new shell.
+  command -v dotcontext >/dev/null 2>&1 || return 0
+
+  # Self-guard the persisted line so it stays harmless if dotcontext later
+  # leaves PATH (uninstalled, moved, etc.).
+  line="command -v dotcontext >/dev/null 2>&1 && eval \"\$(dotcontext completion $shell)\""
 
   if [ -f "$profile" ] && grep -qF "dotcontext completion" "$profile" 2>/dev/null; then
     return 0

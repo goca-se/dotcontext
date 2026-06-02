@@ -88,6 +88,11 @@ cmd_version() {
     case "$arg" in
       --features) features=true ;;
       --json) json=true ;;
+      *)
+        printf "${RED}Unknown option for --version: %s${NC}\n" "$arg" >&2
+        printf "Usage: dotcontext --version [--features] [--json]\n" >&2
+        return 1
+        ;;
     esac
   done
 
