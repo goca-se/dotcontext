@@ -5,27 +5,47 @@ Generate a PRP (Product Requirements Prompt) for the feature described in $ARGUM
 ## Process
 
 1. **Read the request** in $ARGUMENTS
-2. **Analyze the codebase** to understand existing patterns
-3. **Consult relevant skills** in `.claude/skills/`
-4. **Check decisions** in `.context/decisions/` - identify any that might be affected
-5. **Generate PRP** following the template in `.context/prp/templates/feature.md`
+2. **Clarity assessment** (see below) — ask only the N questions needed (0..N)
+3. **Analyze the codebase** to understand existing patterns and gather real file/line references
+4. **Consult relevant skills** in `.claude/skills/`
+5. **Check decisions** in `.context/decisions/` — identify any that might be affected
+6. **Fill Problem / Scope / Decisions sections** of the PRP using the template at `.context/prp/templates/feature.md`
+7. **Validation Gate** — pause, summarize, run auto-validation subagent
+8. **Fill Implementation Plan + Parallelism Map** after user approval
+9. **Save** the PRP
+
+## Clarity Assessment (replaces mandatory N-questions quota)
+
+Before asking anything, evaluate whether the request is already clear enough to generate a faithful PRP. A request is **clear** when you can:
+
+- See the connections between premises, examples, and conclusions
+- Reformulate the goal in your own words without effort
+- Apply the same idea to a different context
+- Identify no internal "wait, there's a jump here" moment
+
+Clarity is a state of structural visibility — it does not guarantee truth, only intelligibility.
+
+**Decision rule:**
+- If the request passes the clarity check → **proceed with zero questions**
+- Otherwise → ask **only the questions that target genuine gaps** (no fixed quota; could be 1, could be 7)
+- Never pad to hit a count; never skip a question that would actually unblock you
+
+Use the AskUserQuestion tool in batches of 3–4 when you do ask. If you decide to ask zero questions, briefly tell the user why ("The request is clear — proceeding to PRP.") so they have a chance to interject.
 
 ## Decision Awareness
 
-**Before generating the PRP**, read all ADRs in `.context/decisions/` and identify:
+Read all ADRs in `.context/decisions/` and identify:
 
-1. **Decisions that support the feature** - Reference them in Technical Design
-2. **Decisions that might conflict** - Flag them in Risks section
-3. **Decisions that need updating** - Add to Implementation Plan as explicit task
-4. **New decisions required** - Architectural choices this feature will introduce
+1. **Decisions that support the feature** — Reference them in Technical Design
+2. **Decisions that might conflict** — Flag them in Risks section
+3. **Decisions that need updating** — Add to Implementation Plan Phase 1 as explicit task
+4. **New decisions required** — Architectural choices this feature will introduce
 
 ### Existing Decisions Impact
 
-If the feature would require changing an existing decision, include in the PRP:
+If the feature would require changing an existing decision, fill the **Impact on Existing Decisions** table in the PRP:
 
 ```markdown
-## Decision Impact
-
 | ADR | Current Decision | Proposed Change | Action |
 |-----|------------------|-----------------|--------|
 | ADR-XXX | [current] | [what would change] | Update/Supersede |
@@ -33,22 +53,8 @@ If the feature would require changing an existing decision, include in the PRP:
 
 ### New Decisions Required
 
-If the feature requires significant architectural choices, identify them upfront:
+If the feature requires significant architectural choices, fill the **New Decisions Required** table and add ADR creation as Phase 1 tasks:
 
-```markdown
-## New Decisions
-
-This feature will require the following architectural decisions:
-
-| Decision | Context | Options to Consider |
-|----------|---------|---------------------|
-| [e.g., Auth strategy] | [Why needed] | [JWT, Sessions, OAuth] |
-| [e.g., Storage approach] | [Why needed] | [SQL, NoSQL, File] |
-
-**Action:** Create ADRs for these decisions in Phase 1 before implementation.
-```
-
-Add creating these ADRs as explicit tasks in Phase 1 of the Implementation Plan:
 ```markdown
 ### Phase 1: Setup & Decisions
 
@@ -57,33 +63,41 @@ Add creating these ADRs as explicit tasks in Phase 1 of the Implementation Plan:
 3. [ ] [Other setup tasks...]
 ```
 
-This ensures architectural decisions are documented before code is written.
+## Snippet Quality Rules
 
-## Output
+When the PRP includes code snippets under **Technical Design**:
 
-Save the generated PRP in `.context/prp/generated/YYYYMMDD-[feature-slug].md`
+- Every snippet must be **compilable as shown**. Never use `// ...` or pseudo-code inside a snippet meant to be applied directly. (`// rest unchanged` is OK in context blocks, not in apply blocks.)
+- When modifying existing code, anchor the change to a real path and line, e.g. `src/auth/login.ts:83`.
+- Use **real type, interface, and function names** from the codebase. No `Foo`, `Bar`, `MyHandler` placeholders.
+- The **Affected files** table must be path-level: one row per file with `path | type (create/modify) | description`.
 
-Use today's date and a URL-friendly slug of the feature name.
+## Validation Gate
 
-## Before Generating
+After filling **Summary / Context / Scope / Technical Design / Decisions** — but **before** generating the Implementation Plan — pause and:
 
-**MANDATORY: Create and ask 10 clarifying questions using AskUserQuestion tool.**
+1. Show the user a 3–5 line summary of Problem + Scope + Decisions
+2. Launch the auto-validation subagent (next section) **in parallel**
+3. Wait for both the user response and the subagent report
+4. Only after user approval (and any subagent findings addressed) fill in **Implementation Plan + Parallelism Map**
 
-Before writing any PRP, generate 10 unique questions specific to the feature being requested. These questions must be created fresh for each PRP - do not use a fixed list.
+This prevents committing to an implementation plan against an unclear or inconsistent foundation.
 
-Your questions should explore:
-- The problem and its context
-- Long-term implications and scalability
-- Performance considerations
-- How this feature will interact with other parts of the system
-- What the end result should look like
-- Any other aspects that need clarification
+## Auto-validation Subagent (parallel, Haiku)
 
-Think deeply about what information you need to write a comprehensive PRP. The questions should be tailored to the specific feature, the project's domain, and the existing codebase patterns.
+At the Validation Gate, dispatch one subagent via the Task tool. Prefer the **Haiku 4.5 model** (fast, cheap, sufficient for a checklist pass).
 
-Use AskUserQuestion tool with batches of 3-4 questions at a time until all 10 are answered.
+Subagent type: `general-purpose` (or `Explore` if read-only is enough).
 
-**Do NOT skip this step. Do NOT proceed without answers.**
+Prompt the subagent to verify the PRP draft so far:
+
+- Every file referenced in the **Affected files** table exists at the given path (or is explicitly marked `create`)
+- Every `path:line` reference in snippets resolves to a real line in the current code
+- Snippets compile against the project's actual library versions (check `package.json` / `Cargo.toml` / etc.)
+- **Acceptance criteria** are objectively verifiable (no "works well", "is fast" — must be testable)
+- **What changes** and **What doesn't change** are mutually exclusive — nothing appears in both, no ambiguous item
+
+The subagent returns a short report (under 250 words) with: ✓ passed checks, ✗ failed checks with file/line evidence. Address ✗ findings before proceeding.
 
 ## Reference Material Handling
 
@@ -91,37 +105,32 @@ If the user provides or mentions visual references (images, PDFs, designs, layou
 
 1. **Read/view the file** using the Read tool to understand the content
 2. **Extract key details** in text form (layout structure, colors, spacing, components, behavior)
-3. **Document the file path** in the Reference Materials section of the PRP
-4. **Add explicit task** in Phase 1: "Review reference materials in Reference Materials section"
+3. **Document the file path** in a "Reference Materials" subsection inside Technical Design
+4. **Add explicit task** in Phase 1: "Review reference materials before implementing"
 
-**Important:** Visual information cannot be fully captured in text. Always preserve file paths so the executor can consult the original materials.
+Visual information cannot be fully captured in text — always preserve file paths so the executor can consult the originals.
 
-## Checklist
+## Output
 
-Before finishing, confirm:
-- [ ] Problem clearly defined
-- [ ] Scope is realistic (not too broad)
-- [ ] Affected modules/packages identified
-- [ ] Dependencies and integrations documented
-- [ ] Implementation phases are ordered logically
-- [ ] Each phase has clear validation criteria
-- [ ] Testing strategy included
-- [ ] Risks identified with mitigations
-- [ ] Reference materials documented (if any were provided)
+Save the generated PRP at `.context/prp/generated/YYYYMMDD-[feature-slug].md` (today's date, URL-friendly slug).
 
 ## After Generating
 
 Show the user:
+
 ```
 ✅ PRP generated: .context/prp/generated/[filename].md
 
 Summary:
 - [1-2 sentence summary]
-- Phases: [X phases]
-- Estimated scope: [files/modules affected]
+- Phases: [X phases] (last phase is e2e verification)
+- Affected files: [N files]
+- Parallelism: [parallel blocks count, or "all sequential"]
+- Auto-validation: [✓ passed | ✗ N findings addressed]
 ```
 
 Then **use AskUserQuestion** to offer next steps:
+
 > "PRP generated. What would you like to do next?"
 > Options:
 > - "Execute now" — I'll clear context and start `/execute-prp [filename]` with a fresh window
@@ -132,6 +141,21 @@ If user chooses **"Execute now"**:
 1. Tell the user: "Run `/clear` then `/execute-prp [filename]` to start with a clean context."
 2. Do NOT attempt to execute the PRP in the same session — the context is already full from PRP generation and will produce worse results.
 
+## Final Checklist (PRP-time, before output)
+
+- [ ] Clarity assessment performed; questions (if any) were targeted, not padded
+- [ ] Problem clearly defined
+- [ ] "What changes" and "What doesn't change" both filled, mutually exclusive
+- [ ] Affected files table is path-level
+- [ ] Snippets follow quality rules (compilable, real names, file:line refs)
+- [ ] Decisions: impact + new decisions tables filled (or removed if N/A)
+- [ ] Validation Gate held; auto-validation subagent dispatched and findings addressed
+- [ ] Implementation Plan ordered logically; last phase is e2e verification
+- [ ] Parallelism Map filled (or "all phases sequential")
+- [ ] Testing strategy included
+- [ ] Risks identified with mitigations
+- [ ] Reference materials documented (if any were provided)
+
 ## If You Get Stuck
 
 If you cannot make progress after 3 attempts at the same step:
@@ -139,4 +163,4 @@ If you cannot make progress after 3 attempts at the same step:
 2. Explain what you're trying to do and what's blocking you
 3. **Use AskUserQuestion tool** to ask the user how to proceed
 
-Never loop indefinitely. If you find yourself repeating the same actions without progress, stop and ask for help.
+Never loop indefinitely.

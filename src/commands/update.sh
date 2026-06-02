@@ -151,7 +151,8 @@ cmd_update_templates() {
 
   start_spinner "Checking templates..."
 
-  # MANAGED templates: dotcontext-owned code (commands). Always offered for update.
+  # MANAGED templates: dotcontext-owned code (commands, templates that drive commands).
+  # Always offered for update — diff is shown, user can accept or skip.
   declare -a managed_templates=(
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
     "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
@@ -165,6 +166,7 @@ cmd_update_templates() {
     "templates/.claude/commands/deep-context.md:.claude/commands/deep-context.md"
     "templates/.claude/commands/fix-bug.md:.claude/commands/fix-bug.md"
     "templates/.claude/commands/commit.md:.claude/commands/commit.md"
+    "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.claude/scripts/statusline.sh:.claude/scripts/statusline.sh"
     "templates/.claude/agents/code-review/compliance-checker.md:.claude/agents/code-review/compliance-checker.md"
     "templates/.claude/agents/code-review/bug-detector.md:.claude/agents/code-review/bug-detector.md"
@@ -183,7 +185,6 @@ cmd_update_templates() {
   # SEED templates: created once during init, customized by user or /setup-context.
   # Only added if missing — never offered for overwrite to protect user content.
   declare -a seed_templates=(
-    "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.claude/skills/README.md:.claude/skills/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"

@@ -168,7 +168,7 @@ User runs: dotcontext init
 ```
 User runs: /generate-prp "Add user authentication"
     │
-    ├─→ AI asks 10 clarifying questions
+    ├─→ AI runs clarity assessment, asks N questions only when needed
     │
     ├─→ AI analyzes codebase, skills, decisions
     │
