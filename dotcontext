@@ -734,10 +734,12 @@ cmd_init() {
   # ── Skills (shared SKILL.md content; physical home depends on selection) ──
   local skills_dir
   if [ "$wants_claude" = true ]; then skills_dir=".claude/skills"; else skills_dir=".agents/skills"; fi
-  mkdir -p "$skills_dir/bug-reproduction" "$skills_dir/batch-operations" "$skills_dir/git-platform"
+  mkdir -p "$skills_dir/bug-reproduction" "$skills_dir/batch-operations" \
+           "$skills_dir/git-platform" "$skills_dir/update-api-documentation"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" "$skills_dir/bug-reproduction/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" "$skills_dir/batch-operations/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" "$skills_dir/git-platform/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/update-api-documentation/SKILL.md" "$skills_dir/update-api-documentation/SKILL.md"
   # If both Claude and an AGENTS.md-reading agent are selected, mirror so both see the skills
   if [ "$wants_claude" = true ] && [ "$wants_agents_skills" = true ]; then
     link_or_copy_dir ".claude/skills" ".agents/skills"
@@ -1089,6 +1091,7 @@ cmd_update_templates() {
     "templates/AGENTS.md:AGENTS.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
+    "templates/.claude/skills/update-api-documentation/SKILL.md:.claude/skills/update-api-documentation/SKILL.md"
   )
 
   # Create temp directory for downloads
