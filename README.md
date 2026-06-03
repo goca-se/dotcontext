@@ -183,7 +183,7 @@ Additionally, `dotcontext init` configures:
 
 ## Multi-Agent Support
 
-dotcontext targets six harnesses — **Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, and Cursor** (IDE + `cursor-agent`). `init` only writes files for the harnesses you choose, so you never get junk (no `.claude/` in a Codex-only project):
+dotcontext works with six harnesses: **Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, and Cursor** (IDE and `cursor-agent`). `init` only writes files for the harnesses you pick, so a Codex-only project never ends up with a stray `.claude/`:
 
 ```bash
 dotcontext init                       # interactive: confirm each detected agent
@@ -195,10 +195,10 @@ What's shared vs per-harness (ADR-016, ADR-017):
 
 | Layer | Coverage |
 | --- | --- |
-| **Instructions** — canonical `AGENTS.md` | Codex/opencode/Copilot/Cursor read it natively; Claude (`CLAUDE.md`) and Gemini (`GEMINI.md`) via `@AGENTS.md` import |
-| **Skills** — shared `SKILL.md` | `.agents/skills/` (Codex/opencode/Gemini/Copilot/Cursor) mirrored to `.claude/skills/` (Claude) |
-| **Hooks** — notification on finish | native config per harness (`.codex/`, `.gemini/`, `.github/hooks/`, `.cursor/`, opencode plugin); Claude also gets the tool-failure guard |
-| **Commands / workflows** | Claude → `.claude/commands/`; opencode → `.opencode/command/`; Copilot → `.github/prompts/`; Gemini/Cursor/Codex → a `## Workflows` section in `AGENTS.md` |
+| Instructions (`AGENTS.md`) | Codex, opencode, Copilot, and Cursor read it natively; Claude (`CLAUDE.md`) and Gemini (`GEMINI.md`) import it with `@AGENTS.md` |
+| Skills (`SKILL.md`) | `.agents/skills/` for Codex/opencode/Gemini/Copilot/Cursor, mirrored to `.claude/skills/` for Claude |
+| Hooks (finish notification) | native config per harness (`.codex/`, `.gemini/`, `.github/hooks/`, `.cursor/`, opencode plugin); Claude also gets the tool-failure guard |
+| Commands / workflows | Claude `.claude/commands/`, opencode `.opencode/command/`, Copilot `.github/prompts/`; Gemini, Cursor, and Codex use the `## Workflows` section of `AGENTS.md` |
 
 `dotcontext update` migrates an existing single-file `CLAUDE.md` into the shared `AGENTS.md` (Claude keeps working via the import). Check `dotcontext --version --json` for the live capability/agent list.
 

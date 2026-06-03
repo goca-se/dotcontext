@@ -1,8 +1,8 @@
 # Contributing to dotcontext
 
-Thanks for contributing! dotcontext is an AI context toolkit for coding agents (Claude Code, OpenAI
-Codex, opencode, Gemini CLI, GitHub Copilot, Cursor). The most common contribution — and the best place
-to start — is **adding a skill**, so this guide leads with that, then covers the build, PR, and release flow.
+Thanks for contributing. dotcontext is an AI context toolkit for coding agents (Claude Code, OpenAI
+Codex, opencode, Gemini CLI, GitHub Copilot, Cursor). Most people contribute by adding a skill, so that's
+where this guide starts. Build, PR, and release come after.
 
 ## Table of contents
 
@@ -20,43 +20,42 @@ to start — is **adding a skill**, so this guide leads with that, then covers t
 
 ## Reporting bugs & requesting features
 
-Issues are welcome — they're a real contribution. Before opening one, **search existing issues** to avoid
-duplicates.
+Issues are welcome. Before opening one, search the existing issues so you don't file a duplicate.
 
-**Bug reports** — open an issue and include:
-- what you ran (the exact `dotcontext` command and which agent/harness),
-- `dotcontext --version` and your OS / shell,
-- what you expected vs. what happened (paste the output),
-- minimal steps to reproduce.
+**Bug reports.** Open an issue and include:
+- what you ran (the exact `dotcontext` command, and which agent/harness),
+- `dotcontext --version`, plus your OS and shell,
+- what you expected, and what happened instead (paste the output),
+- the steps to reproduce it.
 
-`dotcontext doctor` output is often useful to paste.
+Pasting `dotcontext doctor` output usually helps too.
 
-**Feature requests** — describe the **use case** ("I'm trying to … so that …"), not just the solution.
-For a new skill or harness, say which agent(s) it targets. Larger changes are best discussed in an issue
-before you open a big PR.
+**Feature requests.** Describe the use case ("I'm trying to X so that Y"), not just the solution you have
+in mind. If it's a new skill or harness, say which agent(s) it targets. For anything large, open an issue
+to talk it through before you write a big PR.
 
 ---
 
 ## How the project is built
 
-- The CLI ships as a **single bash executable**, `dotcontext`, built by concatenating the modules in
-  `src/` (`core/`, `setup/`, `commands/`, `main.sh`) via `make build` (see the `Makefile`).
-- **You edit `src/` and the `templates/`** — never hand-edit the bundled `dotcontext` file beyond running
-  `make build`. `src/header.sh` holds the single source of truth for `VERSION`.
-- **Templates** (everything under `templates/`) are what users receive. `dotcontext init`/`update` fetch
-  them from the **`main` branch** at runtime, so a merged template change is live immediately. The CLI
-  *binary* itself is fetched from the **latest release tag** (see [release flow](#how-deploy--release-works)).
+- The CLI ships as a single bash executable, `dotcontext`, built by concatenating the modules in `src/`
+  (`core/`, `setup/`, `commands/`, `main.sh`) with `make build` (see the `Makefile`).
+- You edit `src/` and `templates/`. Don't hand-edit the bundled `dotcontext` file; run `make build`
+  instead. `src/header.sh` is the single source of truth for `VERSION`.
+- The `templates/` directory is what users receive. `dotcontext init` and `dotcontext update` fetch
+  templates from the `main` branch at runtime, so a merged template change is live right away. The CLI
+  binary itself comes from the latest release tag (see [release flow](#how-deploy--release-works)).
 
-There is no compiled language and no test framework — just bash. CI runs `bash -n` (syntax) and verifies
-the committed `dotcontext` matches `make build` output.
+There's no compiled language and no test framework, just bash. CI runs `bash -n` for syntax and checks
+that the committed `dotcontext` matches the `make build` output.
 
 ---
 
 ## Add a skill (start here)
 
-A **skill** is a reusable `SKILL.md` guide the agent auto-discovers and pulls in when relevant (e.g.
-`bug-reproduction`, `git-platform`, `update-api-documentation`). Skills are **seed** files: created once
-per project and never overwritten, so they're safe to customize downstream.
+A skill is a reusable `SKILL.md` guide the agent discovers and pulls in when it's relevant (for example
+`bug-reproduction`, `git-platform`, `update-api-documentation`). Skills are seed files: created once per
+project and never overwritten, so they're safe to customize downstream.
 
 ### 1. Create the skill file
 
@@ -64,16 +63,16 @@ per project and never overwritten, so they're safe to customize downstream.
 templates/.claude/skills/<your-skill-slug>/SKILL.md
 ```
 
-`<your-skill-slug>` must be kebab-case. **Start the file with YAML frontmatter** — the `description` is
-what every agent uses to auto-discover the skill, so front-load the keywords/filenames a user is likely
-to say:
+`<your-skill-slug>` must be kebab-case. Start the file with YAML frontmatter. The `description` is what
+every agent reads to decide whether to use the skill, so put the keywords and filenames a user is likely
+to say up front:
 
 ```markdown
 ---
 name: your-skill-slug          # kebab-case, MUST match the directory name
 description: >-
-  One or two sentences, keyword-front-loaded: what the skill does and when to use it.
-  This drives auto-discovery on Claude, Codex, opencode, Gemini, Copilot, and Cursor.
+  One or two sentences, keywords up front: what the skill does and when to use it.
+  This is what drives discovery on Claude, Codex, opencode, Gemini, Copilot, and Cursor.
 ---
 # Skill: Your Skill Name
 
@@ -89,61 +88,61 @@ description: >-
 
 ## Anti-Patterns
 
-**Don't:** …
-**Do:** …
+**Don't:** ...
+**Do:** ...
 ```
 
-Match the structure of the existing skills in `templates/.claude/skills/`. Keep it stack-agnostic where
-possible (show one stack as an example, don't hard-code one).
+Follow the structure of the existing skills in `templates/.claude/skills/`. Keep it stack-agnostic when
+you can: show one stack as an example rather than hard-coding it.
 
-> **Why the frontmatter matters:** without `name`/`description`, agents can't auto-discover the skill —
-> it would only work via an explicit `/name`. The `description` is the discovery surface. (ADR-016/017/018)
+> Without `name`/`description`, agents can't discover the skill on their own; it only works if the user
+> types `/name`. The `description` is the discovery surface. (ADR-016/017/018)
 
 ### 2. Wire it into the CLI
 
-Skills are emitted per selected harness — to `.claude/skills/` (Claude) and/or `.agents/skills/` (Codex,
-opencode, Gemini, Copilot, Cursor, via a mirror). Add your skill in **two** places:
+Skills are emitted per selected harness: into `.claude/skills/` for Claude, and/or `.agents/skills/` for
+the others (Codex, opencode, Gemini, Copilot, Cursor), via a mirror. Add your skill in two places:
 
-1. **`src/commands/init.sh`** — in the skills block, add the slug to the `mkdir -p "$skills_dir/…"` line
-   and add a matching `download_if_missing` line.
-2. **`src/commands/update.sh`** — add a line to the `seed_templates` array so existing projects receive it
-   on `dotcontext update --templates`:
+1. `src/commands/init.sh`: in the skills block, add the slug to the `mkdir -p "$skills_dir/…"` line and
+   add a matching `download_if_missing` line.
+2. `src/commands/update.sh`: add a line to the `seed_templates` array so existing projects pick it up on
+   `dotcontext update --templates`:
    ```
    "templates/.claude/skills/<your-skill-slug>/SKILL.md:.claude/skills/<your-skill-slug>/SKILL.md"
    ```
 
 ### 3. Reference it in AGENTS.md
 
-Add a one-liner under **Additional Context** in `templates/AGENTS.md` so the canonical instructions point
-at it:
+Add a line under Additional Context in `templates/AGENTS.md` so the canonical instructions point at it:
 
 ```markdown
 - Your skill topic → `.claude/skills/<your-skill-slug>/SKILL.md`
 ```
 
-### 4. Build & verify
+### 4. Build and verify
 
 ```bash
 make build                 # regenerate the dotcontext binary
 bash -n dotcontext         # syntax check
-git diff --quiet dotcontext && echo "in sync"   # must be in sync (CI enforces this)
+git diff --quiet dotcontext && echo "in sync"   # CI fails if it isn't
 ```
 
-Commit **both** your `src/`/`templates/` changes **and** the rebuilt `dotcontext`.
+Commit your `src/`/`templates/` changes together with the rebuilt `dotcontext`.
 
 ---
 
 ## Other contributions
 
-- **A workflow command** (e.g. a new `/something`): add `templates/.claude/commands/<name>.md`, then add
-  the name to `DOTCONTEXT_COMMANDS` in `src/setup/agents.sh` and to the Claude command loop in
-  `src/commands/init.sh`. Use a neutral "ask the user with your structured-question tool" phrasing for
-  clarifications so it ports across agents. Document it in the `## Workflows` table in `templates/AGENTS.md`.
+- **A workflow command** (a new `/something`): add `templates/.claude/commands/<name>.md`, then add the
+  name to `DOTCONTEXT_COMMANDS` in `src/setup/agents.sh` and to the Claude command loop in
+  `src/commands/init.sh`. For clarifications, say "ask the user with your structured-question tool" rather
+  than naming Claude's tool, so it works on every agent. List it in the Workflows table in
+  `templates/AGENTS.md`.
 - **A new agent/harness**: add one entry to the registry in `src/setup/agents.sh` (`AGENT_IDS`,
-  `agent_name`, `agent_detect`, `agent_instructions_file`, `agent_emit_mode`) plus its hook/command
-  emission. See ADR-016/017/018 for the model.
-- **An architectural decision**: add an ADR under `.context/decisions/` following the house format
-  (see existing ADRs and `.context/decisions/README.md`).
+  `agent_name`, `agent_detect`, `agent_instructions_file`, `agent_emit_mode`), plus its hook and command
+  emission. ADR-016/017/018 describe the model.
+- **An architectural decision**: add an ADR under `.context/decisions/` in the house format (look at the
+  existing ADRs and `.context/decisions/README.md`).
 
 ---
 
@@ -153,72 +152,72 @@ Commit **both** your `src/`/`templates/` changes **and** the rebuilt `dotcontext
 make build            # bundle src/ → ./dotcontext
 ./dotcontext --help   # run your local build
 ./dotcontext doctor   # exercise a command
-bash -n dotcontext    # syntax check (matches CI)
+bash -n dotcontext    # syntax check (same as CI)
 ```
 
-Keep it **POSIX / Bash 3.2 compatible** (macOS ships 3.2 — no associative arrays, etc.). Test on macOS and
-Linux where you can.
+Keep it POSIX / Bash 3.2 compatible. macOS still ships 3.2, so no associative arrays and similar newer
+features. Test on macOS and Linux where you can.
 
 ---
 
 ## Pull request workflow
 
-1. **Branch** from `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`.
-2. **Commit** using conventional-commit style (`feat:`, `fix:`, `docs:`, `chore:`) — it shapes the release
-   notes. Always commit the rebuilt `dotcontext` alongside `src/` changes.
-3. **Open the PR** against `main`. CI (`​.github/workflows/ci.yml`) runs `bash -n` on every module + the
+1. Branch from `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`).
+2. Use conventional-commit prefixes (`feat:`, `fix:`, `docs:`, `chore:`); they shape the release notes.
+   Commit the rebuilt `dotcontext` whenever you change `src/`.
+3. Open the PR against `main`. CI (`.github/workflows/ci.yml`) runs `bash -n` on every module and the
    binary, and fails if `dotcontext` is out of sync with `src/`. CodeRabbit posts an automated review.
-4. Address review comments; keep the branch green.
+4. Address the review and keep the branch green.
 
 ---
 
 ## Decision compliance (ADRs)
 
-Before a change that alters behavior, check `.context/decisions/` for a related ADR. If your change
-conflicts with one, **say so in the PR** and either comply, or supersede the ADR with a new version
-(reference the old one). New significant decisions get their own ADR.
+Before you change how something behaves, check `.context/decisions/` for a related ADR. If your change
+conflicts with one, say so in the PR, then either comply with it or supersede it with a new version that
+references the old one. New significant decisions get their own ADR.
 
 ---
 
 ## How deploy / release works
 
-This is the part contributors most often get wrong, so read it carefully.
+This trips people up, so it's worth being precise.
 
-**Merging a PR does _not_ create a release.** Merging to `main`:
-- makes **template changes live immediately** — `dotcontext init` / `dotcontext update --templates` pull
-  templates from `main`, so a merged skill is available right away to anyone re-running those;
-- does **not** update the CLI **binary** users download — that comes from the latest **release tag**. So a
-  change to `src/` (init/update wiring, doctor, etc.) only reaches users after a release.
+Merging a PR does not create a release. Merging to `main` does two things:
 
-**A release is a separate, explicit step** (automated via `.github/workflows/release.yml`, ADR-014):
+- Template changes go live immediately. `dotcontext init` and `dotcontext update --templates` read
+  templates from `main`, so a merged skill is available to anyone who re-runs them.
+- The CLI binary users download does not change. That comes from the latest release tag, so a change to
+  `src/` (init/update wiring, doctor, and so on) only reaches users after a release.
 
-1. Bump the version in **`src/header.sh`** (never the built binary), then `make build`.
+A release is a separate step, automated by `.github/workflows/release.yml` (ADR-014):
+
+1. Bump `VERSION` in `src/header.sh` (not the built binary), then `make build`.
 2. Update `CHANGELOG.md`.
-3. Commit (`chore(release): vX.Y.Z`) and create the tag `vX.Y.Z`.
+3. Commit (`chore(release): vX.Y.Z`) and tag `vX.Y.Z`.
 4. `git push && git push --tags`.
-5. Pushing the `v*` tag triggers `release.yml`, which verifies the binary is in sync, checks the tag
-   matches `VERSION`, generates notes from `git log`, and publishes the GitHub release. **Do not run
-   `gh release create` by hand.**
+5. Pushing the `v*` tag triggers `release.yml`. It checks the binary is in sync and the tag matches
+   `VERSION`, generates notes from `git log`, and publishes the GitHub release. Don't run
+   `gh release create` yourself.
 
-Maintainers can run the `/release [patch|minor|major]` workflow in Claude Code to do steps 1–4.
+Maintainers can run `/release [patch|minor|major]` in Claude Code for steps 1 through 4.
 
-So for a skill (or any `src/`-touching change) to fully reach users: **merge, then cut a release.**
-Pure template-only additions are live on merge, but a release is still recommended so the CLI's seed list
-(which references the new file) ships in the binary too.
+So for a skill, or any change that touches `src/`, to fully reach users: merge, then cut a release. A
+template-only addition is live on merge, but it's still worth releasing so the CLI's seed list, which now
+references the new file, ships in the binary too.
 
 ---
 
 ## Community expectations
 
-Be respectful, constructive, and patient — assume good intent. Keep discussion focused on the work, give
-actionable feedback, and welcome newcomers (everyone's first PR is a learning curve). Harassment or
-disrespectful behavior isn't tolerated. If the project adds a `CODE_OF_CONDUCT.md`, it governs all project
-spaces; until then, these expectations apply.
+Be respectful and patient, and assume good intent. Keep feedback actionable and about the work. Everyone's
+first PR has a learning curve, so help newcomers out. Harassment or disrespectful behavior isn't tolerated.
+If the project later adds a `CODE_OF_CONDUCT.md`, it governs all project spaces; until then, this applies.
 
 ### Resources
 
-- **README** — overview, install, and command reference.
-- **`.context/CONTEXT.md`** — domain and architecture.
-- **`.context/decisions/`** — architectural decisions (ADRs), including the multi-agent design (016–018).
+- **README**: overview, install, and command reference.
+- **`.context/CONTEXT.md`**: domain and architecture.
+- **`.context/decisions/`**: the ADRs, including the multi-agent design in 016 through 018.
 
-Questions? Open an issue. Thanks for making dotcontext better.
+Questions? Open an issue.
