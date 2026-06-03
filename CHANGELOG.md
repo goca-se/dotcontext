@@ -8,6 +8,7 @@
   * **skill frontmatter** — every `SKILL.md` now carries YAML `name` + `description`, so the model can **auto-discover** skills by description on every agent (not just via explicit `/name`). Applied to `bug-reproduction`, `batch-operations`, `git-platform`, `update-api-documentation`
   * **commands across harnesses (hybrid)** — the 12 workflow prompts now reach non-Claude agents: **opencode** gets `.opencode/command/*.md` and **Copilot** gets `.github/prompts/*.prompt.md` (native copies); **Gemini/Cursor/Codex** get a new **`## Workflows`** section in `AGENTS.md` that lists each workflow and tells the agent to use its native structured-question tool for clarification. Claude keeps `.claude/commands/`
   * **`--version --json`** now reports `commands: true`
+  * **`/add-skill` updated** — it now generates the new skill format (YAML `name`/`description` frontmatter, description front-loaded for discovery) instead of the old `# Skill:`-only format, and notes the `.agents/skills` mirror for non-Claude agents
   * emission is per **selected** harness and create-only (no junk, no clobber)
 
 ### Notes
