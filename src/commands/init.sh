@@ -136,6 +136,9 @@ cmd_init() {
 
   touch ".context/prp/generated/.keep" ".context/discoveries/.keep" ".context/bugs/.keep"
 
+  # ── Commands per selected harness (opencode/Copilot native; others via AGENTS.md Workflows) ──
+  emit_agent_commands "$selected" 2>/dev/null || true
+
   # ── Hooks per selected harness (notifications; Claude also gets the failure guard) ──
   setup_agent_hooks "$selected" 2>/dev/null || true
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.17.0](https://github.com/goca-se/dotcontext/compare/v0.16.0...v0.17.0) (2026-06-03)
+
+### Features
+
+* **multi-agent commands & skill discovery (phase 2b)** — completes the multi-agent story for skills and workflows (ADR-018):
+  * **skill frontmatter** — every `SKILL.md` now carries YAML `name` + `description`, so the model can **auto-discover** skills by description on every agent (not just via explicit `/name`). Applied to `bug-reproduction`, `batch-operations`, `git-platform`, `update-api-documentation`
+  * **commands across harnesses (hybrid)** — the 12 workflow prompts now reach non-Claude agents: **opencode** gets `.opencode/command/*.md` and **Copilot** gets `.github/prompts/*.prompt.md` (native copies); **Gemini/Cursor/Codex** get a new **`## Workflows`** section in `AGENTS.md` that lists each workflow and tells the agent to use its native structured-question tool for clarification. Claude keeps `.claude/commands/`
+  * **`--version --json`** now reports `commands: true`
+  * emission is per **selected** harness and create-only (no junk, no clobber)
+
+### Notes
+
+* Per-agent command files are emitted in markdown-compatible form (opencode/Copilot) — Gemini TOML / Cursor skill / Codex global-prompt transforms were intentionally **not** generated (format-divergent, not runtime-verifiable); those agents use the `AGENTS.md` Workflows section instead. The `code-review`/`deep-context` → skill-mode promotion (ADR-018 item 1) is recorded but deferred — they still ship as commands.
+
 ## [0.16.0](https://github.com/goca-se/dotcontext/compare/v0.15.0...v0.16.0) (2026-06-03)
 
 ### Features

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.16.0"
+VERSION="0.17.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -650,6 +650,37 @@ JS
   done
   [ "$done_any" = true ] || true
 }
+
+# ── Per-agent commands (hybrid, ADR-018) ──────────────────────────────────────
+# The canonical workflow prompts ship in templates/.claude/commands/. Claude gets
+# them in .claude/commands/ (handled in init). opencode and Copilot get native
+# command/prompt files here; Gemini/Cursor/Codex rely on the "## Workflows"
+# section emitted into AGENTS.md. Create-only — never clobbers existing files.
+DOTCONTEXT_COMMANDS="setup-context generate-prp execute-prp code-review commit create-pr pr-comment deep-context fix-bug add-decision add-skill add-command"
+
+emit_agent_commands() {
+  local selected="$1" id name
+  for id in $selected; do
+    case "$id" in
+      opencode)
+        mkdir -p ".opencode/command"
+        for name in $DOTCONTEXT_COMMANDS; do
+          [ -f ".opencode/command/${name}.md" ] || \
+            download "${BASE_URL}/templates/.claude/commands/${name}.md" ".opencode/command/${name}.md"
+        done
+        print_gray "  commands: .opencode/command/ (opencode)"
+        ;;
+      copilot)
+        mkdir -p ".github/prompts"
+        for name in $DOTCONTEXT_COMMANDS; do
+          [ -f ".github/prompts/${name}.prompt.md" ] || \
+            download "${BASE_URL}/templates/.claude/commands/${name}.md" ".github/prompts/${name}.prompt.md"
+        done
+        print_gray "  commands: .github/prompts/ (copilot)"
+        ;;
+    esac
+  done
+}
 # ── Command: init ─────────────────────────────────────────────────────────────
 
 cmd_init() {
@@ -787,6 +818,9 @@ cmd_init() {
   fi
 
   touch ".context/prp/generated/.keep" ".context/discoveries/.keep" ".context/bugs/.keep"
+
+  # ── Commands per selected harness (opencode/Copilot native; others via AGENTS.md Workflows) ──
+  emit_agent_commands "$selected" 2>/dev/null || true
 
   # ── Hooks per selected harness (notifications; Claude also gets the failure guard) ──
   setup_agent_hooks "$selected" 2>/dev/null || true
@@ -1632,6 +1666,7 @@ cmd_version() {
     "statusline": true,
     "hooks": true,
     "skills": true,
+    "commands": true,
     "multiagent": true,
     "agents": $agents_json
   }
@@ -1649,6 +1684,7 @@ JSON
     printf "  %-16s %s\n" "statusline"      "yes"
     printf "  %-16s %s\n" "hooks"           "yes"
     printf "  %-16s %s\n" "skills"          "yes"
+    printf "  %-16s %s\n" "commands"        "yes"
     printf "  %-16s %s\n" "multiagent"      "yes"
     printf "  %-16s %s\n" "agents"          "$agents_list"
   fi

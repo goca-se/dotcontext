@@ -119,6 +119,7 @@ cmd_version() {
     "statusline": true,
     "hooks": true,
     "skills": true,
+    "commands": true,
     "multiagent": true,
     "agents": $agents_json
   }
@@ -136,6 +137,7 @@ JSON
     printf "  %-16s %s\n" "statusline"      "yes"
     printf "  %-16s %s\n" "hooks"           "yes"
     printf "  %-16s %s\n" "skills"          "yes"
+    printf "  %-16s %s\n" "commands"        "yes"
     printf "  %-16s %s\n" "multiagent"      "yes"
     printf "  %-16s %s\n" "agents"          "$agents_list"
   fi
