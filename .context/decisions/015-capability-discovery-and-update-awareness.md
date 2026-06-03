@@ -13,7 +13,7 @@ Two gaps surfaced while comparing dotcontext to github/spec-kit:
    ran `dotcontext update`. spec-kit's `specify self check` surfaces "update available" passively.
 2. **No machine-readable capability handshake.** spec-kit exposes `specify version --features --json`
    so a harness can discover what the tool supports before invoking it. This becomes important for
-   the planned multi-agent work (ADR-016, forthcoming), where a harness must know whether features
+   the multi-agent work (ADR-016), where a harness must know whether features
    like `AskUserQuestion`, statusline, or multi-agent output are available.
 
 A standing project constraint is to keep the CLI surface minimal — new flows belong inside existing
@@ -29,8 +29,9 @@ commands, not as new top-level subcommands (see ADR-007).
 
 2. **`--version` gains `--features` and `--json`.** Plain `--version` is unchanged. `--features` prints
    a human-readable capability list; `--json` emits a machine-readable handshake (name, version, repo,
-   commands, and a `capabilities` object) with **no jq dependency** (hand-built JSON). The current
-   `capabilities.multiagent` is `false` and `agents` is `["claude"]`; these flip when ADR-016 lands.
+   commands, and a `capabilities` object) with **no jq dependency** (hand-built JSON). Since ADR-016/017/018
+   landed, `capabilities.multiagent` is `true`, `skills`/`hooks`/`commands` are `true`, and `agents` lists
+   the full adapter registry (`claude codex opencode gemini copilot cursor`).
 
 ## Consequences
 
@@ -59,4 +60,4 @@ commands, not as new top-level subcommands (see ADR-007).
 ## Related
 - ADR-007: CLI simplification
 - ADR-005: Mandatory AskUserQuestion (a capability that does not port to other agents)
-- ADR-016: Multi-agent harness support (forthcoming) — will consume the capability handshake
+- ADR-016: Multi-agent harness support — consumes the capability handshake

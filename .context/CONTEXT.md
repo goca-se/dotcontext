@@ -2,7 +2,7 @@
 
 ## Overview
 
-**dotcontext** is an AI context toolkit for Claude Code. It provides commands, decisions, skills, and feature planning workflows that help AI assistants understand and work with your codebase.
+**dotcontext** is an AI context toolkit for coding agents — Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, and Cursor. It provides commands, decisions, skills, and feature planning workflows that help AI assistants understand and work with your codebase.
 
 **Users:** Developers and teams who use AI coding assistants and want to provide them with project context.
 
@@ -14,12 +14,13 @@
 
 | Entity | Responsibility |
 |--------|----------------|
-| `CLAUDE.md` | Root-level project context: stack, commands, critical rules, architecture overview |
+| `AGENTS.md` | **Canonical** root-level project instructions: stack, commands, critical rules, architecture, workflows. Read natively by Codex/opencode/Copilot/Cursor |
+| `CLAUDE.md` / `GEMINI.md` | Thin `@AGENTS.md` import stubs for Claude Code / Gemini CLI (emitted per selected harness) |
 | `.context/CONTEXT.md` | Domain knowledge: entities, flows, integrations, glossary |
 | `ADR (Architectural Decision Record)` | Documents a significant architectural decision with context, alternatives, and consequences |
 | `Skill` | Step-by-step guide for a recurring pattern or task in the codebase |
 | `PRP (Product Requirements Prompt)` | Structured feature specification with implementation plan and phases |
-| `Command` | Custom Claude Code slash command (markdown file in `.claude/commands/`) |
+| `Command` | A workflow prompt, emitted per harness (`.claude/commands/`, `.opencode/command/`, `.github/prompts/`, or the `## Workflows` section of `AGENTS.md`) |
 | `Discovery` | Output document from deep context analysis with business rules and cross-repo validation |
 | `Bug Report` | Structured report from `/fix-bug` with root cause, reproduction test, and fix details |
 

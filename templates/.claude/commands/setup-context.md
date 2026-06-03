@@ -24,9 +24,9 @@ First, understand:
 - What are the main entry points?
 - **Does it use Docker?** Check for `docker-compose.yml`, `Dockerfile`, or similar. If yes, commands should be run via Docker (e.g., `docker compose exec <service> <command>`).
 
-### 2. Fill CLAUDE.md
+### 2. Fill AGENTS.md
 
-Update the root `CLAUDE.md` with:
+`AGENTS.md` is the **canonical** project-instructions file (read by Codex, opencode, Copilot, Cursor; Claude and Gemini import it via `CLAUDE.md`/`GEMINI.md` stubs). Edit `AGENTS.md` — **never** the import stubs. Update it with:
 
 - **Project name and description**: Clear one-liner explaining what this is
 - **Stack**: Language version, framework, database, key dependencies
@@ -119,7 +119,7 @@ For each, create a skill folder with SKILL.md following the template.
 If `.claude/skills/bug-reproduction/SKILL.md` exists (created by `dotcontext init`), fill in the project-specific sections:
 
 - **Test Framework**: Detect from `package.json` (jest, vitest, mocha), `Gemfile` (rspec, minitest), `pyproject.toml`/`setup.py` (pytest, unittest), `go.mod` (go test), etc.
-- **Run command**: The actual command to run tests (from `CLAUDE.md` or project config)
+- **Run command**: The actual command to run tests (from `AGENTS.md` or project config)
 - **Test directory**: Where tests live in this project
 - **E2E Framework**: Detect Cypress, Playwright, Selenium if present
 - **Examples**: Find 1-2 real test examples from the codebase that demonstrate the project's test patterns
@@ -206,7 +206,7 @@ After completing each file, summarize what you created:
 ✅ Context setup complete!
 
 Created/Updated:
-- CLAUDE.md - [brief description of what was added]
+- AGENTS.md - [brief description of what was added]
 - .context/CONTEXT.md - [brief description]
 - .context/decisions/001-xxx.md - [title]
 - .context/decisions/002-xxx.md - [title]

@@ -94,7 +94,7 @@ would defeat the description-driven discovery ADR-016/017 rely on. Applied to al
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 (proposed) | 2026-06-03 | Initial plan for phase 2b |
+| 1.0 | 2026-06-03 | Accepted — skill frontmatter + hybrid command portability (opencode/Copilot native; AGENTS.md Workflows for Gemini/Cursor/Codex) |
 
 ## Related
 - ADR-005: Mandatory AskUserQuestion (clarity assessment) — `{{ASK}}` is how it's satisfied cross-agent

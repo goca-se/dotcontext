@@ -43,19 +43,19 @@ There is **no `--force` flag** — it was removed (it had degenerated into a pla
 ## Consequences
 
 ### Positive
-- User customizations are preserved by default
-- Explicit `--force` prevents accidental data loss
-- Simple mental model: default is safe
+- User customizations (seeds) are preserved by default — never force-overwritten
+- Managed files stay current via a diff-and-prompt update (no blunt overwrite needed)
+- Simple mental model: seeds are create-only, managed files prompt
 - New templates from updates are still available
 
 ### Negative
-- Users with outdated templates may not get improvements
-- Must document that `--force` is needed for full reset
-- No way to selectively update one template
+- Users with outdated seed files may not get improvements (by design — seeds are user-owned)
+- To reset a seed, the user must delete it and re-run update
+- No destructive `--force` flag (removed in v2.0); `--yes` only auto-confirms managed updates
 
 ### Risks
 - Users may not realize their templates are outdated
-- Mitigation: Add `dotcontext status` command to check for template drift (future)
+- Mitigation: `dotcontext doctor` reports when a newer version is available (ADR-015)
 
 ## History
 

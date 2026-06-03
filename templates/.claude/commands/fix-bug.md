@@ -37,18 +37,18 @@ Combine all sources into a single `BUG_CONTEXT` block. Focus on **root causes, n
 ### Step 3: Read Project Context
 
 Read these files to understand the project:
-- `CLAUDE.md` — project rules, stack, test commands
+- `AGENTS.md` — project rules, stack, test commands
 - `.context/CONTEXT.md` — domain context
 - `.claude/skills/bug-reproduction/SKILL.md` — bug reproduction patterns (if exists)
 - `.context/bugs/` — check for previous similar bugs (patterns may repeat)
 
-From `CLAUDE.md`, identify:
+From `AGENTS.md`, identify:
 - **Test framework** and **test command** (e.g., `npm test`, `pytest`, `go test`)
 - **Lint command** if available
 - **Stack** information (language, framework)
 
 If no test framework can be identified, warn the user:
-> "No test framework detected in CLAUDE.md. The /fix-bug command requires a test framework to validate fixes. Please update CLAUDE.md with your test commands, or provide the test command now."
+> "No test framework detected in AGENTS.md. The /fix-bug command requires a test framework to validate fixes. Please update AGENTS.md with your test commands, or provide the test command now."
 
 Then **use AskUserQuestion** to get the test command, or allow the user to proceed without tests.
 
