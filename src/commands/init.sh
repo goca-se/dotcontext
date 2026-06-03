@@ -4,12 +4,14 @@ cmd_init() {
   local project_name=""
   local skip_prompts=false
   local skip_setup=false
+  local agents_flag=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -n|--name) project_name="$2"; shift 2 ;;
       -y|--yes) skip_prompts=true; shift ;;
       --no-setup) skip_setup=true; shift ;;
+      --agents) agents_flag="$2"; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -33,145 +35,123 @@ cmd_init() {
     fi
   fi
 
-  print_gray "Creating structure..."
+  # Resolve which harnesses to instantiate (sets SELECTED_AGENTS). Only the
+  # chosen harnesses get files — no .claude/ for a Codex-only user, etc. (ADR-016)
+  resolve_selected_agents "$agents_flag" "$skip_prompts"
+  local selected="$SELECTED_AGENTS"
+  if [ -z "$selected" ]; then
+    print_red "No harness selected — nothing to set up. Re-run and pick at least one agent."
+    return 1
+  fi
+  local wants_claude=false; agents_include "$selected" claude && wants_claude=true
+  local wants_agents_skills=false
+  local _id
+  for _id in $selected; do [ "$_id" != "claude" ] && wants_agents_skills=true; done
 
-  # Create directories (mkdir -p is always safe)
-  mkdir -p ".context/decisions"
-  mkdir -p ".claude/skills"
-  mkdir -p ".claude/skills/bug-reproduction"
-  mkdir -p ".claude/skills/batch-operations"
-  mkdir -p ".claude/skills/git-platform"
-  mkdir -p ".context/prp/templates"
-  mkdir -p ".context/prp/generated"
-  mkdir -p ".context/discoveries"
-  mkdir -p ".context/bugs"
-  mkdir -p ".claude/commands"
-  mkdir -p ".claude/scripts"
-  mkdir -p ".claude/agents/code-review"
-  mkdir -p ".claude/agents/deep-context"
-  mkdir -p ".claude/agents/fix-bug"
+  print_gray "Setting up for: $selected"
 
-  # Download templates
+  # Harness-agnostic context skeleton (always)
+  mkdir -p ".context/decisions" ".context/prp/templates" ".context/prp/generated" \
+           ".context/discoveries" ".context/bugs"
+
   start_spinner "Downloading templates..."
 
-  # Helper: download only if file doesn't exist (for seed/user-customizable files)
+  # Helper: download only if file doesn't exist (seed/user-customizable files)
   local skipped_files=""
   download_if_missing() {
     local url="$1"
     local target="$2"
     if [ -f "$target" ]; then
-      if [ "$is_reinit" = true ]; then
-        skipped_files="${skipped_files}${target}\n"
-      fi
+      [ "$is_reinit" = true ] && skipped_files="${skipped_files}${target}\n"
       return 0
     fi
     download "$url" "$target"
   }
 
-  # Seed files: user-customizable content — only created if missing
-  download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
+  # ── Shared context (every harness) ──
+  download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
+  download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
+  download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
 
-  # Project instructions across detected agents: AGENTS.md is the canonical
-  # source; Claude/Gemini get thin @AGENTS.md import stubs. Claude is always
-  # included (first-class + backward compatible). (ADR-016)
-  local selected_agents
-  selected_agents="$(detect_agents)"
-  case " $selected_agents " in *" claude "*) ;; *) selected_agents="claude $selected_agents" ;; esac
-  for mapping in $(agent_instruction_seeds "$selected_agents"); do
+  # ── Project instructions: canonical AGENTS.md + import stubs for selected agents ──
+  for mapping in $(agent_instruction_seeds "$selected"); do
     # mappings are "url|target" ("|" can't appear in a URL or filename)
     download_if_missing "${mapping%|*}" "${mapping##*|}"
   done
 
-  download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
-  download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
-  download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"
-  download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
+  # ── Skills (shared SKILL.md content; physical home depends on selection) ──
+  local skills_dir
+  if [ "$wants_claude" = true ]; then skills_dir=".claude/skills"; else skills_dir=".agents/skills"; fi
+  mkdir -p "$skills_dir/bug-reproduction" "$skills_dir/batch-operations" "$skills_dir/git-platform"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" "$skills_dir/bug-reproduction/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" "$skills_dir/batch-operations/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" "$skills_dir/git-platform/SKILL.md"
+  # If both Claude and an AGENTS.md-reading agent are selected, mirror so both see the skills
+  if [ "$wants_claude" = true ] && [ "$wants_agents_skills" = true ]; then
+    link_or_copy_dir ".claude/skills" ".agents/skills"
+  fi
 
-  # Managed files: dotcontext commands — always downloaded (safe to overwrite)
-  download "${BASE_URL}/templates/.claude/commands/setup-context.md" ".claude/commands/setup-context.md"
-  download "${BASE_URL}/templates/.claude/commands/code-review.md" ".claude/commands/code-review.md"
-  download "${BASE_URL}/templates/.claude/commands/generate-prp.md" ".claude/commands/generate-prp.md"
-  download "${BASE_URL}/templates/.claude/commands/execute-prp.md" ".claude/commands/execute-prp.md"
-  download "${BASE_URL}/templates/.claude/commands/add-decision.md" ".claude/commands/add-decision.md"
-  download "${BASE_URL}/templates/.claude/commands/add-skill.md" ".claude/commands/add-skill.md"
-  download "${BASE_URL}/templates/.claude/commands/add-command.md" ".claude/commands/add-command.md"
-  download "${BASE_URL}/templates/.claude/commands/create-pr.md" ".claude/commands/create-pr.md"
-  download "${BASE_URL}/templates/.claude/commands/pr-comment.md" ".claude/commands/pr-comment.md"
-  download "${BASE_URL}/templates/.claude/commands/deep-context.md" ".claude/commands/deep-context.md"
-  download "${BASE_URL}/templates/.claude/commands/fix-bug.md" ".claude/commands/fix-bug.md"
-  download "${BASE_URL}/templates/.claude/commands/commit.md" ".claude/commands/commit.md"
+  # ── Claude-only toolkit (commands, agents, statusline, ignore) ──
+  if [ "$wants_claude" = true ]; then
+    mkdir -p ".claude/commands" ".claude/scripts" \
+             ".claude/agents/code-review" ".claude/agents/deep-context" ".claude/agents/fix-bug"
+    download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
 
-  # StatusLine script
-  download "${BASE_URL}/templates/.claude/scripts/statusline.sh" ".claude/scripts/statusline.sh"
-  chmod +x ".claude/scripts/statusline.sh"
+    local c
+    for c in setup-context code-review generate-prp execute-prp add-decision add-skill \
+             add-command create-pr pr-comment deep-context fix-bug commit; do
+      download "${BASE_URL}/templates/.claude/commands/${c}.md" ".claude/commands/${c}.md"
+    done
 
-  # Agent definition files (always downloaded — managed by dotcontext)
-  download "${BASE_URL}/templates/.claude/agents/code-review/compliance-checker.md" ".claude/agents/code-review/compliance-checker.md"
-  download "${BASE_URL}/templates/.claude/agents/code-review/bug-detector.md" ".claude/agents/code-review/bug-detector.md"
-  download "${BASE_URL}/templates/.claude/agents/code-review/security-analyst.md" ".claude/agents/code-review/security-analyst.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/step1-overview.md" ".claude/agents/deep-context/step1-overview.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/step2-subsystems.md" ".claude/agents/deep-context/step2-subsystems.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/step3-drill.md" ".claude/agents/deep-context/step3-drill.md"
-  download "${BASE_URL}/templates/.claude/agents/deep-context/step4-dataflow.md" ".claude/agents/deep-context/step4-dataflow.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/investigator.md" ".claude/agents/fix-bug/investigator.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-conservative.md" ".claude/agents/fix-bug/fix-conservative.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-minimal.md" ".claude/agents/fix-bug/fix-minimal.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/fix-refactor.md" ".claude/agents/fix-bug/fix-refactor.md"
-  download "${BASE_URL}/templates/.claude/agents/fix-bug/reviewer.md" ".claude/agents/fix-bug/reviewer.md"
+    download "${BASE_URL}/templates/.claude/scripts/statusline.sh" ".claude/scripts/statusline.sh"
+    chmod +x ".claude/scripts/statusline.sh"
 
-  # Declarative cleanup: remove stale files from managed-only directories
-  # NOTE: .claude/commands/ is excluded — users create custom commands there via /add-command
-  cleanup_managed_dir ".claude/agents/code-review" \
-    compliance-checker.md bug-detector.md security-analyst.md
-  cleanup_managed_dir ".claude/agents/deep-context" \
-    step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
-  cleanup_managed_dir ".claude/agents/fix-bug" \
-    investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
-  cleanup_managed_dir ".claude/scripts" \
-    statusline.sh notify.sh tool-failure-guard.sh
+    local a
+    for a in code-review/compliance-checker code-review/bug-detector code-review/security-analyst \
+             deep-context/step1-overview deep-context/step2-subsystems deep-context/step3-drill \
+             deep-context/step4-dataflow fix-bug/investigator fix-bug/fix-conservative \
+             fix-bug/fix-minimal fix-bug/fix-refactor fix-bug/reviewer; do
+      download "${BASE_URL}/templates/.claude/agents/${a}.md" ".claude/agents/${a}.md"
+    done
+
+    cleanup_managed_dir ".claude/agents/code-review" \
+      compliance-checker.md bug-detector.md security-analyst.md
+    cleanup_managed_dir ".claude/agents/deep-context" \
+      step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
+    cleanup_managed_dir ".claude/agents/fix-bug" \
+      investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
+    cleanup_managed_dir ".claude/scripts" \
+      statusline.sh notify.sh tool-failure-guard.sh
+  fi
 
   stop_spinner
 
-  # Show skipped files after spinner (so output doesn't collide)
   if [ -n "$skipped_files" ]; then
     printf "$skipped_files" | while read -r f; do
       [ -n "$f" ] && print_gray "  skipped (exists): $f"
     done
   fi
 
-  touch ".context/prp/generated/.keep"
-  touch ".context/discoveries/.keep"
-  touch ".context/bugs/.keep"
+  touch ".context/prp/generated/.keep" ".context/discoveries/.keep" ".context/bugs/.keep"
 
-  # Setup notifications (optional, don't fail if it doesn't work)
-  setup_notifications 2>/dev/null || true
+  # ── Hooks per selected harness (notifications; Claude also gets the failure guard) ──
+  setup_agent_hooks "$selected" 2>/dev/null || true
 
-  # MCP server configuration (only if .mcp.json doesn't exist)
+  # ── MCP servers (cross-agent; Context7/Atlassian work across harnesses) ──
   if [ ! -f ".mcp.json" ]; then
     local add_context7=false
     local add_atlassian=false
-
     if [ "$skip_prompts" = false ]; then
       echo ""
       print_blue "MCP Servers"
-      print_gray "Configure Model Context Protocol servers for Claude Code"
+      print_gray "Configure Model Context Protocol servers for your agents"
       echo ""
-
-      if confirm_yes "  Add Context7? (up-to-date library docs for LLMs)"; then
-        add_context7=true
-      fi
-
-      if confirm_yes "  Add Atlassian? (Jira + Confluence via OAuth)"; then
-        add_atlassian=true
-      fi
+      confirm_yes "  Add Context7? (up-to-date library docs for LLMs)" && add_context7=true
+      confirm_yes "  Add Atlassian? (Jira + Confluence via OAuth)" && add_atlassian=true
     else
-      # --yes flag: include both by default
       add_context7=true
       add_atlassian=true
     fi
-
     setup_mcp "$add_context7" "$add_atlassian"
   else
     print_gray "  skipped (exists): .mcp.json"
@@ -200,26 +180,23 @@ cmd_init() {
   else
     printf "  ${GREEN}${ICON_SUCCESS}${NC} Context structure created\n"
   fi
-  printf "  ${GRAY}AGENTS.md  .context/  .claude/commands/ (12)  .claude/agents/ (12)${NC}\n"
-
-  # Report which agents this project is wired for
-  local _detected _names="" _id
-  _detected="$(detect_agents)"
-  if [ -n "$_detected" ]; then
-    for _id in $_detected; do _names="$_names$(agent_name "$_id"), "; done
-    printf "  ${GRAY}Agents detected: %s${NC}\n" "${_names%, }"
-  fi
+  local _names="" _i
+  for _i in $selected; do _names="$_names$(agent_name "$_i"), "; done
+  printf "  ${GRAY}Harnesses: %s${NC}\n" "${_names%, }"
   echo ""
 
-  if [ "$skip_setup" = true ]; then
-    printf "  ${CYAN}Next:${NC}  run ${CYAN}/setup-context${NC} in Claude Code\n"
-  else
-    if command -v claude &> /dev/null; then
+  # /setup-context is a Claude command — only when Claude is part of the setup
+  if [ "$wants_claude" = true ]; then
+    if [ "$skip_setup" = true ]; then
+      printf "  ${CYAN}Next:${NC}  run ${CYAN}/setup-context${NC} in Claude Code\n"
+    elif command -v claude &> /dev/null; then
       printf "  ${CYAN}Running /setup-context...${NC}\n\n"
       claude "/setup-context"
     else
       printf "  ${YELLOW}Claude CLI not found.${NC} Run ${CYAN}/setup-context${NC} manually in Claude Code.\n"
     fi
+  else
+    printf "  ${CYAN}Next:${NC}  edit ${CYAN}AGENTS.md${NC} and ${CYAN}.context/CONTEXT.md${NC} to describe your project\n"
   fi
   echo ""
 }

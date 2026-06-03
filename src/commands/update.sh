@@ -182,6 +182,20 @@ cmd_update_templates() {
     fi
   fi
 
+  # Mirror skills to .agents/skills/ when a non-Claude agent is present (ADR-017).
+  if [ -d ".claude/skills" ] && [ ! -e ".agents/skills" ]; then
+    local _na=false _aid
+    for _aid in $(detect_agents); do [ "$_aid" != "claude" ] && _na=true; done
+    if [ "$_na" = true ]; then
+      if [ "$dry_run" = "true" ]; then
+        print_gray "  [dry-run] would mirror .claude/skills → .agents/skills (non-Claude agent detected)"
+      else
+        link_or_copy_dir ".claude/skills" ".agents/skills"
+        print_green "  Mirrored skills to .agents/skills/"
+      fi
+    fi
+  fi
+
   start_spinner "Checking templates..."
 
   # MANAGED templates: dotcontext-owned code (commands, templates that drive commands).

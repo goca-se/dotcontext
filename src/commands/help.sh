@@ -32,6 +32,7 @@ cmd_help() {
   # Init Options
   printf "  ${BLUE}${BOLD}Init Options${NC}\n"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--name, -n <name>" "Project name"
+  printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--agents <list>"   "Harnesses to set up (e.g. claude,codex). Default: detected"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--yes, -y"         "Skip prompts, use defaults"
   printf "    ${YELLOW}%-${opt_col}s${NC}%s\n" "--no-setup"        "Skip automatic /setup-context"
   echo ""
@@ -117,6 +118,7 @@ cmd_version() {
     "askuserquestion": true,
     "statusline": true,
     "hooks": true,
+    "skills": true,
     "multiagent": true,
     "agents": $agents_json
   }
@@ -133,6 +135,7 @@ JSON
     printf "  %-16s %s\n" "askuserquestion" "yes"
     printf "  %-16s %s\n" "statusline"      "yes"
     printf "  %-16s %s\n" "hooks"           "yes"
+    printf "  %-16s %s\n" "skills"          "yes"
     printf "  %-16s %s\n" "multiagent"      "yes"
     printf "  %-16s %s\n" "agents"          "$agents_list"
   fi

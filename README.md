@@ -161,6 +161,8 @@ your-project/
         └── statusline.sh            # StatusLine: model, dir, git, ctx-usage bar, cost/time/lines
 ```
 
+> Files are emitted per chosen harness (see [Multi-Agent Support](#multi-agent-support)): `AGENTS.md` and `.context/` are always written; the full `.claude/` tree and `CLAUDE.md` appear only when **Claude** is selected, `GEMINI.md` only for **Gemini**, and `.agents/skills/` only when a non-Claude agent is selected.
+
 Additionally, `dotcontext init` configures:
 
 - **MCP servers** in `.mcp.json` (optional, prompted during init):
@@ -178,15 +180,24 @@ Additionally, `dotcontext init` configures:
 
 ## Multi-Agent Support
 
-Project instructions are written once to a canonical **`AGENTS.md`** and shared across agents (ADR-016):
+dotcontext targets six harnesses — **Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, and Cursor** (IDE + `cursor-agent`). `init` only writes files for the harnesses you choose, so you never get junk (no `.claude/` in a Codex-only project):
 
-| Agent | How it reads the instructions |
+```bash
+dotcontext init                       # interactive: confirm each detected agent
+dotcontext init --agents codex,cursor # explicit, non-interactive
+dotcontext init --yes                 # all detected agents
+```
+
+What's shared vs per-harness (ADR-016, ADR-017):
+
+| Layer | Coverage |
 | --- | --- |
-| OpenAI Codex, opencode, GitHub Copilot, Cursor (incl. `cursor-agent`) | Read `AGENTS.md` natively |
-| Claude Code | `CLAUDE.md` → `@AGENTS.md` import |
-| Gemini CLI | `GEMINI.md` → `@AGENTS.md` import |
+| **Instructions** — canonical `AGENTS.md` | Codex/opencode/Copilot/Cursor read it natively; Claude (`CLAUDE.md`) and Gemini (`GEMINI.md`) via `@AGENTS.md` import |
+| **Skills** — shared `SKILL.md` | `.agents/skills/` (Codex/opencode/Gemini/Copilot/Cursor) mirrored to `.claude/skills/` (Claude) |
+| **Hooks** — notification on finish | native config per harness (`.codex/`, `.gemini/`, `.github/hooks/`, `.cursor/`, opencode plugin); Claude also gets the tool-failure guard |
+| **Commands** (`.claude/commands/`) | Claude-only for now — per-agent ports are planned |
 
-`dotcontext init` detects which agent CLIs are installed and writes the matching files; `dotcontext update` migrates an existing single-file `CLAUDE.md` into the shared `AGENTS.md` (Claude keeps working via the import). Check `dotcontext --version --json` for the full capability/agent list. Slash commands and skills remain Claude-native for now; per-agent ports are planned.
+`dotcontext update` migrates an existing single-file `CLAUDE.md` into the shared `AGENTS.md` (Claude keeps working via the import). Check `dotcontext --version --json` for the live capability/agent list.
 
 ## Commands Reference
 

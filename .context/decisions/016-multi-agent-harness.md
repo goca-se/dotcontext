@@ -64,11 +64,17 @@ Claude (it still reads the same content via the import).
 
 ### 5. Scope of this decision (phase 2a)
 
-This ADR covers the **instructions file** only. Porting slash commands and skills to each agent's
-native format is deferred to later phases; that work will require **ADR-005 v2.0** (the mandatory
-`AskUserQuestion` becomes a capability-aware portable `{{ASK}}` directive, since Codex/Gemini/etc.
-have no structured-question API). The `--version --json` capability handshake (ADR-015) flips
-`multiagent: true` and lists the supported `agents` as adapters land.
+This ADR covers the **instructions file** only. Skills and hooks portability is addressed in
+**ADR-017**; porting slash commands to each agent's native format is deferred to a later phase.
+
+> **Correction (2026-06-03):** an earlier draft of this ADR claimed "Codex/Gemini/etc. have no
+> structured-question API," used to justify a degraded `{{ASK}}` fallback. That premise is **false**.
+> Current research (see ADR-017) confirms **all six agents ship a model-callable structured-question
+> tool** (Claude `AskUserQuestion`, Codex `request_user_input`, opencode `question`, Gemini
+> `ask_user`, Copilot `ask_user`, Cursor `cursor/ask_question`) **and** lifecycle hooks. So command
+> portability (future ADR-005 v2.0) renders `{{ASK}}` to each agent's **native** question tool — it
+> does not degrade to free text. The `--version --json` handshake (ADR-015) flips `multiagent: true`
+> and lists supported `agents` as adapters land.
 
 ## Consequences
 
