@@ -18,7 +18,7 @@ Execute the PRP specified in $ARGUMENTS.
 
 - Follow patterns in `.claude/skills/`
 - Respect decisions in `.context/decisions/`
-- Check `CLAUDE.md` for critical rules
+- Check `AGENTS.md` for critical rules
 
 ## Parallel Phase Dispatch
 
@@ -188,7 +188,7 @@ Change `**Status:** Draft` to `**Status:** In Progress` when starting, and `**St
 
 ## When Finished
 
-Run the project's test/lint commands as defined in `CLAUDE.md`.
+Run the project's test/lint commands as defined in `AGENTS.md`.
 
 ## If Something Fails
 

@@ -13,7 +13,7 @@ cmd_help() {
   fi
 
   echo ""
-  printf "  ${BOLD}dotcontext${NC} ${GRAY}— AI context toolkit for Claude Code${NC}\n"
+  printf "  ${BOLD}dotcontext${NC} ${GRAY}— AI context toolkit for coding agents${NC}\n"
   echo ""
 
   # Usage
@@ -23,7 +23,7 @@ cmd_help() {
 
   # Commands
   printf "  ${BLUE}${BOLD}Commands${NC}\n"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "init"       "Initialize .context structure + open Claude Code"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "init"       "Initialize context for your agent(s)"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "update"     "Update CLI and/or templates"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "doctor"     "Check project setup health"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "completion" "Generate shell tab completions"
@@ -52,7 +52,7 @@ cmd_help() {
   echo ""
 
   # Claude Code Commands
-  printf "  ${BLUE}${BOLD}Claude Code Commands${NC} ${GRAY}(after init)${NC}\n"
+  printf "  ${BLUE}${BOLD}Workflows${NC} ${GRAY}(after init — slash commands on Claude/opencode/Copilot; AGENTS.md elsewhere)${NC}\n"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/setup-context"  "Analyze codebase and populate context"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/generate-prp"   "Plan a new feature"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/execute-prp"    "Implement a planned feature"
@@ -119,6 +119,7 @@ cmd_version() {
     "statusline": true,
     "hooks": true,
     "skills": true,
+    "commands": true,
     "multiagent": true,
     "agents": $agents_json
   }
@@ -136,6 +137,7 @@ JSON
     printf "  %-16s %s\n" "statusline"      "yes"
     printf "  %-16s %s\n" "hooks"           "yes"
     printf "  %-16s %s\n" "skills"          "yes"
+    printf "  %-16s %s\n" "commands"        "yes"
     printf "  %-16s %s\n" "multiagent"      "yes"
     printf "  %-16s %s\n" "agents"          "$agents_list"
   fi

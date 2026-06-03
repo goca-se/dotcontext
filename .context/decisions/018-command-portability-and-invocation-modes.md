@@ -1,7 +1,8 @@
 # ADR-018: Command Portability & Invocation Modes (phase 2b plan)
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-03
+**Version:** 1.0
 **Deciders:** Nicholas (Gocase)
 
 ## Context
@@ -39,19 +40,41 @@ Rationale for the promotions: `code-review` and `deep-context` are read-mostly, 
 / "help me understand X" are natural auto-triggers — discovery adds value with no side-effect risk, and
 the explicit `/name` still works.
 
-### 2. Emit per agent by mode
+### 2. Emit per agent by mode — **hybrid** (chosen)
 
 - `skill` mode → `SKILL.md` (already ports to all six — ADR-017).
-- `command` mode → each agent's **explicit** primitive: Claude command, opencode command, Copilot
-  prompt file, Gemini custom command (TOML), Cursor skill + `disable-model-invocation`, Codex prompt
-  (global `~/.codex/prompts/`, namespaced). Where an agent only offers auto-skills, use its explicit
-  flag if honored, otherwise fall back to documenting the workflow in `AGENTS.md`.
+- `command` mode → **native command/prompt files where the format is markdown-compatible and safe**,
+  and **`AGENTS.md` documentation everywhere else**:
+  - **Claude** → `.claude/commands/<name>.md` (slash command)
+  - **opencode** → `.opencode/command/<name>.md`
+  - **Copilot** → `.github/prompts/<name>.prompt.md`
+  - **Gemini, Cursor, Codex** → a **`## Workflows`** section in `AGENTS.md` (lists each workflow + when
+    to use). Rejected per-agent transforms (Gemini TOML, Cursor skill+flag, Codex global prompts) as
+    high-effort, format-divergent, and not runtime-verifiable here — the `AGENTS.md` section makes the
+    workflows usable on those agents without fragile generation.
+
+The canonical bodies are the existing `templates/.claude/commands/*.md`; opencode/Copilot receive copies
+(create-only). The `AGENTS.md` Workflows section also instructs every agent to use its **native
+structured-question tool** for clarification.
+
+> **Note:** the `code-review`/`deep-context` skill-mode promotion (item 1) is recorded but **not yet
+> applied** — they currently ship as commands. Converting them to discoverable `SKILL.md` is a small
+> follow-up within phase 2b.
 
 ### 3. Portable `{{ASK}}` directive
 
 Command/skill bodies express requirement-gathering with a portable `{{ASK: question | optA | optB }}`
-directive. At emit time it renders to each agent's **native** structured-question tool — it does **not**
-degrade to free text. This satisfies ADR-005's clarity-assessed questioning on every agent.
+directive. Because **every** agent ships a native structured-question tool (Context fact 2), this is an
+**authoring convention**, not a runtime transformer: bodies say "ask the user via your structured-question
+tool: …", and each agent's model uses its own (`AskUserQuestion` / `ask_user` / `question` / …). It does
+**not** degrade to free text, and satisfies ADR-005's clarity-assessed questioning on every agent.
+
+### 4. Skill frontmatter (`name` + `description`) — DONE
+
+Every `SKILL.md` now opens with YAML frontmatter (`name` matching the directory, a keyword-front-loaded
+`description`). Without it the model can't auto-discover a skill — only explicit `/name` works — which
+would defeat the description-driven discovery ADR-016/017 rely on. Applied to all four current skills
+(`bug-reproduction`, `batch-operations`, `git-platform`, `update-api-documentation`).
 
 ## Consequences
 
@@ -71,7 +94,7 @@ degrade to free text. This satisfies ADR-005's clarity-assessed questioning on e
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 (proposed) | 2026-06-03 | Initial plan for phase 2b |
+| 1.0 | 2026-06-03 | Accepted — skill frontmatter + hybrid command portability (opencode/Copilot native; AGENTS.md Workflows for Gemini/Cursor/Codex) |
 
 ## Related
 - ADR-005: Mandatory AskUserQuestion (clarity assessment) — `{{ASK}}` is how it's satisfied cross-agent

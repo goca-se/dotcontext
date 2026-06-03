@@ -1,3 +1,11 @@
+---
+name: update-api-documentation
+description: >-
+  Keep external REST API and webhook contracts documented from a single OpenAPI
+  source of truth (docs/openapi.yml), with generated Redoc HTML, validate/build
+  tasks, and a CI step. Use on any change to a public route, request/response
+  shape, auth scheme, or error contract.
+---
 # Skill: Update API Documentation (OpenAPI SSOT)
 
 Keep external API contracts documented from a **single source of truth** (`docs/openapi.yml`),

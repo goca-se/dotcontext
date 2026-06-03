@@ -69,7 +69,7 @@ If `--cache` flag is present:
 
 Read the following files to build context for agents:
 - `.context/CONTEXT.md` (full file)
-- `CLAUDE.md` (full file)
+- `AGENTS.md` (full file — canonical project instructions)
 - All files in `.context/decisions/` (read each ADR)
 
 ### Step 6: Launch Exploration Agents

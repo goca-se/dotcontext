@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.17.0](https://github.com/goca-se/dotcontext/compare/v0.16.0...v0.17.0) (2026-06-03)
+
+### Features
+
+* **multi-agent commands & skill discovery (phase 2b)** — completes the multi-agent story for skills and workflows (ADR-018):
+  * **skill frontmatter** — every `SKILL.md` now carries YAML `name` + `description`, so the model can **auto-discover** skills by description on every agent (not just via explicit `/name`). Applied to `bug-reproduction`, `batch-operations`, `git-platform`, `update-api-documentation`
+  * **commands across harnesses (hybrid)** — the 12 workflow prompts now reach non-Claude agents: **opencode** gets `.opencode/command/*.md` and **Copilot** gets `.github/prompts/*.prompt.md` (native copies); **Gemini/Cursor/Codex** get a new **`## Workflows`** section in `AGENTS.md` that lists each workflow and tells the agent to use its native structured-question tool for clarification. Claude keeps `.claude/commands/`
+  * **`--version --json`** now reports `commands: true`
+  * **`/add-skill` updated** — it now generates the new skill format (YAML `name`/`description` frontmatter, description front-loaded for discovery) instead of the old `# Skill:`-only format, and notes the `.agents/skills` mirror for non-Claude agents
+  * emission is per **selected** harness and create-only (no junk, no clobber)
+* **new `update-api-documentation` skill** (#10, @anachronicsofa) — keeps external API/webhook contracts documented from a single OpenAPI source of truth (`docs/openapi.yml`), with generated Redoc HTML, `docs:validate`/`docs:build` tasks, and a CI step. Stack-agnostic (Rails/Node/Python examples). Merged after v0.16.0, so it ships in this release.
+* **release notes from `CHANGELOG.md`** — `release.yml` now uses the matching `CHANGELOG.md` section as the GitHub release body (squash-merges made the old git-log notes one line); falls back to the git log when no section exists.
+
+### Fixes
+
+* **commands now read/write `AGENTS.md`, not the `CLAUDE.md` stub** — `setup-context` writes project instructions to `AGENTS.md`; `fix-bug`, `execute-prp`, `deep-context`, and `code-review` read `AGENTS.md`. Previously they targeted `CLAUDE.md`, which is now just an `@AGENTS.md` import stub (so they were getting near-empty content).
+* **`doctor` no longer fails on valid non-Claude projects** — a missing Claude CLI is a warning, and the commands check recognizes `.opencode/command`, `.github/prompts`, and the `AGENTS.md` Workflows section.
+* consistency sweep across docs and ADRs (README, root `CLAUDE.md`, `CONTEXT.md`, ADR-003/004/005/015/016): removed stale "Claude-only" framing, the removed `--force` flag, and dangling/`forthcoming` ADR references.
+
+### Docs
+
+* added **`CONTRIBUTING.md`** (skill-first, with the full deploy/release flow), GitHub **issue templates** + a **pull request template**.
+* humanized `CONTRIBUTING.md` and the README multi-agent section.
+
+### Notes
+
+* Per-agent command files are emitted in markdown-compatible form (opencode/Copilot) — Gemini TOML / Cursor skill / Codex global-prompt transforms were intentionally **not** generated (format-divergent, not runtime-verifiable); those agents use the `AGENTS.md` Workflows section instead. The `code-review`/`deep-context` → skill-mode promotion (ADR-018 item 1) is recorded but deferred — they still ship as commands.
+
 ## [0.16.0](https://github.com/goca-se/dotcontext/compare/v0.15.0...v0.16.0) (2026-06-03)
 
 ### Features

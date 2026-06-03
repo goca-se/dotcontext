@@ -5,7 +5,7 @@
 <h1 align="center">dotcontext</h1>
 
 <p align="center">
-  <em>AI context toolkit for Claude Code</em>
+  <em>AI context toolkit for coding agents — Claude Code, Codex, opencode, Gemini, Copilot & Cursor</em>
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
   <a href="https://github.com/goca-se/dotcontext/blob/main/LICENSE"><img src="https://img.shields.io/github/license/goca-se/dotcontext" alt="License"></a>
 </p>
 
-`dotcontext` is an AI context toolkit for Claude Code. It provides commands, decisions, skills, and feature planning workflows that help AI assistants understand and work with your codebase.
+`dotcontext` is an AI context toolkit for coding agents — Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, and Cursor. It provides commands, decisions, skills, and feature planning workflows that help AI assistants understand and work with your codebase.
 
 <details>
 <summary>See it in action</summary>
@@ -46,7 +46,7 @@ cd your-project
 dotcontext init
 ```
 
-This creates the context structure, downloads templates, and **automatically opens Claude Code running `/setup-context`** to analyze and populate your project's context files.
+This creates the context structure and downloads templates for the harness(es) you select. When **Claude Code** is among them, it **automatically opens Claude running `/setup-context`** to analyze and populate your project's context files; otherwise, edit `AGENTS.md` and `.context/CONTEXT.md` to describe your project.
 
 **Options:**
 
@@ -108,7 +108,7 @@ claude
 
 ## Decision Compliance
 
-The generated `CLAUDE.md` includes instructions for AI assistants to **respect architectural decisions**.
+The generated `AGENTS.md` (the canonical instructions file) includes instructions for AI assistants to **respect architectural decisions**.
 
 When you ask Claude Code to make a change that conflicts with an existing ADR, it will:
 
@@ -155,8 +155,11 @@ your-project/
     │   ├── code-review/              # 3 review agents
     │   ├── deep-context/             # 4 exploration agents
     │   └── fix-bug/                  # 5 bug-fix agents
-    ├── skills/                       # Step-by-step guides
-    │   └── bug-reproduction/         # Bug reproduction patterns
+    ├── skills/                       # Step-by-step guides (SKILL.md w/ name+description frontmatter)
+    │   ├── bug-reproduction/         # Reproduce-before-fixing patterns
+    │   ├── batch-operations/         # Safe multi-file changes
+    │   ├── git-platform/             # Detect GitHub/GitLab/… before git CLI
+    │   └── update-api-documentation/ # OpenAPI SSOT docs
     └── scripts/
         └── statusline.sh            # StatusLine: model, dir, git, ctx-usage bar, cost/time/lines
 ```
@@ -180,7 +183,7 @@ Additionally, `dotcontext init` configures:
 
 ## Multi-Agent Support
 
-dotcontext targets six harnesses — **Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, and Cursor** (IDE + `cursor-agent`). `init` only writes files for the harnesses you choose, so you never get junk (no `.claude/` in a Codex-only project):
+dotcontext works with six harnesses: **Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, and Cursor** (IDE and `cursor-agent`). `init` only writes files for the harnesses you pick, so a Codex-only project never ends up with a stray `.claude/`:
 
 ```bash
 dotcontext init                       # interactive: confirm each detected agent
@@ -192,10 +195,10 @@ What's shared vs per-harness (ADR-016, ADR-017):
 
 | Layer | Coverage |
 | --- | --- |
-| **Instructions** — canonical `AGENTS.md` | Codex/opencode/Copilot/Cursor read it natively; Claude (`CLAUDE.md`) and Gemini (`GEMINI.md`) via `@AGENTS.md` import |
-| **Skills** — shared `SKILL.md` | `.agents/skills/` (Codex/opencode/Gemini/Copilot/Cursor) mirrored to `.claude/skills/` (Claude) |
-| **Hooks** — notification on finish | native config per harness (`.codex/`, `.gemini/`, `.github/hooks/`, `.cursor/`, opencode plugin); Claude also gets the tool-failure guard |
-| **Commands** (`.claude/commands/`) | Claude-only for now — per-agent ports are planned |
+| Instructions (`AGENTS.md`) | Codex, opencode, Copilot, and Cursor read it natively; Claude (`CLAUDE.md`) and Gemini (`GEMINI.md`) import it with `@AGENTS.md` |
+| Skills (`SKILL.md`) | `.agents/skills/` for Codex/opencode/Gemini/Copilot/Cursor, mirrored to `.claude/skills/` for Claude |
+| Hooks (finish notification) | native config per harness (`.codex/`, `.gemini/`, `.github/hooks/`, `.cursor/`, opencode plugin); Claude also gets the tool-failure guard |
+| Commands / workflows | Claude `.claude/commands/`, opencode `.opencode/command/`, Copilot `.github/prompts/`; Gemini, Cursor, and Codex use the `## Workflows` section of `AGENTS.md` |
 
 `dotcontext update` migrates an existing single-file `CLAUDE.md` into the shared `AGENTS.md` (Claude keeps working via the import). Check `dotcontext --version --json` for the live capability/agent list.
 
@@ -476,7 +479,7 @@ Create a custom Claude Code slash command:
 
 ## Notifications
 
-`dotcontext init` automatically configures native OS notifications for Claude Code in the project's `.claude/settings.json`:
+`dotcontext init` automatically configures native OS notifications for each selected harness in its own hook config (`.claude/settings.json`, `.codex/hooks.json`, `.gemini/settings.json`, `.github/hooks/`, `.cursor/hooks.json`, or an opencode plugin). For Claude:
 
 | Event | When | Sound (macOS) |
 |-------|------|---------------|

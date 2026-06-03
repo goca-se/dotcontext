@@ -42,12 +42,12 @@ Collect all relevant context before launching agents:
 
 1. **Get the PR/MR diff** using the detected platform CLI (e.g., `gh pr diff`, `glab mr diff`)
 
-2. **Find all CLAUDE.md files** (project guidelines):
+2. **Find all AGENTS.md files** (project guidelines):
 ```bash
-find . -name "CLAUDE.md" -o -name "*.claude.md" | head -20
+find . -name "AGENTS.md" -o -name "*.claude.md" | head -20
 ```
 
-3. **Read CLAUDE.md files** found above to understand project rules
+3. **Read AGENTS.md files** found above to understand project rules
 
 4. **Get PR/MR metadata** using the detected platform CLI (e.g., `gh pr view --json title,body,files`, `glab mr view`)
 
@@ -55,22 +55,22 @@ find . -name "CLAUDE.md" -o -name "*.claude.md" | head -20
 
 Use the **Task tool** to launch 4 agents in parallel. Each agent receives:
 - The full PR diff
-- All CLAUDE.md content found
+- All AGENTS.md content found
 - Their specific mission
 
 **IMPORTANT:** Launch all 4 agents in a SINGLE message with multiple Task tool calls.
 
-**Agent prompt files** — Read these files and use as agent prompts, substituting `{diff}` with the PR diff and `{claude_md_content}` with the CLAUDE.md content:
+**Agent prompt files** — Read these files and use as agent prompts, substituting `{diff}` with the PR diff and `{claude_md_content}` with the AGENTS.md content:
 
 ---
 
-#### Agent 1: CLAUDE.md Compliance (Primary)
+#### Agent 1: AGENTS.md Compliance (Primary)
 
 Read `.claude/agents/code-review/compliance-checker.md` for the agent prompt.
 
 ---
 
-#### Agent 2: CLAUDE.md Compliance (Secondary)
+#### Agent 2: AGENTS.md Compliance (Secondary)
 
 Same prompt as Agent 1 (read `.claude/agents/code-review/compliance-checker.md`). Redundancy ensures we catch compliance issues.
 
@@ -99,7 +99,7 @@ After all agents complete, collect their findings and score each issue for confi
 **Scoring questions to ask yourself:**
 1. Is there concrete evidence this is a real issue?
 2. Could this be intentional or handled elsewhere?
-3. Does the CLAUDE.md explicitly mention this rule?
+3. Does the AGENTS.md explicitly mention this rule?
 4. Is this introduced by the PR or pre-existing?
 
 ### Step 5: Filter and Deduplicate
@@ -212,7 +212,7 @@ Do NOT report these (they inflate noise):
 - Pre-existing issues not introduced by this PR
 - Issues that linters/formatters will catch
 - Code that "looks wrong" but is intentional (check git blame)
-- General style preferences not in CLAUDE.md
+- General style preferences not in AGENTS.md
 - Hypothetical future issues
 - Lines with `// eslint-disable` or similar ignore comments
 - Auto-generated code

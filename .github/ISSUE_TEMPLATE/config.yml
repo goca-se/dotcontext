@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: How to contribute (add a skill, etc.)
+    url: https://github.com/goca-se/dotcontext/blob/main/CONTRIBUTING.md
+    about: Read the contributing guide before opening a PR.

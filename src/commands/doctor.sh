@@ -30,13 +30,14 @@ cmd_doctor() {
     check_fail "Git repository — not a git repo"
   fi
 
-  # Check: Claude CLI installed
+  # Check: Claude CLI installed (informational — dotcontext is multi-agent, so a
+  # missing Claude CLI is not a failure for Codex/opencode/Gemini/etc. projects)
   if command -v claude &>/dev/null; then
     local claude_ver
     claude_ver=$(claude --version 2>/dev/null || echo "unknown")
     check_pass "Claude CLI installed ($claude_ver)"
   else
-    check_fail "Claude CLI — not installed"
+    check_warn "Claude CLI — not installed (fine if you use another agent)"
   fi
 
   # Check: .context/ directory
@@ -82,15 +83,21 @@ cmd_doctor() {
     check_warn ".context/decisions/ — no ADRs found"
   fi
 
-  # Check: .claude/commands/ present
+  # Check: workflow commands present (per-harness — a non-Claude project has no
+  # .claude/, getting its workflows from .opencode/command, .github/prompts, or
+  # the AGENTS.md "Workflows" section instead)
   local cmd_count=0
   if [ -d ".claude/commands" ]; then
     cmd_count=$(find .claude/commands -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
   fi
   if [ "$cmd_count" -gt 0 ]; then
     check_pass ".claude/commands/ — $cmd_count command(s)"
+  elif [ -d ".opencode/command" ] || [ -d ".github/prompts" ]; then
+    check_pass "Commands present (non-Claude harness)"
+  elif grep -q "## Workflows" "AGENTS.md" 2>/dev/null; then
+    check_pass "Workflows documented in AGENTS.md"
   else
-    check_fail ".claude/commands/ — no commands found"
+    check_fail "No commands found (run dotcontext init)"
   fi
 
   # Check: .claude/agents/ present

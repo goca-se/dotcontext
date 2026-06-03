@@ -63,6 +63,12 @@ The root `CLAUDE.md` also includes this as Critical Rule #1:
 | 1.0 | 2025-02-02 | Initial decision |
 | 2.0 | 2026-05-21 | Replaced fixed "10 questions" quota in `/generate-prp` with clarity-assessment policy (0..N questions). Selectively absorbed ideas from spec-driven-build skill without adopting its full ceremony. |
 
+> **Cross-agent note (2026-06):** `AskUserQuestion` is Claude's tool name. Every supported agent ships an
+> equivalent structured-question tool (`request_user_input`, `question`, `ask_user`, `cursor/ask_question`),
+> so this requirement holds on all of them. ADR-018 makes it portable via a neutral `{{ASK}}` convention
+> that renders to each agent's native tool — it does not degrade to free text.
+
 ## Related
 - ADR-004: Claude Code integration
 - ADR-011: Test-Driven Bug Fixing Pattern (partial exception — `/fix-bug` skips initial questions)
+- ADR-018: Command portability — generalizes this requirement across agents via `{{ASK}}`

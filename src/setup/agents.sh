@@ -263,3 +263,34 @@ JS
   done
   [ "$done_any" = true ] || true
 }
+
+# ── Per-agent commands (hybrid, ADR-018) ──────────────────────────────────────
+# The canonical workflow prompts ship in templates/.claude/commands/. Claude gets
+# them in .claude/commands/ (handled in init). opencode and Copilot get native
+# command/prompt files here; Gemini/Cursor/Codex rely on the "## Workflows"
+# section emitted into AGENTS.md. Create-only — never clobbers existing files.
+DOTCONTEXT_COMMANDS="setup-context generate-prp execute-prp code-review commit create-pr pr-comment deep-context fix-bug add-decision add-skill add-command"
+
+emit_agent_commands() {
+  local selected="$1" id name
+  for id in $selected; do
+    case "$id" in
+      opencode)
+        mkdir -p ".opencode/command"
+        for name in $DOTCONTEXT_COMMANDS; do
+          [ -f ".opencode/command/${name}.md" ] || \
+            download "${BASE_URL}/templates/.claude/commands/${name}.md" ".opencode/command/${name}.md"
+        done
+        print_gray "  commands: .opencode/command/ (opencode)"
+        ;;
+      copilot)
+        mkdir -p ".github/prompts"
+        for name in $DOTCONTEXT_COMMANDS; do
+          [ -f ".github/prompts/${name}.prompt.md" ] || \
+            download "${BASE_URL}/templates/.claude/commands/${name}.md" ".github/prompts/${name}.prompt.md"
+        done
+        print_gray "  commands: .github/prompts/ (copilot)"
+        ;;
+    esac
+  done
+}

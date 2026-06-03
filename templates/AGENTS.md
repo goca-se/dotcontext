@@ -90,6 +90,33 @@ Remove:
 
 ---
 
+## Workflows
+
+These are explicit, user-invoked workflows. On **Claude Code** they are slash commands in
+`.claude/commands/`; on **opencode** they are commands in `.opencode/commands/`; on **GitHub Copilot**
+they are prompt files in `.github/prompts/`. On agents without per-repo command files (Gemini, Cursor,
+Codex), the user describes the task and you execute the matching workflow below. Run them only when the
+user asks — never auto-fire a workflow that commits, opens a PR, or writes files.
+
+| Workflow | Purpose |
+| --- | --- |
+| `setup-context` | Analyze the codebase and populate `.context/` |
+| `generate-prp` | Plan a feature (clarity assessment + clarifying questions) |
+| `execute-prp` | Implement a planned feature (PRP) |
+| `code-review` | Multi-agent review of the current changes |
+| `commit` | Smart, style-aware commit message |
+| `create-pr` | Create a PR with an auto-generated description |
+| `pr-comment` | Add a comment to an existing PR |
+| `deep-context` | Structured 4-step codebase exploration |
+| `fix-bug` | Test-driven bug fixing (reproduce → fix → verify) |
+| `add-decision` | Add an architectural decision record (ADR) |
+| `add-skill` | Add a skill guide |
+| `add-command` | Create a custom command |
+
+When a workflow needs to clarify requirements, **ask the user with your structured-question tool**
+(`AskUserQuestion` / `ask_user` / `question` / `cursor/ask_question` / `request_user_input`) rather than
+assuming — present concrete options. Do not degrade to silent assumptions.
+
 ## Additional Context
 
 - Domain and architecture → `.context/CONTEXT.md`

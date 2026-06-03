@@ -1,9 +1,14 @@
 # ADR-004: Claude Code Integration via Slash Commands
 
-**Status:** Accepted
+**Status:** Accepted (extended beyond Claude by ADR-016/017/018)
 **Date:** 2025-01-31
 **Version:** 1.0
 **Deciders:** Gocase Team
+
+> **Note (2026-06):** the "tightly coupled to Claude Code (won't work with other AI tools)" tradeoff below
+> has been lifted — dotcontext now serves six harnesses. Instructions go through a canonical `AGENTS.md`
+> (ADR-016), skills/hooks port per agent (ADR-017), and workflows reach each agent's command primitive or
+> the `AGENTS.md` Workflows section (ADR-018). This ADR is kept as the original Claude-first record.
 
 ## Context
 
@@ -52,3 +57,6 @@ Commands created:
 
 ## Related
 - ADR-005: AskUserQuestion requirement
+- ADR-016: Multi-agent harness (extends this beyond Claude)
+- ADR-017: Skills & hooks portability + harness selection
+- ADR-018: Command portability & invocation modes

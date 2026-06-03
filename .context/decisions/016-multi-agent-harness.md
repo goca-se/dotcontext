@@ -106,6 +106,7 @@ This ADR covers the **instructions file** only. Skills and hooks portability is 
 
 ## Related
 - ADR-004: Claude Code integration (this extends it beyond Claude)
-- ADR-005: Mandatory AskUserQuestion (will get a v2.0 for command portability in phase 2b)
-- ADR-007: CLI simplification (interactive detection, no new flags)
+- ADR-005: Mandatory AskUserQuestion (ADR-018 renders `{{ASK}}` to each agent's native question tool)
+- ADR-007: CLI simplification (interactive detection; the `--agents` flag is a scoped exception, see ADR-017)
 - ADR-015: Capability discovery & update awareness (the handshake this populates)
+- ADR-017 / ADR-018: skills & hooks portability, command portability

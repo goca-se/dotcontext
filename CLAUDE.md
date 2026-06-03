@@ -1,6 +1,6 @@
 # dotcontext
 
-> AI context toolkit for Claude Code — commands, decisions, skills, and feature planning for your codebase.
+> AI context toolkit for coding agents (Claude Code, Codex, opencode, Gemini, Copilot, Cursor) — commands, decisions, skills, and feature planning for your codebase.
 
 ## Decision Compliance
 
@@ -29,8 +29,8 @@ If a requested change conflicts with an existing decision:
 ### CLI
 
 ```bash
-# Initialize context structure in a project (auto-runs /setup-context)
-dotcontext init [--name "Project Name"] [--yes] [--no-setup]
+# Initialize context structure in a project (harness-selective; auto-runs /setup-context when Claude is selected)
+dotcontext init [--name "Project Name"] [--agents claude,codex,...] [--yes] [--no-setup]
 
 # Update CLI + templates
 dotcontext update                     # Update CLI + templates (if in project)
@@ -43,9 +43,9 @@ dotcontext doctor
 # Shell tab completion
 dotcontext completion [bash|zsh]
 
-# Help
+# Help / version (--features and --json expose the capability handshake)
 dotcontext --help
-dotcontext --version
+dotcontext --version [--features|--json]
 ```
 
 ### Claude Code (interactive with questions)
@@ -82,13 +82,15 @@ The CLI is distributed as a single `dotcontext` bash script. Source code lives i
 
 ### Template-Based Init
 
-Templates live in `templates/` directory on GitHub and are downloaded during `dotcontext init`. The structure mirrors what gets created in user projects:
-- `templates/CLAUDE.md` → project root `CLAUDE.md`
+Templates live in `templates/` directory on GitHub and are downloaded during `dotcontext init`. `init` is **harness-selective** — only the chosen agents' files are emitted:
+- `templates/AGENTS.md` → project `AGENTS.md` (the **canonical** instructions, always emitted)
+- `templates/CLAUDE.md` / `templates/GEMINI.md` → thin `@AGENTS.md` import stubs (emitted only for Claude / Gemini)
 - `templates/.context/` → project `.context/` directory
+- `.claude/` (commands, agents, statusline, hooks) is emitted **only when Claude is selected**
 
-### Claude Code Integration
+### Multi-Agent Integration
 
-Slash commands in `.claude/commands/` provide interactive workflows that integrate with Claude Code's tool system (AskUserQuestion, file operations, etc.).
+Six harnesses are supported (Claude Code, Codex, opencode, Gemini CLI, Copilot, Cursor) via an adapter registry (`src/setup/agents.sh`). Workflows reach each harness in its native form: Claude `.claude/commands/`, opencode `.opencode/command/`, Copilot `.github/prompts/`, and a `## Workflows` section in `AGENTS.md` for Gemini/Cursor/Codex. Skills (`SKILL.md` with `name`/`description` frontmatter) go to `.claude/skills/` and/or `.agents/skills/`. See ADR-016/017/018.
 
 ---
 

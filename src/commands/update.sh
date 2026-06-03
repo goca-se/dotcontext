@@ -455,7 +455,7 @@ cmd_update_templates() {
     else
       echo ""
       print_blue "MCP Servers"
-      print_gray "Configure Model Context Protocol servers for Claude Code"
+      print_gray "Configure Model Context Protocol servers for your agents"
       echo ""
 
       if confirm_yes "  Add Context7? (up-to-date library docs for LLMs)"; then
