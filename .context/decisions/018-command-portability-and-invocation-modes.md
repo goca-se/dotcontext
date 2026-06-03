@@ -50,8 +50,17 @@ the explicit `/name` still works.
 ### 3. Portable `{{ASK}}` directive
 
 Command/skill bodies express requirement-gathering with a portable `{{ASK: question | optA | optB }}`
-directive. At emit time it renders to each agent's **native** structured-question tool — it does **not**
-degrade to free text. This satisfies ADR-005's clarity-assessed questioning on every agent.
+directive. Because **every** agent ships a native structured-question tool (Context fact 2), this is an
+**authoring convention**, not a runtime transformer: bodies say "ask the user via your structured-question
+tool: …", and each agent's model uses its own (`AskUserQuestion` / `ask_user` / `question` / …). It does
+**not** degrade to free text, and satisfies ADR-005's clarity-assessed questioning on every agent.
+
+### 4. Skill frontmatter (`name` + `description`) — DONE
+
+Every `SKILL.md` now opens with YAML frontmatter (`name` matching the directory, a keyword-front-loaded
+`description`). Without it the model can't auto-discover a skill — only explicit `/name` works — which
+would defeat the description-driven discovery ADR-016/017 rely on. Applied to all four current skills
+(`bug-reproduction`, `batch-operations`, `git-platform`, `update-api-documentation`).
 
 ## Consequences
 

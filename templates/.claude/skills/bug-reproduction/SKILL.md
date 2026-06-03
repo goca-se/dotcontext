@@ -1,3 +1,10 @@
+---
+name: bug-reproduction
+description: >-
+  Reproduce a bug with a failing test before fixing it. Use when investigating a
+  bug, working a bug report or issue, or before attempting any fix — always
+  reproduce first. Pairs with the /fix-bug workflow.
+---
 # Skill: Bug Reproduction
 
 ## When to Use

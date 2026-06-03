@@ -1,3 +1,11 @@
+---
+name: batch-operations
+description: >-
+  Apply a change safely across many files — refactors touching more than 5 files,
+  library or API migrations, project-wide renames of symbols/imports/paths, or
+  adding boilerplate to many files. Use when "do it all at once" risks context
+  overflow or silent failures.
+---
 # Skill: Batch Operations
 
 ## When to Use
