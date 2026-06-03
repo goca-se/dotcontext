@@ -197,8 +197,8 @@ A release is a separate step, automated by `.github/workflows/release.yml` (ADR-
 3. Commit (`chore(release): vX.Y.Z`) and tag `vX.Y.Z`.
 4. `git push && git push --tags`.
 5. Pushing the `v*` tag triggers `release.yml`. It checks the binary is in sync and the tag matches
-   `VERSION`, generates notes from `git log`, and publishes the GitHub release. Don't run
-   `gh release create` yourself.
+   `VERSION`, takes the release notes from the matching `CHANGELOG.md` section (so write a good one),
+   and publishes the GitHub release. Don't run `gh release create` yourself.
 
 Maintainers can run `/release [patch|minor|major]` in Claude Code for steps 1 through 4.
 

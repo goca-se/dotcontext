@@ -28,7 +28,8 @@ Inspired by github/spec-kit's tag-triggered release workflow, which generates no
    `v*` tag. The workflow:
    - runs `make build` and fails if the committed `dotcontext` is out of sync with `src/`,
    - fails if the tag does not match the binary's `VERSION`,
-   - generates release notes from `git log --no-merges` since the previous tag,
+   - takes release notes from the matching `CHANGELOG.md` section (falling back to `git log --no-merges`
+     since the previous tag when no section exists), since squash-merges make the git log too sparse,
    - runs `gh release create`. Humans must not call `gh release create` by hand.
 
 3. **A CI workflow (`.github/workflows/ci.yml`)** runs on PRs and pushes to `main`:
@@ -44,8 +45,8 @@ Inspired by github/spec-kit's tag-triggered release workflow, which generates no
 
 ### Negative
 - Contributors must remember to `make build` and commit the binary (now enforced by CI).
-- Release notes from `git log` are only as good as commit hygiene; the curated `CHANGELOG.md`
-  entry remains the human-readable record.
+- Release notes are only as good as the `CHANGELOG.md` entry for that version, so each release needs a
+  written changelog section (the `git log` fallback is sparse under squash-merge).
 
 ## Alternatives Considered
 
