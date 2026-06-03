@@ -451,18 +451,20 @@ detect_agents() {
   echo "${out# }"
 }
 
-# Echo "url:target" instruction-file seed mappings for the selected agent ids.
+# Echo "url|target" instruction-file seed mappings for the selected agent ids.
 # AGENTS.md (canonical) is always first; import-mode agents add their stub.
 # Native agents need no extra file (they read AGENTS.md directly).
+# The "|" separator can't appear in a URL or a filename, so consumers parse it
+# unambiguously: url="${mapping%|*}", target="${mapping##*|}".
 agent_instruction_seeds() {
   local selected="$1" id target seen=" "
-  echo "${BASE_URL}/templates/AGENTS.md:AGENTS.md"
+  echo "${BASE_URL}/templates/AGENTS.md|AGENTS.md"
   for id in $selected; do
     [ "$(agent_emit_mode "$id")" = "import" ] || continue
     target="$(agent_instructions_file "$id")"
     case "$seen" in *" $target "*) continue ;; esac
     seen="$seen$target "
-    echo "${BASE_URL}/templates/${target}:${target}"
+    echo "${BASE_URL}/templates/${target}|${target}"
   done
 }
 # ── Command: init ─────────────────────────────────────────────────────────────
@@ -545,7 +547,8 @@ cmd_init() {
   selected_agents="$(detect_agents)"
   case " $selected_agents " in *" claude "*) ;; *) selected_agents="claude $selected_agents" ;; esac
   for mapping in $(agent_instruction_seeds "$selected_agents"); do
-    download_if_missing "${mapping%%:*}" "${mapping#*:}"
+    # mappings are "url|target" ("|" can't appear in a URL or filename)
+    download_if_missing "${mapping%|*}" "${mapping##*|}"
   done
 
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"

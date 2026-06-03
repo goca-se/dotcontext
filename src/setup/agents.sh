@@ -64,17 +64,19 @@ detect_agents() {
   echo "${out# }"
 }
 
-# Echo "url:target" instruction-file seed mappings for the selected agent ids.
+# Echo "url|target" instruction-file seed mappings for the selected agent ids.
 # AGENTS.md (canonical) is always first; import-mode agents add their stub.
 # Native agents need no extra file (they read AGENTS.md directly).
+# The "|" separator can't appear in a URL or a filename, so consumers parse it
+# unambiguously: url="${mapping%|*}", target="${mapping##*|}".
 agent_instruction_seeds() {
   local selected="$1" id target seen=" "
-  echo "${BASE_URL}/templates/AGENTS.md:AGENTS.md"
+  echo "${BASE_URL}/templates/AGENTS.md|AGENTS.md"
   for id in $selected; do
     [ "$(agent_emit_mode "$id")" = "import" ] || continue
     target="$(agent_instructions_file "$id")"
     case "$seen" in *" $target "*) continue ;; esac
     seen="$seen$target "
-    echo "${BASE_URL}/templates/${target}:${target}"
+    echo "${BASE_URL}/templates/${target}|${target}"
   done
 }

@@ -13,7 +13,7 @@ commands, agents, and skills. ADR-004 explicitly accepted "tightly coupled to Cl
 
 The toolkit's value — the curated project instructions, decisions, and skills — is agent-agnostic.
 Coding agents have converged on a near-common convention: the **AGENTS.md** open standard
-(Linux-Foundation-stewarded, plain Markdown, nearest-file-wins). github/spec-kit ships per-agent
+(Linux-Foundation-stewarded, plain Markdown, nearest-file-wins). GitHub's spec-kit ships per-agent
 integrations; we want the same reach without abandoning the Claude-first ergonomics.
 
 Research (2026) on where each agent reads its project instruction/memory file:

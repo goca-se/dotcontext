@@ -126,7 +126,7 @@ This ensures your architectural decisions stay synchronized with your code.
 ```
 your-project/
 ├── AGENTS.md                    # Canonical project instructions (read by Codex, opencode, Copilot, Cursor…)
-├── CLAUDE.md                    # Thin @AGENTS.md import for Claude Code (added when Claude is detected)
+├── CLAUDE.md                    # Thin @AGENTS.md import for Claude Code (always added for compatibility)
 ├── GEMINI.md                    # Thin @AGENTS.md import for Gemini CLI (added when Gemini is detected)
 ├── .context/
 │   ├── CONTEXT.md               # Domain knowledge

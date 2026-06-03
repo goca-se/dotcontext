@@ -78,7 +78,8 @@ cmd_init() {
   selected_agents="$(detect_agents)"
   case " $selected_agents " in *" claude "*) ;; *) selected_agents="claude $selected_agents" ;; esac
   for mapping in $(agent_instruction_seeds "$selected_agents"); do
-    download_if_missing "${mapping%%:*}" "${mapping#*:}"
+    # mappings are "url|target" ("|" can't appear in a URL or filename)
+    download_if_missing "${mapping%|*}" "${mapping##*|}"
   done
 
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
