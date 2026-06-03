@@ -41,6 +41,7 @@ cmd_init() {
   mkdir -p ".claude/skills/bug-reproduction"
   mkdir -p ".claude/skills/batch-operations"
   mkdir -p ".claude/skills/git-platform"
+  mkdir -p ".claude/skills/update-api-documentation"
   mkdir -p ".context/prp/templates"
   mkdir -p ".context/prp/generated"
   mkdir -p ".context/discoveries"
@@ -76,6 +77,7 @@ cmd_init() {
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/batch-operations/SKILL.md" ".claude/skills/batch-operations/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/git-platform/SKILL.md" ".claude/skills/git-platform/SKILL.md"
+  download_if_missing "${BASE_URL}/templates/.claude/skills/update-api-documentation/SKILL.md" ".claude/skills/update-api-documentation/SKILL.md"
   download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
 
   # Managed files: dotcontext commands — always downloaded (safe to overwrite)

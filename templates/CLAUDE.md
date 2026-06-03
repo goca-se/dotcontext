@@ -92,3 +92,4 @@ Remove:
 - Bug reproduction guide → `.claude/skills/bug-reproduction/SKILL.md`
 - Batch operations guide → `.claude/skills/batch-operations/SKILL.md`
 - Git platform detection → `.claude/skills/git-platform/SKILL.md`
+- API documentation (OpenAPI SSOT) → `.claude/skills/update-api-documentation/SKILL.md`

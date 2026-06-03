@@ -186,6 +186,7 @@ cmd_update_templates() {
   declare -a seed_templates=(
     "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
+    "templates/.claude/skills/update-api-documentation/SKILL.md:.claude/skills/update-api-documentation/SKILL.md"
   )
 
   # Create temp directory for downloads
