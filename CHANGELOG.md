@@ -10,6 +10,7 @@
   * **`--version --json`** now reports `commands: true`
   * **`/add-skill` updated** — it now generates the new skill format (YAML `name`/`description` frontmatter, description front-loaded for discovery) instead of the old `# Skill:`-only format, and notes the `.agents/skills` mirror for non-Claude agents
   * emission is per **selected** harness and create-only (no junk, no clobber)
+* **new `update-api-documentation` skill** (#10, @anachronicsofa) — keeps external API/webhook contracts documented from a single OpenAPI source of truth (`docs/openapi.yml`), with generated Redoc HTML, `docs:validate`/`docs:build` tasks, and a CI step. Stack-agnostic (Rails/Node/Python examples). Merged after v0.16.0, so it ships in this release.
 * **release notes from `CHANGELOG.md`** — `release.yml` now uses the matching `CHANGELOG.md` section as the GitHub release body (squash-merges made the old git-log notes one line); falls back to the git log when no section exists.
 
 ### Fixes
