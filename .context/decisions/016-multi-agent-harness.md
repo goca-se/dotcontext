@@ -72,7 +72,7 @@ This ADR covers the **instructions file** only. Skills and hooks portability is 
 > Current research (see ADR-017) confirms **all six agents ship a model-callable structured-question
 > tool** (Claude `AskUserQuestion`, Codex `request_user_input`, opencode `question`, Gemini
 > `ask_user`, Copilot `ask_user`, Cursor `cursor/ask_question`) **and** lifecycle hooks. So command
-> portability (future ADR-005 v2.0) renders `{{ASK}}` to each agent's **native** question tool — it
+> portability (ADR-018) renders `{{ASK}}` to each agent's **native** question tool — it
 > does not degrade to free text. The `--version --json` handshake (ADR-015) flips `multiagent: true`
 > and lists supported `agents` as adapters land.
 

@@ -15,7 +15,7 @@
 
 ### Notes
 
-* Slash **commands** remain Claude-native; per-agent command ports (with ADR-005 v2.0 — a portable `{{ASK}}` rendered to each agent's native structured-question tool) are the next phase. Non-Claude hook configs are validated as well-formed but are best-effort (not runtime-tested per agent); the tool-failure guard stays Claude-only.
+* Slash **commands** remain Claude-native; per-agent command ports (ADR-018 — invocation-mode classification + a portable `{{ASK}}` rendered to each agent's native structured-question tool) are the next phase. Non-Claude hook configs are validated as well-formed but are best-effort (not runtime-tested per agent); the tool-failure guard stays Claude-only.
 
 ## [0.15.0](https://github.com/goca-se/dotcontext/compare/v0.14.2...v0.15.0) (2026-06-02)
 

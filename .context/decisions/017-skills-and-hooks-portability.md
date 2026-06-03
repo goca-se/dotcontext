@@ -74,7 +74,7 @@ don't map uniformly). Non-Claude hook configs are validated as well-formed (JSON
 ### Positive
 - No junk: a project only carries files for the harnesses it actually uses.
 - Skills and notification hooks work across all six agents from shared sources.
-- Confirms command portability (future ADR-005 v2.0) is viable — every agent has a native
+- Confirms command portability (ADR-018) is viable — every agent has a native
   structured-question tool.
 
 ### Negative
@@ -98,5 +98,5 @@ don't map uniformly). Non-Claude hook configs are validated as well-formed (JSON
 
 ## Related
 - ADR-016: Multi-agent harness (instructions file) — this builds on it
-- ADR-005: Mandatory AskUserQuestion — a future v2.0 will render `{{ASK}}` to each agent's native question tool
+- ADR-005: Mandatory AskUserQuestion — ADR-018 renders `{{ASK}}` to each agent's native question tool to satisfy it cross-agent
 - ADR-007: CLI simplification — `--agents` is a scoped exception
