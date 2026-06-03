@@ -31,11 +31,25 @@ Search the codebase to find:
 mkdir -p .claude/skills/[skill-slug]
 ```
 
+**Multi-agent note:** if `.agents/skills/` exists as a real directory (not a symlink to
+`.claude/skills/`), create the skill in **both** so non-Claude agents (Codex, Gemini, …) discover it
+too. If `.agents/skills/` is a symlink to `.claude/skills/`, writing to `.claude/skills/` already
+covers both.
+
 ### 5. Populate SKILL.md
 
-Create `.claude/skills/[skill-slug]/SKILL.md`:
+Create `.claude/skills/[skill-slug]/SKILL.md`. **Start with YAML frontmatter** — the `description` is
+what agents (Claude, Codex, opencode, Gemini, Copilot, Cursor) use to **auto-discover** the skill, so
+front-load the literal keywords/filenames the user is likely to say. `name` must be the kebab-case slug
+and match the directory name.
 
 ```markdown
+---
+name: [skill-slug]
+description: >-
+  [One or two sentences, keyword-front-loaded: what the skill does and when to use it —
+  the situations from "When to Use". This drives auto-discovery.]
+---
 # Skill: [Name]
 
 ## When to Use
