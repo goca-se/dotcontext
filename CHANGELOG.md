@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.16.0](https://github.com/goca-se/dotcontext/compare/v0.15.0...v0.16.0) (2026-06-03)
+
+### Features
+
+* **multi-agent support** — dotcontext now targets six harnesses (Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, Cursor incl. `cursor-agent`) instead of Claude only (ADR-016, ADR-017):
+  * **extensible adapter registry** (`src/setup/agents.sh`) — each agent is one entry (`id`, name, detection, instructions file, emit mode). Adding an agent is a single case arm
+  * **harness selection — only emit what you choose** — `init` confirms each detected agent interactively, or takes `--agents claude,codex` (non-interactive), or `--yes` (all detected). A Codex-only project gets **no `.claude/`** — no junk
+  * **instructions** — canonical **`AGENTS.md`** read natively by Codex/opencode/Copilot/Cursor; **Claude** (`CLAUDE.md`) and **Gemini** (`GEMINI.md`) via thin `@AGENTS.md` import stubs. Single source, no duplication
+  * **skills** — shared `SKILL.md` content emitted to `.agents/skills/` (Codex/opencode/Gemini/Copilot/Cursor) mirrored to `.claude/skills/` (Claude) via symlink (copy fallback)
+  * **hooks** — a "task finished / needs attention" notification wired per selected harness in its native config (`.codex/hooks.json`, `.gemini/settings.json`, `.github/hooks/`, `.cursor/hooks.json`, opencode JS plugin); Claude also keeps the tool-failure guard
+  * **`update` migrates legacy projects** — a content-bearing `CLAUDE.md` with no `AGENTS.md` is offered migration into the shared `AGENTS.md` (content- and behavior-preserving), plus a `GEMINI.md` stub when the Gemini CLI is present
+  * **`--version --json`** reports `multiagent: true`, `skills: true`, `hooks: true` and the supported `agents` list; **`doctor`** is `AGENTS.md`-aware and reports detected agents
+
+### Notes
+
+* Slash **commands** remain Claude-native; per-agent command ports (ADR-018 — invocation-mode classification + a portable `{{ASK}}` rendered to each agent's native structured-question tool) are the next phase. Non-Claude hook configs are validated as well-formed but are best-effort (not runtime-tested per agent); the tool-failure guard stays Claude-only.
+
 ## [0.15.0](https://github.com/goca-se/dotcontext/compare/v0.14.2...v0.15.0) (2026-06-02)
 
 ### Features

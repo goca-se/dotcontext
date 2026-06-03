@@ -26,7 +26,7 @@ _dotcontext() {
       return 0
       ;;
     init)
-      COMPREPLY=( $(compgen -W "--name -n --yes -y --no-setup" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--name -n --agents --yes -y --no-setup" -- "$cur") )
       return 0
       ;;
     update)
@@ -76,6 +76,7 @@ _dotcontext() {
           _arguments \
             '--name[Project name]:name:' \
             '-n[Project name]:name:' \
+            '--agents[Harnesses to set up, comma-separated]:agents:' \
             '--yes[Skip prompts]' \
             '-y[Skip prompts]' \
             '--no-setup[Skip automatic /setup-context]'

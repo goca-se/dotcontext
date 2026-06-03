@@ -46,17 +46,20 @@ cmd_doctor() {
     check_fail ".context/ directory — missing (run dotcontext init)"
   fi
 
-  # Check: CLAUDE.md exists and non-empty
-  if [ -s "CLAUDE.md" ]; then
-    if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
-      check_warn "CLAUDE.md — exists but has unfilled placeholders"
+  # Check: project instructions (AGENTS.md is canonical; CLAUDE.md/GEMINI.md may import it)
+  local inst=""
+  [ -s "AGENTS.md" ] && inst="AGENTS.md"
+  [ -z "$inst" ] && [ -s "CLAUDE.md" ] && inst="CLAUDE.md"
+  if [ -n "$inst" ]; then
+    if grep -q "{{projectName}}" "$inst" 2>/dev/null; then
+      check_warn "$inst — exists but has unfilled placeholders"
+    elif [ "$inst" = "CLAUDE.md" ] && [ ! -f "AGENTS.md" ]; then
+      check_warn "CLAUDE.md present but no AGENTS.md — run 'dotcontext update' to adopt the shared instructions file"
     else
-      check_pass "CLAUDE.md populated"
+      check_pass "Project instructions populated ($inst)"
     fi
-  elif [ -f "CLAUDE.md" ]; then
-    check_warn "CLAUDE.md — exists but empty"
   else
-    check_fail "CLAUDE.md — missing"
+    check_fail "Project instructions — missing (run dotcontext init)"
   fi
 
   # Check: CONTEXT.md exists and non-empty
@@ -146,6 +149,17 @@ cmd_doctor() {
   # Warn about legacy global hooks
   if [ -f "$HOME/.claude/settings.json" ] && grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
     check_warn "Legacy global hooks detected in ~/.claude/settings.json — remove manually to avoid duplicates"
+  fi
+
+  # Check: detected agents (informational — which agent CLIs are on PATH)
+  local detected_agents
+  detected_agents="$(detect_agents)"
+  if [ -n "$detected_agents" ]; then
+    local _names="" _aid
+    for _aid in $detected_agents; do _names="$_names$(agent_name "$_aid"), "; done
+    check_pass "Agents detected: ${_names%, }"
+  else
+    check_warn "No supported agent CLI detected on PATH"
   fi
 
   # Check: CLI update available (cached, best-effort — silent when offline)

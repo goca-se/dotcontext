@@ -10,6 +10,7 @@ SOURCES = \
 	src/core/utils.sh \
 	src/setup/notifications.sh \
 	src/setup/mcp.sh \
+	src/setup/agents.sh \
 	src/commands/init.sh \
 	src/commands/update.sh \
 	src/commands/doctor.sh \
