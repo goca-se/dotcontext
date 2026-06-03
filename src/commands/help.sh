@@ -96,6 +96,15 @@ cmd_version() {
     esac
   done
 
+  # Build the supported-agents array from the adapter registry (ADR-016)
+  local id agents_json="" agents_list=""
+  for id in $AGENT_IDS; do
+    agents_json="${agents_json}\"$id\", "
+    agents_list="${agents_list}$id "
+  done
+  agents_json="[${agents_json%, }]"
+  agents_list="${agents_list% }"
+
   if [ "$json" = true ]; then
     cat <<JSON
 {
@@ -108,8 +117,8 @@ cmd_version() {
     "askuserquestion": true,
     "statusline": true,
     "hooks": true,
-    "multiagent": false,
-    "agents": ["claude"]
+    "multiagent": true,
+    "agents": $agents_json
   }
 }
 JSON
@@ -124,7 +133,7 @@ JSON
     printf "  %-16s %s\n" "askuserquestion" "yes"
     printf "  %-16s %s\n" "statusline"      "yes"
     printf "  %-16s %s\n" "hooks"           "yes"
-    printf "  %-16s %s\n" "multiagent"      "no"
-    printf "  %-16s %s\n" "agents"          "claude"
+    printf "  %-16s %s\n" "multiagent"      "yes"
+    printf "  %-16s %s\n" "agents"          "$agents_list"
   fi
 }

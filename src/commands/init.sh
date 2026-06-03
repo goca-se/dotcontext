@@ -70,7 +70,17 @@ cmd_init() {
 
   # Seed files: user-customizable content — only created if missing
   download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
-  download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
+
+  # Project instructions across detected agents: AGENTS.md is the canonical
+  # source; Claude/Gemini get thin @AGENTS.md import stubs. Claude is always
+  # included (first-class + backward compatible). (ADR-016)
+  local selected_agents
+  selected_agents="$(detect_agents)"
+  case " $selected_agents " in *" claude "*) ;; *) selected_agents="claude $selected_agents" ;; esac
+  for mapping in $(agent_instruction_seeds "$selected_agents"); do
+    download_if_missing "${mapping%%:*}" "${mapping#*:}"
+  done
+
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
@@ -171,14 +181,17 @@ cmd_init() {
     offer_completion_install
   fi
 
-  # Substitute project name (only on fresh CLAUDE.md with placeholder)
-  if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      sed -i '' "s/{{projectName}}/$project_name/g" "CLAUDE.md"
-    else
-      sed -i "s/{{projectName}}/$project_name/g" "CLAUDE.md"
+  # Substitute project name in any instruction file that still has the placeholder
+  local inst_file
+  for inst_file in AGENTS.md CLAUDE.md GEMINI.md; do
+    if grep -q "{{projectName}}" "$inst_file" 2>/dev/null; then
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/{{projectName}}/$project_name/g" "$inst_file"
+      else
+        sed -i "s/{{projectName}}/$project_name/g" "$inst_file"
+      fi
     fi
-  fi
+  done
 
   echo ""
   if [ "$is_reinit" = true ]; then
@@ -186,7 +199,15 @@ cmd_init() {
   else
     printf "  ${GREEN}${ICON_SUCCESS}${NC} Context structure created\n"
   fi
-  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (12)  .claude/agents/ (12)${NC}\n"
+  printf "  ${GRAY}AGENTS.md  .context/  .claude/commands/ (12)  .claude/agents/ (12)${NC}\n"
+
+  # Report which agents this project is wired for
+  local _detected _names="" _id
+  _detected="$(detect_agents)"
+  if [ -n "$_detected" ]; then
+    for _id in $_detected; do _names="$_names$(agent_name "$_id"), "; done
+    printf "  ${GRAY}Agents detected: %s${NC}\n" "${_names%, }"
+  fi
   echo ""
 
   if [ "$skip_setup" = true ]; then

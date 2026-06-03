@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.16.0](https://github.com/goca-se/dotcontext/compare/v0.15.0...v0.16.0) (2026-06-03)
+
+### Features
+
+* **multi-agent instructions (phase 2a)** — project instructions are now written once to a canonical **`AGENTS.md`** and shared across agents, instead of being Claude-only (ADR-016):
+  * **extensible adapter registry** (`src/setup/agents.sh`) — each agent is one entry (`id`, name, detection, instructions file, emit mode). Initial set: `claude, codex, opencode, gemini, copilot, cursor` (Cursor covers the IDE and the `cursor-agent` CLI)
+  * **native coverage** — Codex, opencode, Copilot, and Cursor read `AGENTS.md` directly; **Claude Code** (`CLAUDE.md`) and **Gemini CLI** (`GEMINI.md`) get thin `@AGENTS.md` import stubs. Single source, no duplication
+  * **`init` detects installed agents** and emits the matching files (no new flags — honors ADR-007); the summary reports which agents were detected
+  * **`update` migrates legacy projects** — a content-bearing `CLAUDE.md` with no `AGENTS.md` is offered migration into the shared `AGENTS.md` (content- and behavior-preserving; Claude keeps working via the import), and a `GEMINI.md` stub is added when the Gemini CLI is present
+  * **`--version --json`** now reports `multiagent: true` and the supported `agents` list; **`doctor`** reports detected agents and is `AGENTS.md`-aware
+
+### Notes
+
+* Slash commands and skills remain Claude-native; per-agent ports (and ADR-005 v2.0 for a portable `{{ASK}}` directive) are planned for a later phase.
+
 ## [0.15.0](https://github.com/goca-se/dotcontext/compare/v0.14.2...v0.15.0) (2026-06-02)
 
 ### Features

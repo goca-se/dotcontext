@@ -125,7 +125,9 @@ This ensures your architectural decisions stay synchronized with your code.
 
 ```
 your-project/
-├── CLAUDE.md                    # Quick reference + decision compliance rules
+├── AGENTS.md                    # Canonical project instructions (read by Codex, opencode, Copilot, Cursor…)
+├── CLAUDE.md                    # Thin @AGENTS.md import for Claude Code (added when Claude is detected)
+├── GEMINI.md                    # Thin @AGENTS.md import for Gemini CLI (added when Gemini is detected)
 ├── .context/
 │   ├── CONTEXT.md               # Domain knowledge
 │   ├── decisions/               # ADRs (versioned)
@@ -173,6 +175,18 @@ Additionally, `dotcontext init` configures:
 │   └── notify.sh          # Cross-platform notification script
 └── settings.json          # Hooks for Notification and Stop events
 ```
+
+## Multi-Agent Support
+
+Project instructions are written once to a canonical **`AGENTS.md`** and shared across agents (ADR-016):
+
+| Agent | How it reads the instructions |
+| --- | --- |
+| OpenAI Codex, opencode, GitHub Copilot, Cursor (incl. `cursor-agent`) | Read `AGENTS.md` natively |
+| Claude Code | `CLAUDE.md` → `@AGENTS.md` import |
+| Gemini CLI | `GEMINI.md` → `@AGENTS.md` import |
+
+`dotcontext init` detects which agent CLIs are installed and writes the matching files; `dotcontext update` migrates an existing single-file `CLAUDE.md` into the shared `AGENTS.md` (Claude keeps working via the import). Check `dotcontext --version --json` for the full capability/agent list. Slash commands and skills remain Claude-native for now; per-agent ports are planned.
 
 ## Commands Reference
 

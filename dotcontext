@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.15.0"
+VERSION="0.16.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -385,6 +385,86 @@ EOF
     print_gray "MCP servers configured in .mcp.json"
   fi
 }
+# ── Agent Adapter Registry ──────────────────────────────────────────────────
+# Each supported coding agent is one entry. Adding an agent means adding it to
+# AGENT_IDS and the case arms below — nothing else in the toolkit hard-codes an
+# agent. (ADR-016)
+#
+# Emit modes for the project-instructions file:
+#   import — a thin stub that @-imports AGENTS.md (Claude Code, Gemini CLI)
+#   native — reads AGENTS.md directly; needs no file of its own (Codex,
+#            opencode, Copilot, Cursor incl. the cursor-agent CLI)
+#
+# AGENTS.md itself is the canonical single source and is always emitted.
+
+AGENT_IDS="claude codex opencode gemini copilot cursor"
+
+agent_name() {
+  case "$1" in
+    claude)   echo "Claude Code" ;;
+    codex)    echo "OpenAI Codex" ;;
+    opencode) echo "opencode" ;;
+    gemini)   echo "Gemini CLI" ;;
+    copilot)  echo "GitHub Copilot" ;;
+    cursor)   echo "Cursor (cursor-agent)" ;;
+    *)        echo "$1" ;;
+  esac
+}
+
+# Detection: is the agent's CLI installed?
+agent_detect() {
+  case "$1" in
+    claude)   command -v claude >/dev/null 2>&1 ;;
+    codex)    command -v codex >/dev/null 2>&1 ;;
+    opencode) command -v opencode >/dev/null 2>&1 ;;
+    gemini)   command -v gemini >/dev/null 2>&1 ;;
+    copilot)  command -v copilot >/dev/null 2>&1 || \
+              { command -v gh >/dev/null 2>&1 && gh extension list 2>/dev/null | grep -qi copilot; } ;;
+    cursor)   command -v cursor-agent >/dev/null 2>&1 ;;
+    *)        return 1 ;;
+  esac
+}
+
+# The instruction file this agent reads.
+agent_instructions_file() {
+  case "$1" in
+    claude)   echo "CLAUDE.md" ;;
+    gemini)   echo "GEMINI.md" ;;
+    *)        echo "AGENTS.md" ;;
+  esac
+}
+
+# How this agent gets its instructions: import | native
+agent_emit_mode() {
+  case "$1" in
+    claude|gemini) echo "import" ;;
+    *)             echo "native" ;;
+  esac
+}
+
+# Echo the ids of detected (installed) agents, space-separated.
+detect_agents() {
+  local id out=""
+  for id in $AGENT_IDS; do
+    if agent_detect "$id"; then out="$out $id"; fi
+  done
+  echo "${out# }"
+}
+
+# Echo "url:target" instruction-file seed mappings for the selected agent ids.
+# AGENTS.md (canonical) is always first; import-mode agents add their stub.
+# Native agents need no extra file (they read AGENTS.md directly).
+agent_instruction_seeds() {
+  local selected="$1" id target seen=" "
+  echo "${BASE_URL}/templates/AGENTS.md:AGENTS.md"
+  for id in $selected; do
+    [ "$(agent_emit_mode "$id")" = "import" ] || continue
+    target="$(agent_instructions_file "$id")"
+    case "$seen" in *" $target "*) continue ;; esac
+    seen="$seen$target "
+    echo "${BASE_URL}/templates/${target}:${target}"
+  done
+}
 # ── Command: init ─────────────────────────────────────────────────────────────
 
 cmd_init() {
@@ -457,7 +537,17 @@ cmd_init() {
 
   # Seed files: user-customizable content — only created if missing
   download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
-  download_if_missing "${BASE_URL}/templates/CLAUDE.md" "CLAUDE.md"
+
+  # Project instructions across detected agents: AGENTS.md is the canonical
+  # source; Claude/Gemini get thin @AGENTS.md import stubs. Claude is always
+  # included (first-class + backward compatible). (ADR-016)
+  local selected_agents
+  selected_agents="$(detect_agents)"
+  case " $selected_agents " in *" claude "*) ;; *) selected_agents="claude $selected_agents" ;; esac
+  for mapping in $(agent_instruction_seeds "$selected_agents"); do
+    download_if_missing "${mapping%%:*}" "${mapping#*:}"
+  done
+
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
   download_if_missing "${BASE_URL}/templates/.claude/skills/bug-reproduction/SKILL.md" ".claude/skills/bug-reproduction/SKILL.md"
@@ -558,14 +648,17 @@ cmd_init() {
     offer_completion_install
   fi
 
-  # Substitute project name (only on fresh CLAUDE.md with placeholder)
-  if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      sed -i '' "s/{{projectName}}/$project_name/g" "CLAUDE.md"
-    else
-      sed -i "s/{{projectName}}/$project_name/g" "CLAUDE.md"
+  # Substitute project name in any instruction file that still has the placeholder
+  local inst_file
+  for inst_file in AGENTS.md CLAUDE.md GEMINI.md; do
+    if grep -q "{{projectName}}" "$inst_file" 2>/dev/null; then
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/{{projectName}}/$project_name/g" "$inst_file"
+      else
+        sed -i "s/{{projectName}}/$project_name/g" "$inst_file"
+      fi
     fi
-  fi
+  done
 
   echo ""
   if [ "$is_reinit" = true ]; then
@@ -573,7 +666,15 @@ cmd_init() {
   else
     printf "  ${GREEN}${ICON_SUCCESS}${NC} Context structure created\n"
   fi
-  printf "  ${GRAY}CLAUDE.md  .context/  .claude/commands/ (12)  .claude/agents/ (12)${NC}\n"
+  printf "  ${GRAY}AGENTS.md  .context/  .claude/commands/ (12)  .claude/agents/ (12)${NC}\n"
+
+  # Report which agents this project is wired for
+  local _detected _names="" _id
+  _detected="$(detect_agents)"
+  if [ -n "$_detected" ]; then
+    for _id in $_detected; do _names="$_names$(agent_name "$_id"), "; done
+    printf "  ${GRAY}Agents detected: %s${NC}\n" "${_names%, }"
+  fi
   echo ""
 
   if [ "$skip_setup" = true ]; then
@@ -738,6 +839,40 @@ cmd_update_templates() {
     print_green "  Migrated remaining skills from .context/skills/ → .claude/skills/"
   fi
 
+  # Migration: adopt AGENTS.md as the canonical instruction source (ADR-016).
+  # Legacy projects have a content-bearing CLAUDE.md and no AGENTS.md. Moving
+  # the content to AGENTS.md (and leaving CLAUDE.md as an @import stub) is
+  # content- and behavior-preserving for Claude, and lets the other agents read
+  # the same instructions natively.
+  local _stub_comment='<!-- Project instructions live in AGENTS.md (shared canonical source). Edit that file. -->'
+  if [ -f "CLAUDE.md" ] && [ ! -f "AGENTS.md" ] && ! grep -q '@AGENTS.md' "CLAUDE.md" 2>/dev/null; then
+    if [ "$dry_run" = "true" ]; then
+      print_gray "  [dry-run] would migrate CLAUDE.md → AGENTS.md (+ CLAUDE.md import stub)"
+    else
+      local do_migrate=false
+      if [ "$auto_yes" = "true" ]; then
+        do_migrate=true
+      elif confirm_yes "  Adopt AGENTS.md as the shared instructions file? (Claude keeps working via import)"; then
+        do_migrate=true
+      fi
+      if [ "$do_migrate" = true ]; then
+        mv "CLAUDE.md" "AGENTS.md"
+        printf '%s\n\n%s\n' "$_stub_comment" '@AGENTS.md' > "CLAUDE.md"
+        print_green "  Migrated CLAUDE.md → AGENTS.md (Claude reads it via @import)"
+      fi
+    fi
+  fi
+
+  # Add a Gemini import stub when the Gemini CLI is present and AGENTS.md exists.
+  if agent_detect gemini && [ -f "AGENTS.md" ] && [ ! -f "GEMINI.md" ]; then
+    if [ "$dry_run" = "true" ]; then
+      print_gray "  [dry-run] would add GEMINI.md (imports AGENTS.md)"
+    else
+      printf '%s\n\n%s\n' "$_stub_comment" '@AGENTS.md' > "GEMINI.md"
+      print_green "  Added GEMINI.md (imports AGENTS.md)"
+    fi
+  fi
+
   start_spinner "Checking templates..."
 
   # MANAGED templates: dotcontext-owned code (commands, templates that drive commands).
@@ -774,6 +909,7 @@ cmd_update_templates() {
   # SEED templates: created once during init, customized by user or /setup-context.
   # Only added if missing — never offered for overwrite to protect user content.
   declare -a seed_templates=(
+    "templates/AGENTS.md:AGENTS.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
@@ -1058,17 +1194,20 @@ cmd_doctor() {
     check_fail ".context/ directory — missing (run dotcontext init)"
   fi
 
-  # Check: CLAUDE.md exists and non-empty
-  if [ -s "CLAUDE.md" ]; then
-    if grep -q "{{projectName}}" "CLAUDE.md" 2>/dev/null; then
-      check_warn "CLAUDE.md — exists but has unfilled placeholders"
+  # Check: project instructions (AGENTS.md is canonical; CLAUDE.md/GEMINI.md may import it)
+  local inst=""
+  [ -s "AGENTS.md" ] && inst="AGENTS.md"
+  [ -z "$inst" ] && [ -s "CLAUDE.md" ] && inst="CLAUDE.md"
+  if [ -n "$inst" ]; then
+    if grep -q "{{projectName}}" "$inst" 2>/dev/null; then
+      check_warn "$inst — exists but has unfilled placeholders"
+    elif [ "$inst" = "CLAUDE.md" ] && [ ! -f "AGENTS.md" ]; then
+      check_warn "CLAUDE.md present but no AGENTS.md — run 'dotcontext update' to adopt the shared instructions file"
     else
-      check_pass "CLAUDE.md populated"
+      check_pass "Project instructions populated ($inst)"
     fi
-  elif [ -f "CLAUDE.md" ]; then
-    check_warn "CLAUDE.md — exists but empty"
   else
-    check_fail "CLAUDE.md — missing"
+    check_fail "Project instructions — missing (run dotcontext init)"
   fi
 
   # Check: CONTEXT.md exists and non-empty
@@ -1158,6 +1297,17 @@ cmd_doctor() {
   # Warn about legacy global hooks
   if [ -f "$HOME/.claude/settings.json" ] && grep -q "notify.sh" "$HOME/.claude/settings.json" 2>/dev/null; then
     check_warn "Legacy global hooks detected in ~/.claude/settings.json — remove manually to avoid duplicates"
+  fi
+
+  # Check: detected agents (informational — which agent CLIs are on PATH)
+  local detected_agents
+  detected_agents="$(detect_agents)"
+  if [ -n "$detected_agents" ]; then
+    local _names="" _aid
+    for _aid in $detected_agents; do _names="$_names$(agent_name "$_aid"), "; done
+    check_pass "Agents detected: ${_names%, }"
+  else
+    check_warn "No supported agent CLI detected on PATH"
   fi
 
   # Check: CLI update available (cached, best-effort — silent when offline)
@@ -1279,6 +1429,15 @@ cmd_version() {
     esac
   done
 
+  # Build the supported-agents array from the adapter registry (ADR-016)
+  local id agents_json="" agents_list=""
+  for id in $AGENT_IDS; do
+    agents_json="${agents_json}\"$id\", "
+    agents_list="${agents_list}$id "
+  done
+  agents_json="[${agents_json%, }]"
+  agents_list="${agents_list% }"
+
   if [ "$json" = true ]; then
     cat <<JSON
 {
@@ -1291,8 +1450,8 @@ cmd_version() {
     "askuserquestion": true,
     "statusline": true,
     "hooks": true,
-    "multiagent": false,
-    "agents": ["claude"]
+    "multiagent": true,
+    "agents": $agents_json
   }
 }
 JSON
@@ -1307,8 +1466,8 @@ JSON
     printf "  %-16s %s\n" "askuserquestion" "yes"
     printf "  %-16s %s\n" "statusline"      "yes"
     printf "  %-16s %s\n" "hooks"           "yes"
-    printf "  %-16s %s\n" "multiagent"      "no"
-    printf "  %-16s %s\n" "agents"          "claude"
+    printf "  %-16s %s\n" "multiagent"      "yes"
+    printf "  %-16s %s\n" "agents"          "$agents_list"
   fi
 }
 # ── Command: completion ───────────────────────────────────────────────────────
