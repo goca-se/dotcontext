@@ -53,6 +53,26 @@ Command/skill bodies express requirement-gathering with a portable `{{ASK: quest
 directive. At emit time it renders to each agent's **native** structured-question tool — it does **not**
 degrade to free text. This satisfies ADR-005's clarity-assessed questioning on every agent.
 
+### 4. Normalize skill frontmatter (`name` + `description`)
+
+All current `SKILL.md` files (`bug-reproduction`, `batch-operations`, `git-platform`,
+`update-api-documentation`) open with a `# Skill: …` heading and **no YAML frontmatter**. Every agent's
+skills implementation selects/auto-invokes a skill by matching the task against its **`description`**
+(progressive disclosure — only `name`+`description` are in context until the skill triggers). Without
+that frontmatter, the skills are effectively undiscoverable to the model and only work via explicit
+`/name`. As part of phase 2b, add YAML frontmatter to every `SKILL.md`:
+
+```yaml
+---
+name: update-api-documentation        # kebab-case, matches the directory name
+description: >-                        # front-load the keywords the user is likely to say
+  Keep external API/webhook contracts documented from a single OpenAPI source of truth…
+---
+```
+
+This is a pre-existing gap (not introduced by any single skill) and is a prerequisite for the
+description-driven discovery that ADR-016/017 rely on.
+
 ## Consequences
 
 - **Positive:** preserves the safe boundary (knowledge = skill, action = command); no side-effecting
