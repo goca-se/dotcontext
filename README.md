@@ -125,7 +125,9 @@ This ensures your architectural decisions stay synchronized with your code.
 
 ```
 your-project/
-├── CLAUDE.md                    # Quick reference + decision compliance rules
+├── AGENTS.md                    # Canonical project instructions (read by Codex, opencode, Copilot, Cursor…)
+├── CLAUDE.md                    # Thin @AGENTS.md import for Claude Code (always added for compatibility)
+├── GEMINI.md                    # Thin @AGENTS.md import for Gemini CLI (added when Gemini is detected)
 ├── .context/
 │   ├── CONTEXT.md               # Domain knowledge
 │   ├── decisions/               # ADRs (versioned)
@@ -159,6 +161,8 @@ your-project/
         └── statusline.sh            # StatusLine: model, dir, git, ctx-usage bar, cost/time/lines
 ```
 
+> Files are emitted per chosen harness (see [Multi-Agent Support](#multi-agent-support)): `AGENTS.md` and `.context/` are always written; the full `.claude/` tree and `CLAUDE.md` appear only when **Claude** is selected, `GEMINI.md` only for **Gemini**, and `.agents/skills/` only when a non-Claude agent is selected.
+
 Additionally, `dotcontext init` configures:
 
 - **MCP servers** in `.mcp.json` (optional, prompted during init):
@@ -173,6 +177,27 @@ Additionally, `dotcontext init` configures:
 │   └── notify.sh          # Cross-platform notification script
 └── settings.json          # Hooks for Notification and Stop events
 ```
+
+## Multi-Agent Support
+
+dotcontext targets six harnesses — **Claude Code, OpenAI Codex, opencode, Gemini CLI, GitHub Copilot, and Cursor** (IDE + `cursor-agent`). `init` only writes files for the harnesses you choose, so you never get junk (no `.claude/` in a Codex-only project):
+
+```bash
+dotcontext init                       # interactive: confirm each detected agent
+dotcontext init --agents codex,cursor # explicit, non-interactive
+dotcontext init --yes                 # all detected agents
+```
+
+What's shared vs per-harness (ADR-016, ADR-017):
+
+| Layer | Coverage |
+| --- | --- |
+| **Instructions** — canonical `AGENTS.md` | Codex/opencode/Copilot/Cursor read it natively; Claude (`CLAUDE.md`) and Gemini (`GEMINI.md`) via `@AGENTS.md` import |
+| **Skills** — shared `SKILL.md` | `.agents/skills/` (Codex/opencode/Gemini/Copilot/Cursor) mirrored to `.claude/skills/` (Claude) |
+| **Hooks** — notification on finish | native config per harness (`.codex/`, `.gemini/`, `.github/hooks/`, `.cursor/`, opencode plugin); Claude also gets the tool-failure guard |
+| **Commands** (`.claude/commands/`) | Claude-only for now — per-agent ports are planned |
+
+`dotcontext update` migrates an existing single-file `CLAUDE.md` into the shared `AGENTS.md` (Claude keeps working via the import). Check `dotcontext --version --json` for the live capability/agent list.
 
 ## Commands Reference
 

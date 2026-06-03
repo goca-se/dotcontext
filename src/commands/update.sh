@@ -148,6 +148,54 @@ cmd_update_templates() {
     print_green "  Migrated remaining skills from .context/skills/ → .claude/skills/"
   fi
 
+  # Migration: adopt AGENTS.md as the canonical instruction source (ADR-016).
+  # Legacy projects have a content-bearing CLAUDE.md and no AGENTS.md. Moving
+  # the content to AGENTS.md (and leaving CLAUDE.md as an @import stub) is
+  # content- and behavior-preserving for Claude, and lets the other agents read
+  # the same instructions natively.
+  local _stub_comment='<!-- Project instructions live in AGENTS.md (shared canonical source). Edit that file. -->'
+  if [ -f "CLAUDE.md" ] && [ ! -f "AGENTS.md" ] && ! grep -q '@AGENTS.md' "CLAUDE.md" 2>/dev/null; then
+    if [ "$dry_run" = "true" ]; then
+      print_gray "  [dry-run] would migrate CLAUDE.md → AGENTS.md (+ CLAUDE.md import stub)"
+    else
+      local do_migrate=false
+      if [ "$auto_yes" = "true" ]; then
+        do_migrate=true
+      elif confirm_yes "  Adopt AGENTS.md as the shared instructions file? (Claude keeps working via import)"; then
+        do_migrate=true
+      fi
+      if [ "$do_migrate" = true ]; then
+        mv "CLAUDE.md" "AGENTS.md"
+        printf '%s\n\n%s\n' "$_stub_comment" '@AGENTS.md' > "CLAUDE.md"
+        print_green "  Migrated CLAUDE.md → AGENTS.md (Claude reads it via @import)"
+      fi
+    fi
+  fi
+
+  # Add a Gemini import stub when the Gemini CLI is present and AGENTS.md exists.
+  if agent_detect gemini && [ -f "AGENTS.md" ] && [ ! -f "GEMINI.md" ]; then
+    if [ "$dry_run" = "true" ]; then
+      print_gray "  [dry-run] would add GEMINI.md (imports AGENTS.md)"
+    else
+      printf '%s\n\n%s\n' "$_stub_comment" '@AGENTS.md' > "GEMINI.md"
+      print_green "  Added GEMINI.md (imports AGENTS.md)"
+    fi
+  fi
+
+  # Mirror skills to .agents/skills/ when a non-Claude agent is present (ADR-017).
+  if [ -d ".claude/skills" ] && [ ! -e ".agents/skills" ]; then
+    local _na=false _aid
+    for _aid in $(detect_agents); do [ "$_aid" != "claude" ] && _na=true; done
+    if [ "$_na" = true ]; then
+      if [ "$dry_run" = "true" ]; then
+        print_gray "  [dry-run] would mirror .claude/skills → .agents/skills (non-Claude agent detected)"
+      else
+        link_or_copy_dir ".claude/skills" ".agents/skills"
+        print_green "  Mirrored skills to .agents/skills/"
+      fi
+    fi
+  fi
+
   start_spinner "Checking templates..."
 
   # MANAGED templates: dotcontext-owned code (commands, templates that drive commands).
@@ -184,6 +232,7 @@ cmd_update_templates() {
   # SEED templates: created once during init, customized by user or /setup-context.
   # Only added if missing — never offered for overwrite to protect user content.
   declare -a seed_templates=(
+    "templates/AGENTS.md:AGENTS.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
   )
