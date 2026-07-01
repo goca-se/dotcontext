@@ -1,3 +1,7 @@
+---
+description: Create and populate a new Architectural Decision Record (ADR).
+argument-hint: "[title or topic]"
+---
 # Add Decision
 
 Create and populate a new Architectural Decision Record (ADR).

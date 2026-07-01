@@ -1,3 +1,7 @@
+---
+description: Create a new Claude Code slash command for this project.
+argument-hint: "[name]"
+---
 # Add Command
 
 Create a new Claude Code slash command for this project.

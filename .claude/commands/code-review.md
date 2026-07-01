@@ -1,3 +1,7 @@
+---
+description: Review code changes with multiple specialized agents and confidence-based scoring to filter false positives.
+argument-hint: "[--comment]"
+---
 # Code Review
 
 Review the code changes using multiple specialized agents with confidence-based scoring to filter false positives.

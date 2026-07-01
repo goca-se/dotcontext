@@ -1,3 +1,7 @@
+---
+description: Implement a planned feature from its PRP.
+argument-hint: "[prp-name]"
+---
 # Execute PRP
 
 Execute the PRP specified in $ARGUMENTS.

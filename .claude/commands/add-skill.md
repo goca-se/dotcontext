@@ -1,3 +1,7 @@
+---
+description: Create and populate a new skill guide for recurring tasks.
+argument-hint: "[name or topic]"
+---
 # Add Skill
 
 Create and populate a new skill guide for recurring tasks.

@@ -1,3 +1,7 @@
+---
+description: Structured 4-step codebase exploration (overview, subsystems, targeted drill, data-flow mapping) producing a discovery document.
+argument-hint: "[query] [--repo path]"
+---
 # Deep Context — Structured Codebase Exploration
 
 Orchestrate 4 specialized agents in a structured progression (overview → subsystems → targeted drill → data flow mapping) to deeply explore and document a codebase domain. Produces a structured discovery document with findings, code references, and data flow analysis.

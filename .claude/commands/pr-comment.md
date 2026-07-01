@@ -1,3 +1,7 @@
+---
+description: Add comments to an existing pull request, optionally with Mermaid diagrams.
+argument-hint: "[PR number or URL] [message]"
+---
 # PR Comment
 
 Add comments to an existing pull request, optionally with Mermaid diagrams.

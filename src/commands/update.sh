@@ -235,6 +235,8 @@ cmd_update_templates() {
     "templates/AGENTS.md:AGENTS.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
+    "templates/.claude/skills/batch-operations/SKILL.md:.claude/skills/batch-operations/SKILL.md"
+    "templates/.claude/skills/git-platform/SKILL.md:.claude/skills/git-platform/SKILL.md"
     "templates/.claude/skills/update-api-documentation/SKILL.md:.claude/skills/update-api-documentation/SKILL.md"
   )
 

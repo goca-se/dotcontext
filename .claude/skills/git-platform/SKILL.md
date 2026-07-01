@@ -1,3 +1,9 @@
+---
+name: git-platform
+description: >-
+  Detect the git hosting platform (GitHub, GitLab, Bitbucket, …) before running any
+  hosting CLI — creating PRs, viewing issues, commenting on PRs. Never assume GitHub.
+---
 # Skill: Git Platform Detection
 
 ## When to Use

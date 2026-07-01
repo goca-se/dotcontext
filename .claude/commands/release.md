@@ -1,3 +1,7 @@
+---
+description: Create a new release with automatic version bumping, changelog update, and GitHub release.
+argument-hint: "[patch|minor|major]"
+---
 # Release
 
 Create a new release with automatic version bumping, changelog update, and GitHub release.

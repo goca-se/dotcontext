@@ -1,3 +1,10 @@
+---
+name: add-cli-subcommand
+description: >-
+  Add a new subcommand to the dotcontext bash CLI (e.g. `dotcontext status`,
+  `dotcontext validate`) — define the command function, route it via the case
+  statement, and wire help and shell completion. Use when extending the CLI surface.
+---
 # Skill: Add a New CLI Subcommand
 
 ## When to Use

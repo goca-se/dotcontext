@@ -1,3 +1,10 @@
+---
+name: add-new-command
+description: >-
+  Add a new Claude Code slash command to the dotcontext toolkit — author the command
+  markdown with frontmatter and wire it into the templates and docs. Use when adding a
+  new interactive `/command` workflow that users invoke in Claude Code.
+---
 # Skill: Add a New Claude Code Slash Command
 
 ## When to Use

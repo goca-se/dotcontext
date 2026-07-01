@@ -5,6 +5,7 @@ description: >-
   bug, working a bug report or issue, or before attempting any fix — always
   reproduce first. Pairs with the /fix-bug workflow.
 ---
+
 # Skill: Bug Reproduction
 
 ## When to Use
@@ -17,6 +18,7 @@ description: >-
 ## Test Framework
 
 <!-- Populated by /setup-context: jest, pytest, rspec, go test, etc. -->
+
 - **Framework:** [test framework name]
 - **Run command:** [how to run tests]
 - **Test directory:** [where tests live]
@@ -26,11 +28,13 @@ description: >-
 ### Step 1: Understand the Bug
 
 Read the bug description carefully. Identify:
+
 - **Expected behavior:** What should happen?
 - **Actual behavior:** What happens instead?
 - **Trigger conditions:** When does it occur? (specific input, state, timing)
 
 Check for additional context:
+
 - Error logs or stack traces
 - Screenshots or recordings
 - Related GitHub issues or PRs
@@ -55,6 +59,7 @@ Read the code and trace the execution path from trigger to failure.
 ### Step 3: Write a Failing Test
 
 Write a test that:
+
 1. Sets up the conditions that trigger the bug
 2. Performs the action that causes the failure
 3. Asserts the EXPECTED (correct) behavior
@@ -82,6 +87,7 @@ Run the test and confirm it fails:
 ```
 
 Check that the test fails for the RIGHT reason:
+
 - The assertion should fail because of the bug, not because of a typo in the test
 - The error message should relate to the actual bug behavior
 - If the test passes, the bug is not reproduced — revisit Step 1
@@ -89,6 +95,7 @@ Check that the test fails for the RIGHT reason:
 ### Step 5: Fix and Verify
 
 After implementing the fix:
+
 1. Run the reproduction test — it should now PASS
 2. Run the full test suite — no regressions
 
@@ -119,6 +126,7 @@ When the bug involves UI behavior that can't easily be unit tested, create a tes
 ## Test Plan: [Bug Description]
 
 ### Steps to Reproduce
+
 1. Navigate to [URL/page]
 2. [Action 1]
 3. [Action 2]
@@ -126,6 +134,7 @@ When the bug involves UI behavior that can't easily be unit tested, create a tes
 5. Actual: [what happens instead]
 
 ### Validation Method
+
 - [ ] Screenshot comparison
 - [ ] DOM element assertion
 - [ ] Network request validation
@@ -141,6 +150,7 @@ When the bug involves UI behavior that can't easily be unit tested, create a tes
 ### E2E Test Patterns
 
 <!-- Populated by /setup-context: Cypress, Playwright, Selenium, etc. -->
+
 - **E2E Framework:** [framework name]
 - **Run command:** [how to run e2e tests]
 - **Test directory:** [where e2e tests live]
@@ -148,4 +158,5 @@ When the bug involves UI behavior that can't easily be unit tested, create a tes
 ## Examples from This Codebase
 
 <!-- Populated by /setup-context with real test examples from the project -->
+
 - [Example test file and pattern]

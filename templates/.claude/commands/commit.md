@@ -1,3 +1,7 @@
+---
+description: Smart commit workflow with style-aware message generation and interactive staging.
+argument-hint: "[--amend]"
+---
 # Commit
 
 Smart commit workflow with style-aware message generation and interactive staging.

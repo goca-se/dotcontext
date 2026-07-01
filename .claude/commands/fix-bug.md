@@ -1,3 +1,7 @@
+---
+description: Test-driven bug fixing — reproduce with a failing test, fix via parallel agents, then pick the best solution.
+argument-hint: "[description] [--issue N] [--pr N]"
+---
 # Fix Bug — Test-Driven Bug Fixing with Parallel Subagents
 
 Investigate a bug, write a failing test that proves it exists, launch parallel agents to fix it, then select the best solution. Zero questions — goes straight from description to investigation.

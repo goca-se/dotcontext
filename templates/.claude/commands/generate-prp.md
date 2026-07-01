@@ -1,3 +1,7 @@
+---
+description: Plan a feature by generating a Product Requirements Prompt (PRP), with clarity assessment.
+argument-hint: "[feature description]"
+---
 # Generate PRP
 
 Generate a PRP (Product Requirements Prompt) for the feature described in $ARGUMENTS.

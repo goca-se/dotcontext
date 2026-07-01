@@ -1,3 +1,6 @@
+---
+description: Analyze this codebase and populate the AI context files with relevant information.
+---
 # Setup Context
 
 Analyze this codebase and populate the AI context files with relevant information.

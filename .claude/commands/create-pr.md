@@ -1,3 +1,6 @@
+---
+description: Create a well-structured pull request with automatic architectural diagram detection.
+---
 # Create Pull Request
 
 Create a well-structured pull request with automatic architectural diagram detection.
