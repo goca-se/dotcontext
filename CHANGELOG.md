@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/goca-se/dotcontext/compare/v0.17.0...v0.17.1) (2026-07-01)
+
+### Fixes
+
+* **frontmatter** - complete `description` + `argument-hint` on all slash commands, and `name` + `description` on all skills and agent definitions (agent files were previously invalid subagent definitions)
+* **update** - seed all four skills on `dotcontext update`; `batch-operations` and `git-platform` were missing, so existing projects never received them
+
 ## [0.17.0](https://github.com/goca-se/dotcontext/compare/v0.16.0...v0.17.0) (2026-06-03)
 
 ### Features
