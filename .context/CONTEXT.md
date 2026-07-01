@@ -19,7 +19,7 @@
 | `.context/CONTEXT.md` | Domain knowledge: entities, flows, integrations, glossary |
 | `ADR (Architectural Decision Record)` | Documents a significant architectural decision with context, alternatives, and consequences |
 | `Skill` | Step-by-step guide for a recurring pattern or task in the codebase |
-| `PRP (Product Requirements Prompt)` | Structured feature specification with implementation plan and phases |
+| `Spec` / `Plan` | Spec = behavior contract, the WHAT (`/spec-dc`, `.context/specs/`); Plan = implementation plan with 100% traceability, the HOW (`/plan-dc`, `.context/plans/`) |
 | `Command` | A workflow prompt, emitted per harness (`.claude/commands/`, `.opencode/command/`, `.github/prompts/`, or the `## Workflows` section of `AGENTS.md`) |
 | `Discovery` | Output document from deep context analysis with business rules and cross-repo validation |
 | `Bug Report` | Structured report from `/fix-bug` with root cause, reproduction test, and fix details |
@@ -38,12 +38,13 @@ dotcontext/
 │   ├── .context/
 │   │   ├── CONTEXT.md
 │   │   ├── decisions/
+│   │   ├── specs/
+│   │   ├── plans/
 │   │   ├── discoveries/
-│   │   ├── bugs/
-│   │   └── prp/
+│   │   └── bugs/
 │   └── .claude/
 │       ├── commands/    # 13 slash command templates
-│       ├── agents/      # 12 agent prompt files (code-review, fix-bug, deep-context)
+│       ├── agents/      # 16 agent prompt files (code-review, fix-bug, deep-context, plan-dc, execute-dc)
 │       ├── scripts/     # StatusLine script
 │       └── skills/      # Seed skills (bug-reproduction)
 └── .claude/commands/    # This repo's slash commands (mirrors templates)
@@ -164,27 +165,28 @@ User runs: dotcontext init
         └── Opens interactive Claude session analyzing the project
 ```
 
-### Feature Development Flow (PRP Workflow)
+### Feature Development Flow (spec → plan → execute)
 
 ```
-User runs: /generate-prp "Add user authentication"
+User runs: /spec-dc "Add user authentication"          # the WHAT
     │
-    ├─→ AI runs clarity assessment, asks N questions only when needed
-    │
-    ├─→ AI analyzes codebase, skills, decisions
-    │
-    └─→ Creates .context/prp/generated/YYYYMMDD-user-auth.md
+    ├─→ AI runs clarity assessment, asks only the questions that unblock it
+    ├─→ AI researches the codebase (does NOT review ADRs — that's plan-dc's job)
+    └─→ Creates .context/specs/spec-<unix-ts>-user-auth.md   (behavior contract)
 
-User runs: /execute-prp user-auth
+User runs: /plan-dc <spec-path>                         # the HOW
     │
-    ├─→ AI reads full PRP
+    ├─→ AI reads the spec (source of truth) + reviews ADRs in .context/decisions/
+    ├─→ Writes .context/plans/plan-<unix-ts>-user-auth.md
+    │       (files to touch, tests, verification, 100% Traceability, ADR impact)
+    └─→ Dual adversarial review loop (Reviewer Pro + Reviewer Fast) until double-APPROVED
+
+User runs: /execute-dc <plan-path>                      # the DO
     │
-    ├─→ Offers worktree isolation (parallel development)
-    │
-    ├─→ Creates feature branch
-    │
-    └─→ Implements phase by phase
-        └── Runs tests/linting after each phase
+    ├─→ Git hygiene (branch from detected base) + optional worktree isolation
+    ├─→ Decomposes the plan into parallel waves (disjoint files per wave)
+    ├─→ Runs tests after each wave; plan is the immutable contract
+    └─→ Final dual review vs `git diff`; reconciliation of context is a deferred step (ADR-019)
 ```
 
 ### Update Flow
@@ -275,7 +277,8 @@ User runs: /fix-bug "login fails with empty password" --issue 42
 |------|------------|
 | **ADR** | Architectural Decision Record - documents why a significant technical decision was made |
 | **Skill** | A documented recurring pattern with step-by-step instructions |
-| **PRP** | Product Requirements Prompt - structured feature specification for AI implementation |
+| **Spec** | Behavior specification — the WHAT a feature must do (observable behavior, no implementation), written by `/spec-dc` into `.context/specs/` |
+| **Plan** | Implementation plan — the HOW, derived from a spec by `/plan-dc` into `.context/plans/`, with a 100% traceability table and ADR review |
 | **Slash command** | A `/command` that triggers a markdown-defined workflow in Claude Code |
 | **Worktree** | Git feature allowing multiple working directories from one repo, used for parallel feature development |
 | **Decision Compliance** | The system of checking ADRs before making changes that might conflict with existing decisions |

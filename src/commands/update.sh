@@ -203,8 +203,9 @@ cmd_update_templates() {
   declare -a managed_templates=(
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
     "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
-    "templates/.claude/commands/generate-prp.md:.claude/commands/generate-prp.md"
-    "templates/.claude/commands/execute-prp.md:.claude/commands/execute-prp.md"
+    "templates/.claude/commands/spec-dc.md:.claude/commands/spec-dc.md"
+    "templates/.claude/commands/plan-dc.md:.claude/commands/plan-dc.md"
+    "templates/.claude/commands/execute-dc.md:.claude/commands/execute-dc.md"
     "templates/.claude/commands/add-decision.md:.claude/commands/add-decision.md"
     "templates/.claude/commands/add-skill.md:.claude/commands/add-skill.md"
     "templates/.claude/commands/add-command.md:.claude/commands/add-command.md"
@@ -213,7 +214,6 @@ cmd_update_templates() {
     "templates/.claude/commands/deep-context.md:.claude/commands/deep-context.md"
     "templates/.claude/commands/fix-bug.md:.claude/commands/fix-bug.md"
     "templates/.claude/commands/commit.md:.claude/commands/commit.md"
-    "templates/.context/prp/templates/feature.md:.context/prp/templates/feature.md"
     "templates/.claude/scripts/statusline.sh:.claude/scripts/statusline.sh"
     "templates/.claude/agents/code-review/compliance-checker.md:.claude/agents/code-review/compliance-checker.md"
     "templates/.claude/agents/code-review/bug-detector.md:.claude/agents/code-review/bug-detector.md"
@@ -227,6 +227,10 @@ cmd_update_templates() {
     "templates/.claude/agents/fix-bug/fix-minimal.md:.claude/agents/fix-bug/fix-minimal.md"
     "templates/.claude/agents/fix-bug/fix-refactor.md:.claude/agents/fix-bug/fix-refactor.md"
     "templates/.claude/agents/fix-bug/reviewer.md:.claude/agents/fix-bug/reviewer.md"
+    "templates/.claude/agents/plan-dc/reviewer-pro.md:.claude/agents/plan-dc/reviewer-pro.md"
+    "templates/.claude/agents/plan-dc/reviewer-fast.md:.claude/agents/plan-dc/reviewer-fast.md"
+    "templates/.claude/agents/execute-dc/reviewer-pro.md:.claude/agents/execute-dc/reviewer-pro.md"
+    "templates/.claude/agents/execute-dc/reviewer-fast.md:.claude/agents/execute-dc/reviewer-fast.md"
   )
 
   # SEED templates: created once during init, customized by user or /setup-context.
@@ -234,6 +238,8 @@ cmd_update_templates() {
   declare -a seed_templates=(
     "templates/AGENTS.md:AGENTS.md"
     "templates/.context/decisions/README.md:.context/decisions/README.md"
+    "templates/.context/specs/README.md:.context/specs/README.md"
+    "templates/.context/plans/README.md:.context/plans/README.md"
     "templates/.claude/skills/bug-reproduction/SKILL.md:.claude/skills/bug-reproduction/SKILL.md"
     "templates/.claude/skills/batch-operations/SKILL.md:.claude/skills/batch-operations/SKILL.md"
     "templates/.claude/skills/git-platform/SKILL.md:.claude/skills/git-platform/SKILL.md"

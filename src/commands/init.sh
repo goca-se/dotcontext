@@ -51,7 +51,8 @@ cmd_init() {
   print_gray "Setting up for: $selected"
 
   # Harness-agnostic context skeleton (always)
-  mkdir -p ".context/decisions" ".context/prp/templates" ".context/prp/generated" \
+  # specs/ + plans/ back the spec → plan → execute workflow (ADR-020).
+  mkdir -p ".context/decisions" ".context/specs" ".context/plans" \
            ".context/discoveries" ".context/bugs"
 
   start_spinner "Downloading templates..."
@@ -71,7 +72,8 @@ cmd_init() {
   # ── Shared context (every harness) ──
   download_if_missing "${BASE_URL}/templates/.context/CONTEXT.md" ".context/CONTEXT.md"
   download_if_missing "${BASE_URL}/templates/.context/decisions/README.md" ".context/decisions/README.md"
-  download_if_missing "${BASE_URL}/templates/.context/prp/templates/feature.md" ".context/prp/templates/feature.md"
+  download_if_missing "${BASE_URL}/templates/.context/specs/README.md" ".context/specs/README.md"
+  download_if_missing "${BASE_URL}/templates/.context/plans/README.md" ".context/plans/README.md"
 
   # ── Project instructions: canonical AGENTS.md + import stubs for selected agents ──
   for mapping in $(agent_instruction_seeds "$selected"); do
@@ -96,11 +98,12 @@ cmd_init() {
   # ── Claude-only toolkit (commands, agents, statusline, ignore) ──
   if [ "$wants_claude" = true ]; then
     mkdir -p ".claude/commands" ".claude/scripts" \
-             ".claude/agents/code-review" ".claude/agents/deep-context" ".claude/agents/fix-bug"
+             ".claude/agents/code-review" ".claude/agents/deep-context" ".claude/agents/fix-bug" \
+             ".claude/agents/plan-dc" ".claude/agents/execute-dc"
     download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
 
     local c
-    for c in setup-context code-review generate-prp execute-prp add-decision add-skill \
+    for c in setup-context code-review spec-dc plan-dc execute-dc add-decision add-skill \
              add-command create-pr pr-comment deep-context fix-bug commit; do
       download "${BASE_URL}/templates/.claude/commands/${c}.md" ".claude/commands/${c}.md"
     done
@@ -112,7 +115,9 @@ cmd_init() {
     for a in code-review/compliance-checker code-review/bug-detector code-review/security-analyst \
              deep-context/step1-overview deep-context/step2-subsystems deep-context/step3-drill \
              deep-context/step4-dataflow fix-bug/investigator fix-bug/fix-conservative \
-             fix-bug/fix-minimal fix-bug/fix-refactor fix-bug/reviewer; do
+             fix-bug/fix-minimal fix-bug/fix-refactor fix-bug/reviewer \
+             plan-dc/reviewer-pro plan-dc/reviewer-fast \
+             execute-dc/reviewer-pro execute-dc/reviewer-fast; do
       download "${BASE_URL}/templates/.claude/agents/${a}.md" ".claude/agents/${a}.md"
     done
 
@@ -122,6 +127,10 @@ cmd_init() {
       step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
     cleanup_managed_dir ".claude/agents/fix-bug" \
       investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
+    cleanup_managed_dir ".claude/agents/plan-dc" \
+      reviewer-pro.md reviewer-fast.md
+    cleanup_managed_dir ".claude/agents/execute-dc" \
+      reviewer-pro.md reviewer-fast.md
     cleanup_managed_dir ".claude/scripts" \
       statusline.sh notify.sh tool-failure-guard.sh
   fi
@@ -134,7 +143,7 @@ cmd_init() {
     done
   fi
 
-  touch ".context/prp/generated/.keep" ".context/discoveries/.keep" ".context/bugs/.keep"
+  touch ".context/discoveries/.keep" ".context/bugs/.keep"
 
   # ── Commands per selected harness (opencode/Copilot native; others via AGENTS.md Workflows) ──
   emit_agent_commands "$selected" 2>/dev/null || true

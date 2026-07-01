@@ -87,7 +87,7 @@ Update 1 existing file(s)? [y/N/d] (y=yes, N=no, d=show diffs)
 - Templates show exactly what will change before doing anything
 - Default action (`N`) only adds new files, never overwrites
 - Press `d` to see diffs before deciding
-- **User-managed files** (skills, READMEs, PRP templates) are never overwritten — they're created once during init and then owned by you
+- **User-managed files** (skills, READMEs) are never overwritten — they're created once during init and then owned by you
 - Never touches user content (`CONTEXT.md`, `CLAUDE.md`, your ADRs, bug reports, discoveries)
 
 ### Run the setup command
@@ -133,17 +133,17 @@ your-project/
 │   ├── decisions/               # ADRs (versioned)
 │   ├── discoveries/             # Deep context analysis outputs
 │   ├── bugs/                    # Bug fix reports
-│   └── prp/                     # Feature planning docs
-│       ├── templates/
-│       └── generated/
+│   ├── specs/                   # Behavior specs — the WHAT (/spec-dc)
+│   └── plans/                   # Implementation plans — the HOW (/plan-dc)
 ├── .mcp.json                    # MCP server config (Context7, Atlassian)
 └── .claude/
     ├── commands/
     │   ├── setup-context.md          # Auto-setup command
     │   ├── code-review.md            # Code review command
     │   ├── commit.md                 # Smart commit command
-    │   ├── generate-prp.md           # Generate feature PRPs
-    │   ├── execute-prp.md            # Execute PRPs step-by-step
+    │   ├── spec-dc.md                # Write a behavior spec (the WHAT)
+    │   ├── plan-dc.md                # Turn a spec into a plan (the HOW)
+    │   ├── execute-dc.md             # Implement a plan in waves (the DO)
     │   ├── create-pr.md              # Create PRs with diagrams
     │   ├── pr-comment.md             # Comment on PRs
     │   ├── add-decision.md           # Add ADR interactively
@@ -154,7 +154,9 @@ your-project/
     ├── agents/                       # Extracted agent prompts
     │   ├── code-review/              # 3 review agents
     │   ├── deep-context/             # 4 exploration agents
-    │   └── fix-bug/                  # 5 bug-fix agents
+    │   ├── fix-bug/                  # 5 bug-fix agents
+    │   ├── plan-dc/                  # 2 plan reviewers (pro + fast)
+    │   └── execute-dc/               # 2 implementation reviewers (pro + fast)
     ├── skills/                       # Step-by-step guides (SKILL.md w/ name+description frontmatter)
     │   ├── bug-reproduction/         # Reproduce-before-fixing patterns
     │   ├── batch-operations/         # Safe multi-file changes
@@ -225,8 +227,9 @@ What's shared vs per-harness (ADR-016, ADR-017):
 | Command                      | Description                                    |
 | ---------------------------- | ---------------------------------------------- |
 | `/setup-context`             | Analyze codebase and populate context          |
-| `/generate-prp [feature]`    | Plan a new feature with clarifying questions   |
-| `/execute-prp [name]`        | Implement a planned feature                    |
+| `/spec-dc [feature]`         | Write a behavior spec — the WHAT (step 1)      |
+| `/plan-dc [spec-path]`       | Turn a spec into a plan with ADR review — the HOW (step 2) |
+| `/execute-dc [plan-path]`    | Implement a plan in parallel waves — the DO (step 3) |
 | `/code-review [--comment]`   | Multi-agent code review with confidence scoring |
 | `/commit [--amend]`          | Smart commit with style-aware message generation |
 | `/create-pr`                 | Create PR with auto-detected architecture diagrams |
@@ -282,73 +285,62 @@ Multi-agent code review inspired by [Claude Code's official plugin](https://gith
 - Code quality and patterns
 - CLAUDE.md rule violations
 
-### `/generate-prp <feature description>`
+### Feature development: spec → plan → execute
 
-Generates a Product Requirements Prompt for a new feature:
-
-- **Runs a clarity assessment** and asks N targeted questions (0..N) — only the ones that genuinely unblock ambiguity
-- Analyzes codebase patterns and existing architecture
-- Consults skills and decisions for consistency
-- Pauses at a **Validation Gate** with a parallel Haiku auto-validation subagent before locking the implementation plan
-- Creates structured implementation plan with phases, a final e2e verification phase, and a Parallelism Map for `/execute-prp`
-- Saves to `.context/prp/generated/`
-
-Example:
+Feature work runs as a three-command pipeline. Each step produces a durable, versioned
+artifact that the next step consumes — the spec is the source of truth the plan is measured
+against, and the plan is the contract the implementation is measured against.
 
 ```
-> /generate-prp user authentication with OAuth
+/spec-dc  (the WHAT)  →  /plan-dc  (the HOW)  →  /execute-dc  (the DO)
+   spec file               plan file              implemented + reviewed
 ```
 
-<details>
-<summary>See it in action</summary>
+#### `/spec-dc <feature description>`
 
-<img src="assets/demo-generate-prp.gif" alt="generate-prp demo" width="600">
+Writes a **behavior specification** — the WHAT — into `.context/specs/spec-<unix-ts>-<slug>.md`:
 
-</details>
-
-### `/execute-prp <prp-name>`
-
-Executes an existing PRP step-by-step:
-
-- Reads the full PRP
-- Checks prerequisites
-- **Offers worktree isolation** for parallel development
-- Implements in defined order
-- Validates each phase (tests, linting)
-- Stops on errors, fixes before continuing
-
-#### Worktree Isolation
-
-Before starting, the command asks if you want to create an isolated git worktree. This allows you to:
-
-- Work on multiple features/fixes simultaneously
-- Switch tasks without stashing or losing context
-- Keep your main workspace clean
-
-Branch types are automatically detected from PRP content:
-
-| Type | Use case |
-|------|----------|
-| `feature/` | New functionality |
-| `bugfix/` | Bug corrections |
-| `hotfix/` | Urgent production fixes |
-| `chore/` | Maintenance, refactoring |
-| `experiment/` | Spikes, POCs |
-
-Example:
+- **Runs a clarity assessment** and asks only the targeted questions that genuinely unblock ambiguity
+- Researches the real codebase (delegates broad sweeps to parallel `Explore` subagents)
+- Produces seven mandatory sections (user stories, success criteria, functional & non-functional
+  requirements, constraints/out-of-scope, technical context, acceptance tests)
+- Describes observable behavior only — **no code, no implementation plan, no ADR review**
 
 ```
-> /execute-prp 20260129-user-auth
-
-# Creates: ../your-project-user-auth (branch: feature/user-auth)
+> /spec-dc user authentication with OAuth
 ```
 
-<details>
-<summary>See it in action</summary>
+#### `/plan-dc <spec-path>`
 
-<img src="assets/demo-execute-prp.gif" alt="execute-prp demo" width="600">
+Turns a spec into a precise **implementation plan** — the HOW — in `.context/plans/plan-<unix-ts>-<slug>.md`:
 
-</details>
+- Reads the spec (source of truth) and the actual code
+- **Owns the ADR review** for the whole flow — checks `.context/decisions/`, records impact, flags conflicts
+- Lists exact files to create/modify, tests, verification/regression, and a **100% Traceability table**
+  proving every spec item is covered
+- Runs a **dual adversarial review loop** (Reviewer Pro + Reviewer Fast, in parallel) until double-`APPROVED`
+
+```
+> /plan-dc .context/specs/spec-1746500000-user-auth.md
+```
+
+#### `/execute-dc <plan-path>`
+
+Implements an approved plan — the DO — treating the plan as an **immutable contract**:
+
+- Git hygiene: branches from the repo's detected base branch; **offers worktree isolation**
+- Decomposes the plan into **parallel waves** (disjoint files per wave, up to 3 subagents at a time)
+- Runs the project's tests after each wave; stops and fixes before advancing
+- Closes with a **dual review** of the `git diff` against the plan
+- Knowledge reconciliation back into `CONTEXT.md`/ADRs/skills is a deferred final step (ADR-019)
+
+Branch types are auto-detected from the plan: `feature/`, `bugfix/`, `hotfix/`, `chore/`, `experiment/`.
+
+```
+> /execute-dc .context/plans/plan-1746500123-user-auth.md
+
+# Optionally creates: ../your-project-user-auth (branch: feature/user-auth)
+```
 
 ### `/create-pr`
 

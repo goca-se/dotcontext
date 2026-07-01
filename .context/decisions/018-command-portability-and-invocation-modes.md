@@ -36,6 +36,10 @@ Classification (skills for knowledge, commands for action):
 | `bug-reproduction`, `batch-operations`, `git-platform` (existing guides) | `setup-context`, `generate-prp`, `execute-prp`, `commit`, `create-pr`, `pr-comment`, `add-decision`, `add-skill`, `add-command` |
 | **`code-review`**, **`deep-context`** (read-mostly analysis — promoted from command) | `fix-bug` (makes changes; leans on the `bug-reproduction` skill) |
 
+> **Amended by ADR-020 (2026-07-01):** the `command`-mode list now reads `spec-dc`, `plan-dc`,
+> `execute-dc` in place of the retired `generate-prp` / `execute-prp`. The classification
+> (side-effecting action → `command`, explicit-only) is unchanged.
+
 Rationale for the promotions: `code-review` and `deep-context` are read-mostly, and "review my changes"
 / "help me understand X" are natural auto-triggers — discovery adds value with no side-effect risk, and
 the explicit `/name` still works.
@@ -95,8 +99,10 @@ would defeat the description-driven discovery ADR-016/017 rely on. Applied to al
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-06-03 | Accepted — skill frontmatter + hybrid command portability (opencode/Copilot native; AGENTS.md Workflows for Gemini/Cursor/Codex) |
+| 1.1 | 2026-07-01 | Command list amended by ADR-020 — PRP pair (`generate-prp`/`execute-prp`) retired in favor of the `spec-dc`/`plan-dc`/`execute-dc` trio |
 
 ## Related
 - ADR-005: Mandatory AskUserQuestion (clarity assessment) — `{{ASK}}` is how it's satisfied cross-agent
 - ADR-016: Multi-agent harness (instructions)
 - ADR-017: Harness selection, skills & hooks portability
+- ADR-020: Spec → Plan → Execute Workflow — amends the command classification list (retires the PRP pair, adds the trio)
