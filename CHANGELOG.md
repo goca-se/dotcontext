@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+* **spec → plan → execute workflow** — feature development is now a three-command pipeline that replaces the single-shot PRP flow (ADR-020):
+  * **`/spec-dc`** — writes a **behavior specification** (the WHAT) to `.context/specs/spec-<unix-ts>-<slug>.md`. Keeps dotcontext's **clarity assessment** and reference-material handling; describes observable behavior only, and **does not review ADRs**. Closes with a **dual reviewer loop** (`spec-dc/reviewer-pro` + `spec-dc/reviewer-fast`) scoped to well-formedness, testability, scope, grounding, and fidelity to the request — never product merit (that stays the user's call).
+  * **`/plan-dc`** — turns a spec into an **implementation plan** (the HOW) in `.context/plans/plan-<unix-ts>-<slug>.md` with a **100% Traceability table**, and **owns the ADR review** for the whole flow (moved out of the old `generate-prp`). Preserves the PRP flow's **Validation Gate** (user approval on the approach before the detailed plan) and its **four-option ADR-conflict resolution** (Update / Find alternative / Keep / Let Claude decide) with version/History/Supersede mechanics. Closes with a **dual adversarial review loop** (`plan-dc/reviewer-pro` + `plan-dc/reviewer-fast`) until double-`APPROVED`.
+  * **`AskUserQuestion` (ADR-005) stays mandatory and explicit** in all three commands — never degraded to free text; renders to each harness's native structured-question tool via `{{ASK}}` (ADR-018).
+  * **`/execute-dc`** — implements the plan as **parallel waves** (disjoint files per wave), runs the project's tests after each wave, and finishes with a **dual review** of the `git diff` vs the plan (`execute-dc/reviewer-pro` + `execute-dc/reviewer-fast`). Branches from the repo's **detected base branch** (no hardcoded `develop`), keeps the **worktree isolation** option, and references knowledge reconciliation (ADR-019) as a deferred final step.
+  * Adapted from the Spec-Driven Development skills (spec-author / plan-author / plan-executor), folded into dotcontext's conventions (portable across all six harnesses via `DOTCONTEXT_COMMANDS`; `## Workflows` in `AGENTS.md`).
+* **`generate-prp` / `execute-prp` retired** — replaced by the trio. **Non-destructive on `update`**: existing projects keep their current PRP command files and `.context/prp/` untouched (they simply stop being managed), so nothing breaks. `update` also **delivers** the trio to existing installs — Claude via the managed-template set, opencode/Copilot via a create-only re-emit of the per-harness command dirs — and prints a migration notice. `AGENTS.md` stays user-owned (create-only), so Gemini/Cursor/Codex users are told to refresh its `## Workflows` table (or re-run `init`). New projects get the trio only.
+
 ## [0.17.1](https://github.com/goca-se/dotcontext/compare/v0.17.0...v0.17.1) (2026-07-01)
 
 ### Fixes

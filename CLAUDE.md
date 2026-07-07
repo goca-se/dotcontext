@@ -52,8 +52,9 @@ dotcontext --version [--features|--json]
 
 ```bash
 /setup-context             # Analyze codebase and populate context
-/generate-prp [feature]    # Plan a new feature
-/execute-prp [name]        # Implement a planned feature
+/spec-dc [feature]         # Write a behavior spec — the WHAT (step 1)
+/plan-dc [spec-path]       # Turn a spec into a plan (ADR review) — the HOW (step 2)
+/execute-dc [plan-path]    # Implement a plan in parallel waves — the DO (step 3)
 /code-review               # Review code changes
 /commit [--amend]          # Smart commit with style-aware messages
 /deep-context [query]      # Structured 4-step codebase exploration

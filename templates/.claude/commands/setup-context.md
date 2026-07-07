@@ -194,12 +194,13 @@ Check if `.gitignore` exists. If it does, verify it includes these entries. If a
 
 ```
 # dotcontext generated files (per-session, not versioned)
-.context/prp/
 .context/discoveries/
 .context/bugs/
 ```
 
 These directories contain generated content that is session-specific and should not be committed.
+Note: `.context/specs/` and `.context/plans/` (the spec → plan → execute artifacts) are the
+source-of-truth contracts and **are** meant to be committed — do not gitignore them.
 
 ## Output
 

@@ -19,6 +19,13 @@ Record of significant technical decisions in this project.
 | [011](011-test-driven-bug-fixing-pattern.md) | Test-Driven Bug Fixing Pattern | Accepted |
 | [012](012-agent-file-extraction-pattern.md) | Agent File Extraction Pattern | Accepted |
 | [013](013-structured-exploration-pattern.md) | Structured Exploration Pattern | Accepted |
+| [014](014-automated-release-pipeline.md) | Automated Release Pipeline & Single-Source Versioning | Accepted |
+| [015](015-capability-discovery-and-update-awareness.md) | Capability Discovery & Update Awareness | Accepted |
+| [016](016-multi-agent-harness.md) | Multi-Agent Harness via Adapter Registry | Accepted |
+| [017](017-skills-and-hooks-portability.md) | Harness Selection, Skills & Hooks Portability | Accepted |
+| [018](018-command-portability-and-invocation-modes.md) | Command Portability & Invocation Modes | Accepted (command list amended by 020) |
+| [019](019-knowledge-reconciliation-after-prp.md) | Knowledge Reconciliation after PRP execution | Proposed (deferred) |
+| [020](020-spec-plan-execute-workflow.md) | Spec → Plan → Execute Feature Workflow | Accepted |
 
 ## Template
 

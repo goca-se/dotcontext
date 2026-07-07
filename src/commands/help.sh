@@ -54,8 +54,9 @@ cmd_help() {
   # Claude Code Commands
   printf "  ${BLUE}${BOLD}Workflows${NC} ${GRAY}(after init — slash commands on Claude/opencode/Copilot; AGENTS.md elsewhere)${NC}\n"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/setup-context"  "Analyze codebase and populate context"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/generate-prp"   "Plan a new feature"
-  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/execute-prp"    "Implement a planned feature"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/spec-dc"        "Write a behavior spec (the WHAT)"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/plan-dc"        "Turn a spec into a plan (the HOW)"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/execute-dc"     "Implement a plan in waves (the DO)"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/code-review"    "Multi-agent code review"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/commit"         "Smart commit messages"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/create-pr"      "Create PR with description"

@@ -269,7 +269,7 @@ JS
 # them in .claude/commands/ (handled in init). opencode and Copilot get native
 # command/prompt files here; Gemini/Cursor/Codex rely on the "## Workflows"
 # section emitted into AGENTS.md. Create-only — never clobbers existing files.
-DOTCONTEXT_COMMANDS="setup-context generate-prp execute-prp code-review commit create-pr pr-comment deep-context fix-bug add-decision add-skill add-command"
+DOTCONTEXT_COMMANDS="setup-context spec-dc plan-dc execute-dc code-review commit create-pr pr-comment deep-context fix-bug add-decision add-skill add-command"
 
 emit_agent_commands() {
   local selected="$1" id name
