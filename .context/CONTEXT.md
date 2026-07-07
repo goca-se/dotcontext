@@ -44,7 +44,7 @@ dotcontext/
 │   │   └── bugs/
 │   └── .claude/
 │       ├── commands/    # 13 slash command templates
-│       ├── agents/      # 16 agent prompt files (code-review, fix-bug, deep-context, plan-dc, execute-dc)
+│       ├── agents/      # 18 agent prompt files (code-review, fix-bug, deep-context, spec-dc, plan-dc, execute-dc)
 │       ├── scripts/     # StatusLine script
 │       └── skills/      # Seed skills (bug-reproduction)
 └── .claude/commands/    # This repo's slash commands (mirrors templates)
@@ -172,7 +172,8 @@ User runs: /spec-dc "Add user authentication"          # the WHAT
     │
     ├─→ AI runs clarity assessment, asks only the questions that unblock it
     ├─→ AI researches the codebase (does NOT review ADRs — that's plan-dc's job)
-    └─→ Creates .context/specs/spec-<unix-ts>-user-auth.md   (behavior contract)
+    ├─→ Writes .context/specs/spec-<unix-ts>-user-auth.md   (behavior contract)
+    └─→ Dual reviewer loop until double-APPROVED (well-formedness/fidelity, NOT product merit)
 
 User runs: /plan-dc <spec-path>                         # the HOW
     │

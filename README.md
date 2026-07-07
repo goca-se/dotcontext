@@ -155,6 +155,7 @@ your-project/
     │   ├── code-review/              # 3 review agents
     │   ├── deep-context/             # 4 exploration agents
     │   ├── fix-bug/                  # 5 bug-fix agents
+    │   ├── spec-dc/                  # 2 spec reviewers (pro + fast)
     │   ├── plan-dc/                  # 2 plan reviewers (pro + fast)
     │   └── execute-dc/               # 2 implementation reviewers (pro + fast)
     ├── skills/                       # Step-by-step guides (SKILL.md w/ name+description frontmatter)
@@ -305,6 +306,7 @@ Writes a **behavior specification** — the WHAT — into `.context/specs/spec-<
 - Produces seven mandatory sections (user stories, success criteria, functional & non-functional
   requirements, constraints/out-of-scope, technical context, acceptance tests)
 - Describes observable behavior only — **no code, no implementation plan, no ADR review**
+- Closes with a **dual reviewer loop** (`spec-dc/reviewer-pro` + `reviewer-fast`) that checks well-formedness, testability, scope, grounding, and fidelity to the request — **not** product merit (that stays your call)
 
 ```
 > /spec-dc user authentication with OAuth

@@ -101,7 +101,7 @@ user asks — never auto-fire a workflow that commits, opens a PR, or writes fil
 | Workflow | Purpose |
 | --- | --- |
 | `setup-context` | Analyze the codebase and populate `.context/` |
-| `spec-dc` | Write a behavior spec — the WHAT (step 1 of spec → plan → execute) |
+| `spec-dc` | Write a behavior spec — the WHAT, with dual review (step 1 of spec → plan → execute) |
 | `plan-dc` | Turn a spec into an implementation plan — the HOW, with ADR review (step 2) |
 | `execute-dc` | Implement a plan in parallel waves, with dual review — the DO (step 3) |
 | `code-review` | Multi-agent review of the current changes |

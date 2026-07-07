@@ -144,7 +144,59 @@ The spec **must** contain **all seven** sections below, in this order, each subs
 - **Acceptance Tests** must be concrete enough that someone could write the automated test
   from them — but must not contain the test code.
 
-## Phase 3 — Final verification
+## Phase 3 — Two-reviewer parallel review loop
+
+The spec is the first artifact — nothing upstream to measure it against — so this review checks
+the spec's **own quality and fidelity**, never its product merit (that is the user's call, made
+at the "Review first" checkpoint below). Run **at least one round**.
+
+Each round, dispatch **both subagents in the same message** (in parallel, via the Task tool),
+with **fresh** subagents every round, using the agent definitions:
+
+- **Reviewer Pro** (`spec-dc/reviewer-pro`) — strict: structure, no-HOW leakage, scope hygiene,
+  internal consistency, grounding (cited paths exist), and faithfulness to the request.
+- **Reviewer Fast** (`spec-dc/reviewer-fast`) — quick: clarity, completeness, testability,
+  obvious drift. Prefer the **Haiku** model.
+
+Give both the spec path AND the **original request** (`$ARGUMENTS` + any clarifying Q&A) as the
+yardstick, substituting the real values (no literal placeholders):
+
+```
+Review the behavior spec at: <SPEC PATH>.
+The original request (the yardstick) was: <ORIGINAL REQUEST + clarifying Q&A>.
+
+Judge ONLY whether the spec is a well-formed, testable, well-scoped behavior contract that is
+faithful to the request:
+- all seven sections present and substantial
+- no implementation ("how") leaked in
+- every functional requirement has an acceptance test; success criteria are measurable
+- scope is explicit; nothing ambiguously in/out; no internal contradiction
+- cited Technical Context paths actually exist in the codebase
+- faithful to the request — nothing invented, nothing dropped
+
+Do NOT judge product merit and do NOT invent requirements the request didn't ask for.
+
+If the spec passes, reply with ONLY the word: APPROVED. Otherwise, a detailed report of every
+defect with the exact section / file / request line, and a concrete fix.
+```
+
+### Flow
+
+1. Dispatch both in parallel.
+2. If **both** reply exactly `APPROVED` → go to final verification.
+3. If either reports gaps:
+   - **Verify each finding yourself** before accepting it. Reviewers err — and they must not
+     invent requirements, so **reject any "gap" that is really new product scope** the request
+     didn't ask for.
+   - Apply **only** the valid fixes, rewriting the spec (no changelog).
+   - Start a **new round with fresh subagents**.
+4. Repeat until double approval.
+
+If after ~3 rounds the reviewers still raise gaps you judge (after verifying) invalid or
+product-taste rather than well-formedness, stop and take the open point to the user — the ruler
+is a sound spec, not pleasing a reviewer.
+
+## Phase 4 — Final verification
 
 After writing, re-read the file and confirm:
 

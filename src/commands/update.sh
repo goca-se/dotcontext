@@ -227,6 +227,8 @@ cmd_update_templates() {
     "templates/.claude/agents/fix-bug/fix-minimal.md:.claude/agents/fix-bug/fix-minimal.md"
     "templates/.claude/agents/fix-bug/fix-refactor.md:.claude/agents/fix-bug/fix-refactor.md"
     "templates/.claude/agents/fix-bug/reviewer.md:.claude/agents/fix-bug/reviewer.md"
+    "templates/.claude/agents/spec-dc/reviewer-pro.md:.claude/agents/spec-dc/reviewer-pro.md"
+    "templates/.claude/agents/spec-dc/reviewer-fast.md:.claude/agents/spec-dc/reviewer-fast.md"
     "templates/.claude/agents/plan-dc/reviewer-pro.md:.claude/agents/plan-dc/reviewer-pro.md"
     "templates/.claude/agents/plan-dc/reviewer-fast.md:.claude/agents/plan-dc/reviewer-fast.md"
     "templates/.claude/agents/execute-dc/reviewer-pro.md:.claude/agents/execute-dc/reviewer-pro.md"

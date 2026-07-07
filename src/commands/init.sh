@@ -99,7 +99,7 @@ cmd_init() {
   if [ "$wants_claude" = true ]; then
     mkdir -p ".claude/commands" ".claude/scripts" \
              ".claude/agents/code-review" ".claude/agents/deep-context" ".claude/agents/fix-bug" \
-             ".claude/agents/plan-dc" ".claude/agents/execute-dc"
+             ".claude/agents/spec-dc" ".claude/agents/plan-dc" ".claude/agents/execute-dc"
     download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
 
     local c
@@ -116,6 +116,7 @@ cmd_init() {
              deep-context/step1-overview deep-context/step2-subsystems deep-context/step3-drill \
              deep-context/step4-dataflow fix-bug/investigator fix-bug/fix-conservative \
              fix-bug/fix-minimal fix-bug/fix-refactor fix-bug/reviewer \
+             spec-dc/reviewer-pro spec-dc/reviewer-fast \
              plan-dc/reviewer-pro plan-dc/reviewer-fast \
              execute-dc/reviewer-pro execute-dc/reviewer-fast; do
       download "${BASE_URL}/templates/.claude/agents/${a}.md" ".claude/agents/${a}.md"
@@ -127,6 +128,8 @@ cmd_init() {
       step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
     cleanup_managed_dir ".claude/agents/fix-bug" \
       investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
+    cleanup_managed_dir ".claude/agents/spec-dc" \
+      reviewer-pro.md reviewer-fast.md
     cleanup_managed_dir ".claude/agents/plan-dc" \
       reviewer-pro.md reviewer-fast.md
     cleanup_managed_dir ".claude/agents/execute-dc" \

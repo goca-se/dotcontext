@@ -53,18 +53,28 @@ ADR review for the whole flow: it reads `.context/decisions/`, records impact in
 the `AGENTS.md` compliance rule (proceed & update the ADR / comply / cancel). `/execute-dc`
 only surfaces an ADR conflict the plan did not anticipate.
 
-### 3. Dual adversarial review at the plan and execute boundaries
+### 3. Dual adversarial review at the spec, plan, and execute boundaries
 
-Both `/plan-dc` and `/execute-dc` end with a review loop that dispatches **two fresh
-subagents in parallel** each round until both reply `APPROVED`:
+**All three** commands end with a review loop that dispatches **two fresh subagents in parallel**
+each round until both reply `APPROVED`:
 
-- **Reviewer Pro** — architecture, consistency, ADR compliance, traceability/fidelity.
-- **Reviewer Fast** — clarity, completeness, implementation detail (prefers the Haiku model).
+- **Reviewer Pro** — strict (structure/scope/grounding/fidelity at spec; architecture/consistency/
+  ADR-compliance/traceability at plan & execute).
+- **Reviewer Fast** — quick (clarity, completeness, testability/detail; prefers the Haiku model).
 
-The orchestrator verifies each finding itself before applying it, and caps at ~3 rounds
-before escalating an open point to the user (converge on real coverage, not reviewer taste).
-The reviewers are extracted as agent files (ADR-012): `plan-dc/{reviewer-pro,reviewer-fast}`
-and `execute-dc/{reviewer-pro,reviewer-fast}`.
+The orchestrator verifies each finding itself before applying it, and caps at ~3 rounds before
+escalating an open point to the user (converge on substance, not reviewer taste). The reviewers
+are extracted as agent files (ADR-012): `spec-dc/`, `plan-dc/`, and `execute-dc/`
+`{reviewer-pro,reviewer-fast}`.
+
+**The spec review is deliberately narrower in scope.** The source workshop had *no* spec review;
+we add one because a bad spec poisons everything downstream (a plan can be 100% faithful to a
+*wrong* spec, and the plan review would never catch it). But the spec is the first artifact —
+there is no upstream artifact to measure it against — so its review judges only **well-formedness,
+testability, scope hygiene, internal consistency, grounding (cited paths exist), and faithfulness
+to the original request**, and is **forbidden from judging product merit or inventing
+requirements**. Whether the feature is the *right thing to build* stays a human call (the "Review
+first" checkpoint and the clarity assessment). This keeps the loop from bikeshedding a macro idea.
 
 ### 4. dotcontext strengths are preserved (not a wholesale replacement)
 
@@ -141,6 +151,7 @@ a manual/future final step (update `CONTEXT.md` via `/setup-context`, ADRs via
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-07-01 | Initial decision — spec/plan/execute trio, ADR review in plan, dual reviewers, non-destructive retire of the PRP flow |
+| 1.1 | 2026-07-07 | Added a dual review loop to `/spec-dc` (scoped to well-formedness/fidelity, never product merit) after tech-lead review — the workshop had none |
 
 ## Related
 - ADR-004: Claude Code Integration via Slash Commands — this supersedes the PRP pair as the feature-development flow
