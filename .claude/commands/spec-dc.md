@@ -77,7 +77,7 @@ If the user provides or mentions visual references (images, PDFs, designs, layou
 
 Create the file at:
 
-```
+```text
 .context/specs/spec-<unix-timestamp>-<descriptive-kebab>.md
 ```
 
@@ -161,7 +161,7 @@ with **fresh** subagents every round, using the agent definitions:
 Give both the spec path AND the **original request** (`$ARGUMENTS` + any clarifying Q&A) as the
 yardstick, substituting the real values (no literal placeholders):
 
-```
+```text
 Review the behavior spec at: <SPEC PATH>.
 The original request (the yardstick) was: <ORIGINAL REQUEST + clarifying Q&A>.
 

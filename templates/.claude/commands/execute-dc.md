@@ -44,37 +44,39 @@ rather than deciding silently. If the user picks *Update*, apply the ADR mechani
 
 ## Step 0 — Git hygiene (before anything else)
 
-Before reading or implementing anything:
+Before reading or implementing anything, decide **where** the work will live. Offer the worktree
+**first** — it is what lets a user who has unrelated uncommitted changes start clean without
+stashing, so it must come before any clean-tree check.
 
-1. Confirm the working tree is clean. If there are uncommitted changes unrelated to the plan,
-   **stop and tell the user** (don't discard their work).
-2. Start from the repository's **base branch**, updated. Detect it rather than assuming —
-   e.g. `git symbolic-ref --short refs/remotes/origin/HEAD` (strip the `origin/`), falling
-   back to the current branch; common bases are `main` or `develop`. Follow the repo's
-   convention: `git checkout <base>` and `git pull`.
-3. Create a work branch from the base, named after the plan (e.g. `feature/<plan-slug>`). All
-   implementation happens on it.
+### Worktree isolation (offer this first)
 
-This guarantees the implementation is born in sync with the base and never commits directly
-to the default branch.
-
-### Worktree isolation (optional)
-
-**Use the `AskUserQuestion` tool** (native structured-question tool on other harnesses) to offer
-an isolated git worktree so the user can work on other tasks without stashing:
+**Use the `AskUserQuestion` tool** (native structured-question tool on other harnesses) to ask:
 
 > "Create an isolated worktree for this work?"
 
 Determine the type from the plan content: `feature/`, `bugfix/`, `hotfix/`, `chore/`,
-`experiment/`. If the user accepts:
+`experiment/`. **If the user accepts**, create it from the base branch — clean by construction,
+so it sidesteps any uncommitted changes in the current tree:
 
 ```bash
 PROJECT_NAME=$(basename "$(pwd)")
 git worktree add ../${PROJECT_NAME}-<plan-slug> -b <type>/<plan-slug>
 ```
 
-Then tell the user how to `cd` into it and how to `git worktree remove` it when done. If the
-user declines, proceed on the work branch in the current workspace.
+Tell the user how to `cd` into it and how to `git worktree remove` it when done, then implement
+there. **Skip the clean-tree check below** — it does not apply to a fresh worktree.
+
+### In-place branch (only if the user declines the worktree)
+
+1. Confirm the working tree is clean. If there are uncommitted changes unrelated to the plan,
+   **stop and tell the user** (don't discard their work — or suggest the worktree above).
+2. Start from the repository's **base branch**, updated. Detect it rather than assuming — e.g.
+   `git symbolic-ref --short refs/remotes/origin/HEAD` (strip the `origin/`), falling back to the
+   current branch; common bases are `main` or `develop`. `git checkout <base>` and `git pull`.
+3. Create a work branch from the base, named after the plan (e.g. `feature/<plan-slug>`).
+
+Either way, the implementation is born in sync with the base and never commits directly to the
+default branch.
 
 ## Step 1 — Read the plan
 

@@ -43,6 +43,10 @@ spec-driven.
 
 ### 2. `/sync-context` command (primary), invoked by `/execute-dc`
 
+> **Proposed, not yet implemented (see the note at the top).** Today `/execute-dc` references
+> reconciliation only as a manual final step; the standalone command and the auto-invocation
+> described below are the *target* design, deferred per ADR-020.
+
 Ship reconciliation as a standalone `/sync-context [prp-file]` command — an *action*
 runnable anytime, also useful to reconcile out-of-band/manual changes — and have
 `/execute-dc`'s final e2e phase invoke it once all success criteria pass. Standalone keeps

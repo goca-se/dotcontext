@@ -51,7 +51,7 @@ If no spec exists, **stop and tell the user** — plan a `/spec-dc` first.
 4. **Hold the Validation Gate** (see below) — present the approach to the user and get approval
    before committing it to a detailed plan.
 5. **Write the plan** at:
-   ```
+   ```text
    .context/plans/plan-<unix-timestamp>-<descriptive-kebab>.md
    ```
    - `<unix-timestamp>`: `date +%s`. The filename **must** start with `plan-`.
@@ -85,11 +85,11 @@ other harnesses) with these options:
 > 3. **Keep current decision** — drop the conflicting part from scope
 > 4. **Let Claude decide** — choose the best approach from context
 
-**If updating a decision**, record it in the plan's *Impact on Existing Decisions* table and, as
-a first plan task, apply the ADR mechanics:
-1. **Increment the version** in the ADR file: `**Version:** 1.0` → `**Version:** 2.0`.
-2. **Add a History row:** `| 2.0 | <date> | Updated by <feature>: <what changed> |`.
-3. **If fully replaced**, create a new ADR and mark the old one `**Status:** Superseded by ADR-XXX`.
+**If updating a decision**, follow the repo's rule (`CLAUDE.md` → Decision Compliance): for a real
+change to a decision, **create a new ADR and mark the old one `**Status:** Superseded by ADR-XXX`**
+(referencing it) — do not rewrite the old ADR's decision in place. Only a minor, non-conflicting
+amendment may instead bump the existing ADR's version and add a History row. Record the choice in
+the plan's *Impact on Existing Decisions* table as a first plan task.
 
 **If finding an alternative**, it must still achieve the spec's goals, not violate the ADR, and may
 adjust plan scope (never the spec). The reviewer loop (Phase 2) re-checks compliance.
@@ -216,7 +216,7 @@ subagents every round, using the agent definitions:
 
 Give both the same context, substituting the real paths (no literal placeholders):
 
-```
+```text
 Review the full plan at: <PLAN PATH>.
 Compare it rigorously against the spec at: <SPEC PATH>.
 Also check it against the ADRs in .context/decisions/.

@@ -2,7 +2,7 @@
 
 Implementation plans — the **HOW**. Written by `/plan-dc` from a spec, one file per feature:
 
-```
+```text
 plan-<unix-timestamp>-<descriptive-kebab>.md
 ```
 

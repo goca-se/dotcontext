@@ -292,7 +292,7 @@ Feature work runs as a three-command pipeline. Each step produces a durable, ver
 artifact that the next step consumes — the spec is the source of truth the plan is measured
 against, and the plan is the contract the implementation is measured against.
 
-```
+```text
 /spec-dc  (the WHAT)  →  /plan-dc  (the HOW)  →  /execute-dc  (the DO)
    spec file               plan file              implemented + reviewed
 ```
@@ -308,7 +308,7 @@ Writes a **behavior specification** — the WHAT — into `.context/specs/spec-<
 - Describes observable behavior only — **no code, no implementation plan, no ADR review**
 - Closes with a **dual reviewer loop** (`spec-dc/reviewer-pro` + `reviewer-fast`) that checks well-formedness, testability, scope, grounding, and fidelity to the request — **not** product merit (that stays your call)
 
-```
+```text
 > /spec-dc user authentication with OAuth
 ```
 
@@ -322,7 +322,7 @@ Turns a spec into a precise **implementation plan** — the HOW — in `.context
   proving every spec item is covered
 - Runs a **dual adversarial review loop** (Reviewer Pro + Reviewer Fast, in parallel) until double-`APPROVED`
 
-```
+```text
 > /plan-dc .context/specs/spec-1746500000-user-auth.md
 ```
 
@@ -338,7 +338,7 @@ Implements an approved plan — the DO — treating the plan as an **immutable c
 
 Branch types are auto-detected from the plan: `feature/`, `bugfix/`, `hotfix/`, `chore/`, `experiment/`.
 
-```
+```text
 > /execute-dc .context/plans/plan-1746500123-user-auth.md
 
 # Optionally creates: ../your-project-user-auth (branch: feature/user-auth)

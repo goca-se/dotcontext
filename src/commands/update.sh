@@ -439,6 +439,12 @@ cmd_update_templates() {
     step1-overview.md step2-subsystems.md step3-drill.md step4-dataflow.md
   cleanup_managed_dir ".claude/agents/fix-bug" \
     investigator.md fix-conservative.md fix-minimal.md fix-refactor.md reviewer.md
+  cleanup_managed_dir ".claude/agents/spec-dc" \
+    reviewer-pro.md reviewer-fast.md
+  cleanup_managed_dir ".claude/agents/plan-dc" \
+    reviewer-pro.md reviewer-fast.md
+  cleanup_managed_dir ".claude/agents/execute-dc" \
+    reviewer-pro.md reviewer-fast.md
   cleanup_managed_dir ".claude/scripts" \
     statusline.sh
 

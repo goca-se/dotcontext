@@ -2,7 +2,7 @@
 
 Behavior specifications — the **WHAT**. Written by `/spec-dc`, one file per feature:
 
-```
+```text
 spec-<unix-timestamp>-<descriptive-kebab>.md
 ```
 

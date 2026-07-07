@@ -167,7 +167,7 @@ User runs: dotcontext init
 
 ### Feature Development Flow (spec → plan → execute)
 
-```
+```text
 User runs: /spec-dc "Add user authentication"          # the WHAT
     │
     ├─→ AI runs clarity assessment, asks only the questions that unblock it
