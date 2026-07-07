@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.18.0](https://github.com/goca-se/dotcontext/compare/v0.17.1...v0.18.0) (2026-07-07)
 
 ### Features
 
