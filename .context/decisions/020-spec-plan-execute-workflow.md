@@ -110,6 +110,13 @@ untouched (they freeze but keep working), honoring safe-by-default updates (ADR-
 projects get the trio only. This satisfies "retire and replace" without breaking any current
 install.
 
+To actually **deliver** the trio to existing installs, `update` (a) adds the new Claude
+commands + reviewer agents via the managed-template set, (b) re-runs `emit_agent_commands`
+(create-only) for the per-harness dirs it finds (`.opencode/command`, `.github/prompts`) so
+opencode/Copilot pick them up, and (c) prints a migration notice. `AGENTS.md` is a create-only
+seed, so its `## Workflows` table is **not** auto-rewritten — the notice tells Gemini/Cursor/
+Codex users to refresh it (or re-run `init`).
+
 ### 7. Knowledge reconciliation is deferred
 
 `/sync-context` (ADR-019) is not implemented here. `/execute-dc` references reconciliation as

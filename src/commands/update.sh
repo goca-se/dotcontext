@@ -448,6 +448,31 @@ cmd_update_templates() {
   cleanup_managed_dir ".claude/scripts" \
     statusline.sh
 
+  # ── Deliver renamed workflows to existing per-harness installs (ADR-020) ──
+  # Claude picks up spec/plan/execute-dc via managed_templates above. opencode and
+  # Copilot keep their commands in .opencode/command / .github/prompts, emitted only
+  # by emit_agent_commands (create-only). Re-run it here — inferring the harnesses in
+  # use from the dirs that exist — so those installs also get the new commands.
+  if [ "$dry_run" != "true" ]; then
+    local _reemit=""
+    [ -d ".opencode/command" ] && _reemit="$_reemit opencode"
+    [ -d ".github/prompts" ]   && _reemit="$_reemit copilot"
+    _reemit="${_reemit# }"
+    [ -n "$_reemit" ] && emit_agent_commands "$_reemit" 2>/dev/null || true
+  fi
+
+  # ── Migration notice: the PRP flow is now spec → plan → execute (ADR-020) ──
+  # Non-destructive — the old command files are kept and still work; tell the user so
+  # they can clean up, and remind AGENTS.md-only harnesses (their table isn't rewritten).
+  if [ -f ".claude/commands/generate-prp.md" ] || [ -f ".opencode/command/generate-prp.md" ] || \
+     [ -f ".github/prompts/generate-prp.prompt.md" ] || grep -q "generate-prp" "AGENTS.md" 2>/dev/null; then
+    echo ""
+    print_yellow "Heads up: the PRP flow is now spec -> plan -> execute (ADR-020)."
+    print_gray "  /generate-prp  ->  /spec-dc + /plan-dc      /execute-prp  ->  /execute-dc"
+    print_gray "  Your old generate-prp/execute-prp were kept and still work -- remove them when ready."
+    print_gray "  Gemini/Cursor/Codex: refresh the '## Workflows' table in AGENTS.md (it is not auto-updated)."
+  fi
+
   echo ""
   if [ $added -gt 0 ] || [ $updated -gt 0 ]; then
     if [ $added -gt 0 ]; then
