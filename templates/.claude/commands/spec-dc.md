@@ -77,10 +77,11 @@ If the user provides or mentions visual references (images, PDFs, designs, layou
 
 ### Output language
 
-Write the spec **in the same language the user used to describe the feature** in `$ARGUMENTS`
-(plus any clarifying Q&A): a Portuguese request produces a Portuguese spec, an English request
-an English spec. If the language is ambiguous, default to the repository's primary language
-(infer it from `AGENTS.md` / `CONTEXT.md` / existing docs), then to English.
+Write the spec **in the language of the feature request**, resolved in this order: (1) the
+language of the feature description in `$ARGUMENTS`; (2) if that is mixed or unclear, the
+language the user used in the clarifying Q&A; (3) if still ambiguous, the repository's primary
+language (infer it from `AGENTS.md` / `CONTEXT.md` / existing docs); (4) otherwise English.
+A Portuguese request produces a Portuguese spec, an English request an English spec.
 
 This applies to the spec's **prose** — stories, requirements, criteria, and tests. **Keep the
 seven section headings exactly as written in the template below**, and the filename slug in
@@ -186,8 +187,9 @@ faithful to the request:
 - faithful to the request — nothing invented, nothing dropped
 
 Do NOT judge product merit and do NOT invent requirements the request didn't ask for.
-The spec is written in the language of the original request (it may not be English) — that is
-expected; judge its content, never its language.
+The spec is expected to be in the request's language (it may not be English) — do not treat a
+non-English spec as a defect, but DO verify its language matches the request (or the documented
+fallback) and flag a spec written in the wrong language.
 
 If the spec passes, reply with ONLY the word: APPROVED. Otherwise, a detailed report of every
 defect with the exact section / file / request line, and a concrete fix.

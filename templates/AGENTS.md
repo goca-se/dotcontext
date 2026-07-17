@@ -116,9 +116,9 @@ user asks — never auto-fire a workflow that commits, opens a PR, or writes fil
 
 When running **`spec-dc`**, write the spec artifact in the **same language the user used to describe
 the feature** (a Portuguese request produces a Portuguese spec), defaulting to the repository's primary
-language, then English. This applies to the spec's prose only — keep the section headings and the
-filename slug as ASCII structural anchors that `plan-dc` relies on. `plan-dc` and `execute-dc` stay in
-English.
+language, then English. This applies to the spec's prose only — keep the seven section headings **exactly as written in the
+template**, and the filename slug in ASCII kebab-case; both are structural anchors that `plan-dc` relies
+on. `plan-dc` and `execute-dc` stay in English.
 
 When a workflow needs to clarify requirements, **ask the user with your structured-question tool**
 (`AskUserQuestion` / `ask_user` / `question` / `cursor/ask_question` / `request_user_input`) rather than
