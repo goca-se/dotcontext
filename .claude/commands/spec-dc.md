@@ -75,6 +75,17 @@ If the user provides or mentions visual references (images, PDFs, designs, layou
 
 ## Phase 2 — Write the specification
 
+### Output language
+
+Write the spec **in the same language the user used to describe the feature** in `$ARGUMENTS`
+(plus any clarifying Q&A): a Portuguese request produces a Portuguese spec, an English request
+an English spec. If the language is ambiguous, default to the repository's primary language
+(infer it from `AGENTS.md` / `CONTEXT.md` / existing docs), then to English.
+
+This applies to the spec's **prose** — stories, requirements, criteria, and tests. **Keep the
+seven section headings exactly as written in the template below**, and the filename slug in
+ASCII kebab-case (no accents): both are structural anchors `/plan-dc` relies on.
+
 Create the file at:
 
 ```text
@@ -175,6 +186,8 @@ faithful to the request:
 - faithful to the request — nothing invented, nothing dropped
 
 Do NOT judge product merit and do NOT invent requirements the request didn't ask for.
+The spec is written in the language of the original request (it may not be English) — that is
+expected; judge its content, never its language.
 
 If the spec passes, reply with ONLY the word: APPROVED. Otherwise, a detailed report of every
 defect with the exact section / file / request line, and a concrete fix.
