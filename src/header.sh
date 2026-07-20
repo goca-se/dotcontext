@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.18.0"
+VERSION="0.19.0"
 REPO="goca-se/dotcontext"
 BRANCH="main"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"

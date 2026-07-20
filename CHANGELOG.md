@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.0](https://github.com/goca-se/dotcontext/compare/v0.18.0...v0.19.0) (2026-07-20)
+
+### Features
+
+* **`/spec-dc` writes the spec in the request's language** — the spec artifact is now written in the language the user used to describe the feature (a Portuguese request produces a Portuguese spec), resolved by an explicit precedence: the feature description in `$ARGUMENTS` → the clarifying Q&A → the repository's primary language → English. Only the spec's **prose** is localized; the seven section headings and the filename slug stay as structural anchors that `/plan-dc` relies on, and `/plan-dc` / `/execute-dc` stay in English. The spec reviewer loop verifies the spec's language matches the request (a non-English spec is not a defect, but the wrong language is). The rule is also carried into the `AGENTS.md` `## Workflows` section so harnesses without per-repo command files (Gemini, Cursor, Codex) follow it too (ADR-020 v1.2).
+
 ## [0.18.0](https://github.com/goca-se/dotcontext/compare/v0.17.1...v0.18.0) (2026-07-07)
 
 ### Features
