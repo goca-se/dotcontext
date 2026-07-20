@@ -159,6 +159,7 @@ a manual/future final step (update `CONTEXT.md` via `/setup-context`, ADRs via
 |---------|------|---------|
 | 1.0 | 2026-07-01 | Initial decision — spec/plan/execute trio, ADR review in plan, dual reviewers, non-destructive retire of the PRP flow |
 | 1.1 | 2026-07-07 | Added a dual review loop to `/spec-dc` (scoped to well-formedness/fidelity, never product merit) after tech-lead review — the workshop had none |
+| 1.2 | 2026-07-17 | `/spec-dc` writes the spec in the **language of the original request** (Portuguese request → Portuguese spec; defaults to the repo's primary language, then English). Prose only — the seven section headings and the filename slug stay ASCII structural anchors `/plan-dc` relies on. `/plan-dc` and `/execute-dc` are unchanged (English) |
 
 ## Related
 - ADR-004: Claude Code Integration via Slash Commands — this supersedes the PRP pair as the feature-development flow
