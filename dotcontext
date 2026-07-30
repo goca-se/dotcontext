@@ -656,7 +656,7 @@ JS
 # them in .claude/commands/ (handled in init). opencode and Copilot get native
 # command/prompt files here; Gemini/Cursor/Codex rely on the "## Workflows"
 # section emitted into AGENTS.md. Create-only — never clobbers existing files.
-DOTCONTEXT_COMMANDS="setup-context spec-dc plan-dc execute-dc code-review commit create-pr pr-comment deep-context fix-bug add-decision add-skill add-command"
+DOTCONTEXT_COMMANDS="setup-context spec-dc spec-quick plan-dc execute-dc code-review commit create-pr pr-comment deep-context fix-bug add-decision add-skill add-command"
 
 emit_agent_commands() {
   local selected="$1" id name
@@ -786,7 +786,7 @@ cmd_init() {
     download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
 
     local c
-    for c in setup-context code-review spec-dc plan-dc execute-dc add-decision add-skill \
+    for c in setup-context code-review spec-dc spec-quick plan-dc execute-dc add-decision add-skill \
              add-command create-pr pr-comment deep-context fix-bug commit; do
       download "${BASE_URL}/templates/.claude/commands/${c}.md" ".claude/commands/${c}.md"
     done
@@ -1106,6 +1106,7 @@ cmd_update_templates() {
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
     "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
     "templates/.claude/commands/spec-dc.md:.claude/commands/spec-dc.md"
+    "templates/.claude/commands/spec-quick.md:.claude/commands/spec-quick.md"
     "templates/.claude/commands/plan-dc.md:.claude/commands/plan-dc.md"
     "templates/.claude/commands/execute-dc.md:.claude/commands/execute-dc.md"
     "templates/.claude/commands/add-decision.md:.claude/commands/add-decision.md"
@@ -1373,6 +1374,16 @@ cmd_update_templates() {
     print_gray "  /generate-prp  ->  /spec-dc + /plan-dc      /execute-prp  ->  /execute-dc"
     print_gray "  Your old generate-prp/execute-prp were kept and still work -- remove them when ready."
     print_gray "  Gemini/Cursor/Codex: refresh the '## Workflows' table in AGENTS.md (it is not auto-updated)."
+  fi
+
+  # ── Notice: /spec-quick is new (ADR-020 v1.3) ──────────────────────────────
+  # Claude gets it via managed_templates and opencode/Copilot via the re-emit above,
+  # but AGENTS.md is a create-only seed, so its "## Workflows" table stays as-is.
+  if [ -f "AGENTS.md" ] && ! grep -q "spec-quick" "AGENTS.md" 2>/dev/null; then
+    echo ""
+    print_yellow "New: /spec-quick -- the fast path to the same spec artifact (ADR-020 v1.3)."
+    print_gray "  One question batch, bounded research, a single reviewer pass. /spec-dc is unchanged."
+    print_gray "  Gemini/Cursor/Codex: add it to the '## Workflows' table in AGENTS.md (not auto-updated)."
   fi
 
   echo ""
@@ -1662,6 +1673,7 @@ cmd_help() {
   printf "  ${BLUE}${BOLD}Workflows${NC} ${GRAY}(after init — slash commands on Claude/opencode/Copilot; AGENTS.md elsewhere)${NC}\n"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/setup-context"  "Analyze codebase and populate context"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/spec-dc"        "Write a behavior spec (the WHAT)"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/spec-quick"     "Same spec, fast path (one review pass)"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/plan-dc"        "Turn a spec into a plan (the HOW)"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/execute-dc"     "Implement a plan in waves (the DO)"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/code-review"    "Multi-agent code review"

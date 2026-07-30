@@ -19,7 +19,7 @@
 | `.context/CONTEXT.md` | Domain knowledge: entities, flows, integrations, glossary |
 | `ADR (Architectural Decision Record)` | Documents a significant architectural decision with context, alternatives, and consequences |
 | `Skill` | Step-by-step guide for a recurring pattern or task in the codebase |
-| `Spec` / `Plan` | Spec = behavior contract, the WHAT (`/spec-dc`, `.context/specs/`); Plan = implementation plan with 100% traceability, the HOW (`/plan-dc`, `.context/plans/`) |
+| `Spec` / `Plan` | Spec = behavior contract, the WHAT (`/spec-dc` or the fast-path `/spec-quick`, `.context/specs/`); Plan = implementation plan with 100% traceability, the HOW (`/plan-dc`, `.context/plans/`) |
 | `Command` | A workflow prompt, emitted per harness (`.claude/commands/`, `.opencode/command/`, `.github/prompts/`, or the `## Workflows` section of `AGENTS.md`) |
 | `Discovery` | Output document from deep context analysis with business rules and cross-repo validation |
 | `Bug Report` | Structured report from `/fix-bug` with root cause, reproduction test, and fix details |
@@ -175,6 +175,9 @@ User runs: /spec-dc "Add user authentication"          # the WHAT
     ├─→ Writes .context/specs/spec-<unix-ts>-user-auth.md   (behavior contract)
     └─→ Dual reviewer loop until double-APPROVED (well-formedness/fidelity, NOT product merit)
 
+    (or /spec-quick — same artifact, one question batch, bounded research,
+     five required sections, a single reviewer-pro pass and no second round)
+
 User runs: /plan-dc <spec-path>                         # the HOW
     │
     ├─→ AI reads the spec (source of truth) + reviews ADRs in .context/decisions/
@@ -278,7 +281,7 @@ User runs: /fix-bug "login fails with empty password" --issue 42
 |------|------------|
 | **ADR** | Architectural Decision Record - documents why a significant technical decision was made |
 | **Skill** | A documented recurring pattern with step-by-step instructions |
-| **Spec** | Behavior specification — the WHAT a feature must do (observable behavior, no implementation), written by `/spec-dc` into `.context/specs/` |
+| **Spec** | Behavior specification — the WHAT a feature must do (observable behavior, no implementation), written by `/spec-dc` (full) or `/spec-quick` (fast path) into `.context/specs/` |
 | **Plan** | Implementation plan — the HOW, derived from a spec by `/plan-dc` into `.context/plans/`, with a 100% traceability table and ADR review |
 | **Slash command** | A `/command` that triggers a markdown-defined workflow in Claude Code |
 | **Worktree** | Git feature allowing multiple working directories from one repo, used for parallel feature development |
