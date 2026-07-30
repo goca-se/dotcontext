@@ -55,6 +55,7 @@ cmd_help() {
   printf "  ${BLUE}${BOLD}Workflows${NC} ${GRAY}(after init — slash commands on Claude/opencode/Copilot; AGENTS.md elsewhere)${NC}\n"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/setup-context"  "Analyze codebase and populate context"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/spec-dc"        "Write a behavior spec (the WHAT)"
+  printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/spec-quick"     "Same spec, fast path (one review pass)"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/plan-dc"        "Turn a spec into a plan (the HOW)"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/execute-dc"     "Implement a plan in waves (the DO)"
   printf "    ${CYAN}%-${cmd_col}s${NC}%s\n" "/code-review"    "Multi-agent code review"

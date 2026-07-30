@@ -142,6 +142,7 @@ your-project/
     │   ├── code-review.md            # Code review command
     │   ├── commit.md                 # Smart commit command
     │   ├── spec-dc.md                # Write a behavior spec (the WHAT)
+    │   ├── spec-quick.md             # Same spec, fast path (one review pass)
     │   ├── plan-dc.md                # Turn a spec into a plan (the HOW)
     │   ├── execute-dc.md             # Implement a plan in waves (the DO)
     │   ├── create-pr.md              # Create PRs with diagrams
@@ -229,6 +230,7 @@ What's shared vs per-harness (ADR-016, ADR-017):
 | ---------------------------- | ---------------------------------------------- |
 | `/setup-context`             | Analyze codebase and populate context          |
 | `/spec-dc [feature]`         | Write a behavior spec — the WHAT (step 1)      |
+| `/spec-quick [feature]`      | Same spec, fast path — one review pass (step 1) |
 | `/plan-dc [spec-path]`       | Turn a spec into a plan with ADR review — the HOW (step 2) |
 | `/execute-dc [plan-path]`    | Implement a plan in parallel waves — the DO (step 3) |
 | `/code-review [--comment]`   | Multi-agent code review with confidence scoring |
@@ -310,6 +312,28 @@ Writes a **behavior specification** — the WHAT — into `.context/specs/spec-<
 
 ```text
 > /spec-dc user authentication with OAuth
+```
+
+#### `/spec-quick <feature description>`
+
+The **fast path** to the same artifact — same location, same section names, same contract with
+`/plan-dc`. Trades review depth for speed:
+
+| | `/spec-dc` | `/spec-quick` |
+| --- | --- | --- |
+| Clarifying questions | 0..N batches | at most **one** batch |
+| Research | extensive, parallel `Explore` sweeps | **one** `Explore` **or** ~5 targeted greps |
+| Sections | all **seven** mandatory | **five** required, `Success Criteria` + `Non-Functional Requirements` only when they carry real content |
+| Review | dual reviewers, fresh each round, until double `APPROVED` (~3 rounds) | **one** `reviewer-pro` pass, no second round — skipped entirely for ≤3 requirements with no existing-code integration |
+| Final verification | full re-read of the file | `grep` on the headings |
+| Closing | `AskUserQuestion` menu | prints the next command |
+
+Use `/spec-quick` when the request is already clear or the feature is small to medium; use
+`/spec-dc` when it's large, risky, or the spec will be read by people who weren't in the
+conversation.
+
+```text
+> /spec-quick add a --json flag to dotcontext doctor
 ```
 
 #### `/plan-dc <spec-path>`

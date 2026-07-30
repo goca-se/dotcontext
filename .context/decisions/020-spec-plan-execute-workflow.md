@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-01
-**Version:** 1.0
+**Version:** 1.3
 **Deciders:** Nicholas (Gocase)
 
 ## Context
@@ -75,6 +75,36 @@ testability, scope hygiene, internal consistency, grounding (cited paths exist),
 to the original request**, and is **forbidden from judging product merit or inventing
 requirements**. Whether the feature is the *right thing to build* stays a human call (the "Review
 first" checkpoint and the clarity assessment). This keeps the loop from bikeshedding a macro idea.
+
+#### 3a. `/spec-quick` — a fast path at the spec boundary only
+
+The dual loop is the right default at the *plan* and *execute* boundaries, where a missed gap costs
+an implementation. At the *spec* boundary its cost is disproportionate for small features: fresh
+subagents each round means every round re-reads the spec and re-opens the cited code from scratch,
+`reviewer-fast`'s checklist is largely a subset of `reviewer-pro`'s, and the command's own final
+verification re-checks grounding, no-HOW, testability, and structure a third time. The worst case is
+six subagent runs plus four full readings of the file for a spec nobody disputes.
+
+`/spec-quick` produces the **same artifact** — same path, same heading names, same contract with
+`/plan-dc` — under a bounded budget:
+
+- **one** `AskUserQuestion` batch maximum; anything still open becomes a stated assumption in
+  *Constraints & Out of Scope*;
+- research capped at one `Explore` subagent or ~5 targeted greps, citing only paths actually opened;
+- **five required sections** (User Stories, Functional Requirements, Constraints & Out of Scope,
+  Technical Context, Acceptance Tests). *Success Criteria* and *Non-Functional Requirements* become
+  conditional — the "all seven, each substantial" rule fought the "no boilerplate" rule and
+  boilerplate won, which then fed the review loop more surface to argue about;
+- **one** `spec-dc/reviewer-pro` pass, no second round; skipped entirely for a spec with ≤3
+  functional requirements and no existing-code integration;
+- final verification reduced to `grep '^## '` instead of a full re-read;
+- no closing question menu — it prints the next command (ADR-005 governs *clarification*, and the
+  clarity assessment above satisfies it; a next-step menu is not clarification).
+
+`/spec-dc` is unchanged and stays the default for large or risky features, and for specs that will
+be read by people who weren't in the conversation. `/plan-dc` and `/execute-dc` keep the full dual
+loop — a plan or a diff is measured against an upstream artifact, so adversarial redundancy there
+buys something the spec boundary doesn't.
 
 ### 4. dotcontext strengths are preserved (not a wholesale replacement)
 
@@ -159,6 +189,7 @@ a manual/future final step (update `CONTEXT.md` via `/setup-context`, ADRs via
 |---------|------|---------|
 | 1.0 | 2026-07-01 | Initial decision — spec/plan/execute trio, ADR review in plan, dual reviewers, non-destructive retire of the PRP flow |
 | 1.1 | 2026-07-07 | Added a dual review loop to `/spec-dc` (scoped to well-formedness/fidelity, never product merit) after tech-lead review — the workshop had none |
+| 1.3 | 2026-07-30 | Added `/spec-quick` (§3a) — a fast path at the spec boundary: one question batch, bounded research, five required sections (Success Criteria + NFR conditional), a single `reviewer-pro` pass with no second round, `grep`-based final check, no closing menu. `/spec-dc` unchanged; `/plan-dc` and `/execute-dc` keep the dual loop |
 | 1.2 | 2026-07-17 | `/spec-dc` writes the spec in the **language of the original request** (Portuguese request → Portuguese spec; defaults to the repo's primary language, then English). Prose only — the seven section headings and the filename slug stay ASCII structural anchors `/plan-dc` relies on. `/plan-dc` and `/execute-dc` are unchanged (English) |
 
 ## Related

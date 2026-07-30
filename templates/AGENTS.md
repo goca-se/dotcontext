@@ -102,6 +102,7 @@ user asks — never auto-fire a workflow that commits, opens a PR, or writes fil
 | --- | --- |
 | `setup-context` | Analyze the codebase and populate `.context/` |
 | `spec-dc` | Write a behavior spec — the WHAT, with dual review (step 1 of spec → plan → execute) |
+| `spec-quick` | Same spec artifact, fast path — bounded research, one review pass (use for small/clear features) |
 | `plan-dc` | Turn a spec into an implementation plan — the HOW, with ADR review (step 2) |
 | `execute-dc` | Implement a plan in parallel waves, with dual review — the DO (step 3) |
 | `code-review` | Multi-agent review of the current changes |
@@ -114,11 +115,11 @@ user asks — never auto-fire a workflow that commits, opens a PR, or writes fil
 | `add-skill` | Add a skill guide |
 | `add-command` | Create a custom command |
 
-When running **`spec-dc`**, write the spec artifact in the **same language the user used to describe
-the feature** (a Portuguese request produces a Portuguese spec), defaulting to the repository's primary
-language, then English. This applies to the spec's prose only — keep the seven section headings **exactly as written in the
-template**, and the filename slug in ASCII kebab-case; both are structural anchors that `plan-dc` relies
-on. `plan-dc` and `execute-dc` stay in English.
+When running **`spec-dc`** or **`spec-quick`**, write the spec artifact in the **same language the user
+used to describe the feature** (a Portuguese request produces a Portuguese spec), defaulting to the
+repository's primary language, then English. This applies to the spec's prose only — keep the section
+headings **exactly as written in the template** (English), and the filename slug in ASCII kebab-case;
+both are structural anchors that `plan-dc` relies on. `plan-dc` and `execute-dc` stay in English.
 
 When a workflow needs to clarify requirements, **ask the user with your structured-question tool**
 (`AskUserQuestion` / `ask_user` / `question` / `cursor/ask_question` / `request_user_input`) rather than

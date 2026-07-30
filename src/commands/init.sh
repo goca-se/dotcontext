@@ -103,7 +103,7 @@ cmd_init() {
     download_if_missing "${BASE_URL}/templates/.claudeignore" ".claudeignore"
 
     local c
-    for c in setup-context code-review spec-dc plan-dc execute-dc add-decision add-skill \
+    for c in setup-context code-review spec-dc spec-quick plan-dc execute-dc add-decision add-skill \
              add-command create-pr pr-comment deep-context fix-bug commit; do
       download "${BASE_URL}/templates/.claude/commands/${c}.md" ".claude/commands/${c}.md"
     done

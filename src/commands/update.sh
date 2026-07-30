@@ -204,6 +204,7 @@ cmd_update_templates() {
     "templates/.claude/commands/setup-context.md:.claude/commands/setup-context.md"
     "templates/.claude/commands/code-review.md:.claude/commands/code-review.md"
     "templates/.claude/commands/spec-dc.md:.claude/commands/spec-dc.md"
+    "templates/.claude/commands/spec-quick.md:.claude/commands/spec-quick.md"
     "templates/.claude/commands/plan-dc.md:.claude/commands/plan-dc.md"
     "templates/.claude/commands/execute-dc.md:.claude/commands/execute-dc.md"
     "templates/.claude/commands/add-decision.md:.claude/commands/add-decision.md"
@@ -471,6 +472,16 @@ cmd_update_templates() {
     print_gray "  /generate-prp  ->  /spec-dc + /plan-dc      /execute-prp  ->  /execute-dc"
     print_gray "  Your old generate-prp/execute-prp were kept and still work -- remove them when ready."
     print_gray "  Gemini/Cursor/Codex: refresh the '## Workflows' table in AGENTS.md (it is not auto-updated)."
+  fi
+
+  # ── Notice: /spec-quick is new (ADR-020 v1.3) ──────────────────────────────
+  # Claude gets it via managed_templates and opencode/Copilot via the re-emit above,
+  # but AGENTS.md is a create-only seed, so its "## Workflows" table stays as-is.
+  if [ -f "AGENTS.md" ] && ! grep -q "spec-quick" "AGENTS.md" 2>/dev/null; then
+    echo ""
+    print_yellow "New: /spec-quick -- the fast path to the same spec artifact (ADR-020 v1.3)."
+    print_gray "  One question batch, bounded research, a single reviewer pass. /spec-dc is unchanged."
+    print_gray "  Gemini/Cursor/Codex: add it to the '## Workflows' table in AGENTS.md (not auto-updated)."
   fi
 
   echo ""
